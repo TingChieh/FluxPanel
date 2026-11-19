@@ -95,7 +95,6 @@ func run(root, outDir string) error {
 			Path: resolveRel(root, "internal/web/service"),
 			StructAllow: setOf(
 				"InboundOption",
-				"HappLinkResult",
 				"ClientSlim",
 				"ClientRenewalPreviewRequest",
 				"ClientRenewalPreview",
@@ -115,7 +114,6 @@ func run(root, outDir string) error {
 				"RealityScanResult",
 				"GeodataTokenIssue",
 				"PeerActivity",
-				"HwidSlotStatus",
 			),
 		},
 		{

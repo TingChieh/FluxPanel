@@ -248,7 +248,7 @@ func TestClientEditKeepsTheBillingDay(t *testing.T) {
 	// What the edit dialog does: hydrate the record, change something else, save.
 	edited := rec.ToClient()
 	edited.Comment = "renamed"
-	if _, err := svc.clientService.Update(svc, rec.Id, *edited, rec.LimitHwid); err != nil {
+	if _, err := svc.clientService.Update(svc, rec.Id, *edited); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 
@@ -313,7 +313,7 @@ func TestClientEditChangesTheBillingDay(t *testing.T) {
 	}
 	edited := rec.ToClient()
 	edited.ResetDay = 5
-	if _, err := svc.clientService.Update(svc, rec.Id, *edited, rec.LimitHwid); err != nil {
+	if _, err := svc.clientService.Update(svc, rec.Id, *edited); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 
@@ -329,7 +329,7 @@ func TestClientEditChangesTheBillingDay(t *testing.T) {
 	edited = rec.ToClient()
 	edited.ResetDay = 0
 	edited.Reset = 30
-	if _, err := svc.clientService.Update(svc, rec.Id, *edited, rec.LimitHwid); err != nil {
+	if _, err := svc.clientService.Update(svc, rec.Id, *edited); err != nil {
 		t.Fatalf("Update back to interval mode: %v", err)
 	}
 	rec, err = svc.clientService.GetRecordByEmail(nil, "chg@x")

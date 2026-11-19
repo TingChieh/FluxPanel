@@ -60,7 +60,7 @@ func TestClientWeeklyRenewCRUD(t *testing.T) {
 	for _, weekday := range []int{2, 0} {
 		updated := *record.ToClient()
 		updated.ResetWeekday = weekday
-		if _, err := svc.Update(inboundSvc, record.Id, updated, 0); err != nil {
+		if _, err := svc.Update(inboundSvc, record.Id, updated); err != nil {
 			t.Fatal(err)
 		}
 		assertSchedule(weekday)

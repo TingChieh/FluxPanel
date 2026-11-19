@@ -329,13 +329,12 @@ var bulkFlowAllowed = map[string]struct{}{
 // for every email in the list. Clients whose corresponding field is
 // unlimited (0) are skipped — bulk extend should not accidentally
 // limit an unlimited client. addDays and addBytes may be negative.
-// flow sets the XTLS flow, limitHwid the max registered devices (0 = unlimited)
-// and adTag the MTProto sponsor channel; "none" clears flow or adTag.
+// flow sets the XTLS flow; "none" clears flow or adTag.
 //
 // Like BulkDelete, the work is grouped by inbound so each inbound's
 // settings JSON is parsed and written exactly once regardless of how
 // many target emails it contains.
-func (s *ClientService) BulkAdjust(inboundSvc *InboundService, emails []string, addDays int, addBytes int64, flow string, limitHwid *int, adTag string) (BulkAdjustResult, bool, error) {
+func (s *ClientService) BulkAdjust(inboundSvc *InboundService, emails []string, addDays int, addBytes int64, flow string, adTag string) (BulkAdjustResult, bool, error) {
 	result := BulkAdjustResult{}
 	if len(emails) == 0 {
 		return result, false, nil
@@ -345,14 +344,9 @@ func (s *ClientService) BulkAdjust(inboundSvc *InboundService, emails []string, 
 		flow = "" // ignore unknown directives — "" means "leave flow untouched"
 	}
 	adTag = strings.TrimSpace(adTag)
-	if limitHwid != nil && *limitHwid < 0 {
-		zero := 0
-		limitHwid = &zero
-	}
 	adjustFlow := flow != ""
-	adjustHwid := limitHwid != nil
 	adjustAdTag := adTag != ""
-	if addDays == 0 && addBytes == 0 && !adjustFlow && !adjustHwid && !adjustAdTag {
+	if addDays == 0 && addBytes == 0 && !adjustFlow && !adjustAdTag {
 		return result, false, common.NewError("no adjustment specified")
 	}
 
@@ -425,7 +419,7 @@ func (s *ClientService) BulkAdjust(inboundSvc *InboundService, emails []string, 
 				}
 			}
 		}
-		if entry.applyExpiry || entry.applyTotal || adjustFlow || adjustHwid || adjustAdTag {
+		if entry.applyExpiry || entry.applyTotal || adjustFlow || adjustAdTag {
 			plan[email] = entry
 		}
 	}
@@ -552,14 +546,6 @@ func (s *ClientService) BulkAdjust(inboundSvc *InboundService, emails []string, 
 				continue
 			}
 		}
-		if adjustHwid {
-			if err := s.setClientLimitHwidByEmail(email, *limitHwid); err != nil {
-				if _, already := skippedReasons[email]; !already {
-					skippedReasons[email] = err.Error()
-				}
-				continue
-			}
-		}
 		if adjustAdTag && adTagHonored[email] {
 			if err := db.Model(&model.ClientRecord{}).Where("email = ?", email).UpdateColumn("ad_tag", wantAdTag).Error; err != nil {
 				if _, already := skippedReasons[email]; !already {
@@ -568,8 +554,8 @@ func (s *ClientService) BulkAdjust(inboundSvc *InboundService, emails []string, 
 				continue
 			}
 		}
-		// Counted when expiry/total changed, flow was honored, adTag was honored, or limitHwid was adjusted.
-		if len(updates) > 0 || flowHonored[email] || adTagHonored[email] || adjustHwid {
+		// Counted when expiry/total changed, flow was honored, or adTag was honored.
+		if len(updates) > 0 || flowHonored[email] || adTagHonored[email] {
 			adjusted[email] = struct{}{}
 		}
 	}
@@ -948,7 +934,6 @@ func (s *ClientService) BulkDelete(inboundSvc *InboundService, emails []string, 
 	successEmails := make([]string, 0, len(recordsByEmail))
 	successIds := make([]int, 0, len(recordsByEmail))
 	failedEmails := make([]string, 0, len(recordsByEmail))
-	successSubIDs := make([]string, 0, len(recordsByEmail))
 	for email, rec := range recordsByEmail {
 		if _, skipped := skippedReasons[email]; skipped {
 			failedEmails = append(failedEmails, email)
@@ -956,7 +941,6 @@ func (s *ClientService) BulkDelete(inboundSvc *InboundService, emails []string, 
 		}
 		successEmails = append(successEmails, email)
 		successIds = append(successIds, rec.Id)
-		successSubIDs = append(successSubIDs, rec.SubID)
 	}
 	withdrawClientTombstones(failedEmails...)
 
@@ -965,9 +949,6 @@ func (s *ClientService) BulkDelete(inboundSvc *InboundService, emails []string, 
 		// cross-transaction lock-order deadlock on client_traffics/inbounds.
 		if err := runSerializedTx(func(tx *gorm.DB) error {
 			if e := adjustGroupBaselinesForRemovedTraffic(tx, successEmails); e != nil {
-				return e
-			}
-			if e := clearClientHwidsBySubIDTx(tx, successSubIDs...); e != nil {
 				return e
 			}
 			for _, batch := range chunkInts(successIds, sqlInChunk) {
@@ -1269,7 +1250,6 @@ func (s *ClientService) bulkCreate(inboundSvc *InboundService, payloads []Client
 	type prepared struct {
 		client     model.Client
 		inboundIds []int
-		limitHwid  int
 		payloadIdx int
 		reused     bool
 	}
@@ -1334,7 +1314,7 @@ func (s *ClientService) bulkCreate(inboundSvc *InboundService, payloads []Client
 		seenEmail[le] = struct{}{}
 		seenSubID[client.SubID] = le
 
-		prep = append(prep, prepared{client: client, inboundIds: uniqueInts(payloads[i].InboundIds), limitHwid: payloads[i].LimitHwid, payloadIdx: i})
+		prep = append(prep, prepared{client: client, inboundIds: uniqueInts(payloads[i].InboundIds), payloadIdx: i})
 		emails = append(emails, email)
 		subIDs = append(subIDs, client.SubID)
 	}
@@ -1483,10 +1463,6 @@ func (s *ClientService) bulkCreate(inboundSvc *InboundService, payloads []Client
 	for idx := range prep {
 		if failed[idx] {
 			skip(prep[idx].client.Email, reason[idx])
-			continue
-		}
-		if err := s.setClientLimitHwidByEmail(prep[idx].client.Email, prep[idx].limitHwid); err != nil {
-			skip(prep[idx].client.Email, err.Error())
 			continue
 		}
 		result.Created++

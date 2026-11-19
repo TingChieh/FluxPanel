@@ -1,7 +1,7 @@
 ---
 title: Nodes
-description: Manage remote 3x-ui panels acting as nodes for a central panel. All
-  endpoints under /panel/api/nodes.
+description: Manage remote FluxPanel instances acting as nodes for a central
+  panel. All endpoints under /panel/api/nodes.
 full: true
 _openapi:
   preload:
@@ -80,6 +80,10 @@ _openapi:
       title: Aggregated metric history for a node — same shape as /server/history,
         scoped to one node.
       url: '#aggregated-metric-history-for-a-node--same-shape-as-serverhistory-scoped-to-one-node'
+    - depth: 2
+      title: Cumulative traffic and per-client traffic breakdown for one node (0 =
+        local panel).
+      url: '#cumulative-traffic-and-per-client-traffic-breakdown-for-one-node-0--local-panel'
   structuredData:
     headings:
       - content: List every configured node with its connection details, health, and
@@ -139,6 +143,9 @@ _openapi:
       - content: Aggregated metric history for a node — same shape as /server/history,
           scoped to one node.
         id: aggregated-metric-history-for-a-node--same-shape-as-serverhistory-scoped-to-one-node
+      - content: Cumulative traffic and per-client traffic breakdown for one node (0 =
+          local panel).
+        id: cumulative-traffic-and-per-client-traffic-breakdown-for-one-node-0--local-panel
     contents: []
 ---
 
@@ -149,7 +156,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="./public/openapi.json" webhooks={[]} operations={[{"path":"/panel/api/nodes/list","method":"get"},{"path":"/panel/api/nodes/mtls/ca","method":"post"},{"path":"/panel/api/nodes/mtls/trustCA","method":"post"},{"path":"/panel/api/nodes/mtls/reloadClient","method":"post"},{"path":"/panel/api/nodes/get/{id}","method":"get"},{"path":"/panel/api/nodes/webCert/{id}","method":"get"},{"path":"/panel/api/nodes/add","method":"post"},{"path":"/panel/api/nodes/update/{id}","method":"post"},{"path":"/panel/api/nodes/del/{id}","method":"post"},{"path":"/panel/api/nodes/setEnable/{id}","method":"post"},{"path":"/panel/api/nodes/test","method":"post"},{"path":"/panel/api/nodes/certFingerprint","method":"post"},{"path":"/panel/api/nodes/inbounds","method":"post"},{"path":"/panel/api/nodes/probe/{id}","method":"post"},{"path":"/panel/api/nodes/updatePanel","method":"post"},{"path":"/panel/api/nodes/history/{id}/{metric}/{bucket}","method":"get"}]} showTitle />
+      <OpenAPIPage document="./public/openapi.json" webhooks={[]} operations={[{"path":"/panel/api/nodes/list","method":"get"},{"path":"/panel/api/nodes/mtls/ca","method":"post"},{"path":"/panel/api/nodes/mtls/trustCA","method":"post"},{"path":"/panel/api/nodes/mtls/reloadClient","method":"post"},{"path":"/panel/api/nodes/get/{id}","method":"get"},{"path":"/panel/api/nodes/webCert/{id}","method":"get"},{"path":"/panel/api/nodes/add","method":"post"},{"path":"/panel/api/nodes/update/{id}","method":"post"},{"path":"/panel/api/nodes/del/{id}","method":"post"},{"path":"/panel/api/nodes/setEnable/{id}","method":"post"},{"path":"/panel/api/nodes/test","method":"post"},{"path":"/panel/api/nodes/certFingerprint","method":"post"},{"path":"/panel/api/nodes/inbounds","method":"post"},{"path":"/panel/api/nodes/probe/{id}","method":"post"},{"path":"/panel/api/nodes/updatePanel","method":"post"},{"path":"/panel/api/nodes/history/{id}/{metric}/{bucket}","method":"get"},{"path":"/panel/api/nodes/trafficBreakdown/{id}","method":"get"}]} showTitle />
     </>
   );
 }

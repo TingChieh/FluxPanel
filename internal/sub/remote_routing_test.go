@@ -1,12 +1,10 @@
 package sub
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	yaml "github.com/goccy/go-yaml"
 
 	"github.com/TingChieh/FluxPanel/internal/database"
@@ -95,58 +92,7 @@ func primeRemoteRouting(t *testing.T, resolver *remoteRoutingResolver, kind remo
 	return value
 }
 
-func TestNormalizeHappRoutingAcceptsJSONAndDeeplink(t *testing.T) {
-	deeplink, err := normalizeHappRouting([]byte(`{"Name":"RoscomVPN","GlobalProxy":"true"}`))
-	if err != nil {
-		t.Fatalf("normalize JSON: %v", err)
-	}
-	const prefix = "happ://routing/onadd/"
-	if !strings.HasPrefix(deeplink, prefix) {
-		t.Fatalf("deeplink = %q", deeplink)
-	}
-	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(deeplink, prefix))
-	if err != nil || !strings.Contains(string(decoded), `"Name":"RoscomVPN"`) {
-		t.Fatalf("decoded payload = %q, err=%v", decoded, err)
-	}
-
-	if got, err := normalizeHappRouting([]byte(deeplink + "\n")); err != nil || got != deeplink {
-		t.Fatalf("ready deeplink got=%q err=%v", got, err)
-	}
-	if _, err := normalizeHappRouting([]byte("routing.help")); err == nil {
-		t.Fatal("invalid Happ response was accepted")
-	}
-}
-
-func TestRemoteRoutingResolverAcceptsHappRedirect(t *testing.T) {
-	deeplink, err := normalizeHappRouting([]byte(`{"Name":"redirected"}`))
-	if err != nil {
-		t.Fatalf("normalize: %v", err)
-	}
-	var requests atomic.Int32
-	client := remoteRoutingTestClient(func(req *http.Request) (*http.Response, error) {
-		requests.Add(1)
-		response := remoteRoutingResponse(http.StatusFound, "")
-		response.Header.Set("Location", deeplink)
-		response.Request = req
-		return response, nil
-	})
-	client.CheckRedirect = checkRemoteRoutingRedirect
-	resolver := newRemoteRoutingResolver(client, false)
-
-	const source = "https://routing.example/"
-	if err := resolver.refreshSource(remoteRoutingHapp, source); err != nil {
-		t.Fatalf("refresh redirect: %v", err)
-	}
-	got, remote, err := resolver.resolve(remoteRoutingHapp, source)
-	if err != nil || !remote || got != deeplink {
-		t.Fatalf("redirect resolve got=%q remote=%v err=%v", got, remote, err)
-	}
-	if requests.Load() != 1 {
-		t.Fatalf("network requests = %d, want 1", requests.Load())
-	}
-}
-
-func TestRemoteRoutingResolverHandlesHappNotModified(t *testing.T) {
+func TestRemoteRoutingResolverHandlesJsonNotModified(t *testing.T) {
 	var requests atomic.Int32
 	client := remoteRoutingTestClient(func(req *http.Request) (*http.Response, error) {
 		if requests.Add(1) == 1 {
@@ -164,15 +110,15 @@ func TestRemoteRoutingResolverHandlesHappNotModified(t *testing.T) {
 	resolver.now = func() time.Time { return now }
 	const source = "https://example.com/default.json"
 
-	first := primeRemoteRouting(t, resolver, remoteRoutingHapp, source)
+	first := primeRemoteRouting(t, resolver, remoteRoutingJson, source)
 	now = now.Add(remoteRoutingCacheTTL + time.Second)
-	second, _, err := resolver.resolve(remoteRoutingHapp, source)
+	second, _, err := resolver.resolve(remoteRoutingJson, source)
 	if err != nil || second != first {
 		t.Fatalf("stale resolve got=%q err=%v", second, err)
 	}
 	waitRemoteRoutingIdle(t, resolver)
 	now = now.Add(time.Minute)
-	third, _, err := resolver.resolve(remoteRoutingHapp, source)
+	third, _, err := resolver.resolve(remoteRoutingJson, source)
 	if err != nil || third != first {
 		t.Fatalf("refreshed cache got=%q err=%v", third, err)
 	}
@@ -198,7 +144,7 @@ func TestRemoteRoutingResolverDoesNotBlockAndCoalescesColdFetch(t *testing.T) {
 	results := make(chan error, 8)
 	for range 8 {
 		go func() {
-			_, remote, err := resolver.resolve(remoteRoutingHapp, source)
+			_, remote, err := resolver.resolve(remoteRoutingJson, source)
 			if !remote {
 				results <- errors.New("source was not classified as remote")
 				return
@@ -222,7 +168,7 @@ func TestRemoteRoutingResolverDoesNotBlockAndCoalescesColdFetch(t *testing.T) {
 	}
 	close(release)
 	waitRemoteRoutingIdle(t, resolver)
-	if got, _, err := resolver.resolve(remoteRoutingHapp, source); err != nil || !strings.HasPrefix(got, "happ://routing/onadd/") {
+	if got, _, err := resolver.resolve(remoteRoutingJson, source); err != nil || !strings.Contains(got, `"Name":"RoscomVPN"`) {
 		t.Fatalf("cached resolve got=%q err=%v", got, err)
 	}
 	if got := requests.Load(); got != 1 {
@@ -250,11 +196,11 @@ func TestRemoteRoutingResolverServesStaleAfterFailedRefresh(t *testing.T) {
 	resolver.now = func() time.Time { return now }
 	const source = "https://example.com/default.json"
 
-	first := primeRemoteRouting(t, resolver, remoteRoutingHapp, source)
+	first := primeRemoteRouting(t, resolver, remoteRoutingJson, source)
 	fail.Store(true)
 	now = now.Add(remoteRoutingCacheTTL + time.Second)
 	startedAt := time.Now()
-	stale, remote, err := resolver.resolve(remoteRoutingHapp, source)
+	stale, remote, err := resolver.resolve(remoteRoutingJson, source)
 	if err != nil || !remote || stale != first {
 		t.Fatalf("stale resolve got=%q remote=%v err=%v", stale, remote, err)
 	}
@@ -270,7 +216,7 @@ func TestRemoteRoutingResolverServesStaleAfterFailedRefresh(t *testing.T) {
 
 	waitRemoteRoutingIdle(t, resolver)
 
-	if got, _, err := resolver.resolve(remoteRoutingHapp, source); err != nil || got != first {
+	if got, _, err := resolver.resolve(remoteRoutingJson, source); err != nil || got != first {
 		t.Fatalf("negative-cache resolve got=%q err=%v", got, err)
 	}
 	if got := requests.Load(); got != 2 {
@@ -281,22 +227,19 @@ func TestRemoteRoutingResolverServesStaleAfterFailedRefresh(t *testing.T) {
 func TestRemoteRoutingResolverLoadsPersistedLastGood(t *testing.T) {
 	initSubDB(t)
 
-	deeplink, err := normalizeHappRouting([]byte(`{"Name":"persisted"}`))
-	if err != nil {
-		t.Fatalf("normalize: %v", err)
-	}
+	const payload = `{"Name":"persisted"}`
 	const source = "https://example.com/default.json"
 	entry := remoteRoutingCacheEntry{
-		Source: source, Content: deeplink, FetchedAt: time.Now().Add(-time.Hour).Unix(), ETag: `"v1"`,
+		Source: source, Content: payload, FetchedAt: time.Now().Add(-time.Hour).Unix(), ETag: `"v1"`,
 	}
-	newRemoteRoutingResolver(nil, false).persistEntry(remoteRoutingHapp, entry)
+	newRemoteRoutingResolver(nil, false).persistEntry(remoteRoutingJson, entry)
 
 	resolver := newRemoteRoutingResolver(remoteRoutingTestClient(func(*http.Request) (*http.Response, error) {
 		return remoteRoutingResponse(http.StatusServiceUnavailable, "offline"), nil
 	}), true)
 	resolver.ensurePersistedLoaded()
-	got, remote, err := resolver.resolve(remoteRoutingHapp, source)
-	if err != nil || !remote || got != deeplink {
+	got, remote, err := resolver.resolve(remoteRoutingJson, source)
+	if err != nil || !remote || got != payload {
 		t.Fatalf("persisted resolve got=%q remote=%v err=%v", got, remote, err)
 	}
 	waitRemoteRoutingIdle(t, resolver)
@@ -321,7 +264,7 @@ func TestRemoteRoutingResolverDoesNotBlockOnPersistedLoad(t *testing.T) {
 	})
 
 	startedAt := time.Now()
-	_, remote, err := resolver.resolve(remoteRoutingHapp, "https://example.com/default.json")
+	_, remote, err := resolver.resolve(remoteRoutingJson, "https://example.com/default.json")
 	if !remote || !errors.Is(err, errRemoteRoutingUnavailable) {
 		t.Fatalf("resolve remote=%v err=%v", remote, err)
 	}
@@ -339,28 +282,6 @@ func TestRemoteRoutingResolverDoesNotBlockOnPersistedLoad(t *testing.T) {
 	}
 	waitRemoteRoutingIdle(t, resolver)
 	waitRemoteRoutingLoadIdle(t, resolver)
-}
-
-func TestRemoteRoutingResolverRejectsOversizedPersistedHappValue(t *testing.T) {
-	initSubDB(t)
-
-	deeplink, err := normalizeHappRouting([]byte(`{"Name":"` + strings.Repeat("x", remoteRoutingHappMaxValue) + `"}`))
-	if err != nil || len(deeplink) <= remoteRoutingHappMaxValue {
-		t.Fatalf("oversized fixture length=%d err=%v", len(deeplink), err)
-	}
-	const source = "https://example.com/oversized.json"
-	newRemoteRoutingResolver(nil, false).persistEntry(remoteRoutingHapp, remoteRoutingCacheEntry{
-		Source: source, Content: deeplink, FetchedAt: time.Now().Unix(),
-	})
-
-	resolver := newRemoteRoutingResolver(nil, true)
-	resolver.ensurePersistedLoaded()
-	resolver.mu.Lock()
-	_, exists := resolver.entries[remoteRoutingKey{kind: remoteRoutingHapp, source: source}]
-	resolver.mu.Unlock()
-	if exists {
-		t.Fatal("oversized persisted Happ routing value was loaded")
-	}
 }
 
 func TestRemoteRoutingResolverDoesNotReplaceClashCacheWithInvalidSchema(t *testing.T) {
@@ -389,53 +310,6 @@ func TestRemoteRoutingResolverDoesNotReplaceClashCacheWithInvalidSchema(t *testi
 	}
 	if requests.Load() != 2 {
 		t.Fatalf("requests = %d, want 2", requests.Load())
-	}
-}
-
-func TestApplyCommonHeadersResolvesRemoteHappAndFailsClosed(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	oldResolver := routingSourceResolver
-	t.Cleanup(func() { routingSourceResolver = oldResolver })
-
-	routingSourceResolver = newRemoteRoutingResolver(remoteRoutingTestClient(func(*http.Request) (*http.Response, error) {
-		return remoteRoutingResponse(http.StatusOK, `{"Name":"RoscomVPN"}`), nil
-	}), false)
-	const source = "https://example.com/default.json"
-	primeRemoteRouting(t, routingSourceResolver, remoteRoutingHapp, source)
-	recorder := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(recorder)
-	(&SUBController{}).ApplyCommonHeaders(ctx, "", "12", "", "", "", "", true, source, false)
-	if recorder.Header().Get("Routing-Enable") != "true" || !strings.HasPrefix(recorder.Header().Get("Routing"), "happ://routing/onadd/") {
-		t.Fatalf("headers = %#v", recorder.Header())
-	}
-
-	recorder = httptest.NewRecorder()
-	ctx, _ = gin.CreateTestContext(recorder)
-	(&SUBController{}).ApplyCommonHeaders(ctx, "", "12", "", "", "", "", false, source, false)
-	if recorder.Header().Get("Routing-Enable") != "" || !strings.HasPrefix(recorder.Header().Get("Routing"), "happ://routing/onadd/") {
-		t.Fatalf("independent routing headers = %#v", recorder.Header())
-	}
-
-	routingSourceResolver = newRemoteRoutingResolver(remoteRoutingTestClient(func(*http.Request) (*http.Response, error) {
-		return remoteRoutingResponse(http.StatusOK, "routing.help"), nil
-	}), false)
-	recorder = httptest.NewRecorder()
-	ctx, _ = gin.CreateTestContext(recorder)
-	(&SUBController{}).ApplyCommonHeaders(ctx, "", "12", "", "", "", "", true, "https://example.com/bad", false)
-	if recorder.Header().Get("Routing-Enable") != "true" || recorder.Header().Get("Routing") != "" {
-		t.Fatalf("invalid remote source leaked routing headers: %#v", recorder.Header())
-	}
-	waitRemoteRoutingIdle(t, routingSourceResolver)
-}
-
-func TestResolveIncyRemoteSourceUsesAutorouting(t *testing.T) {
-	got, remote, err := resolveIncyRoutingSource("https://example.com/DEFAULT.JSON")
-	if err != nil || !remote || got != "incy://autorouting/onadd/https://example.com/DEFAULT.JSON" {
-		t.Fatalf("got=%q remote=%v err=%v", got, remote, err)
-	}
-	inline := "incy://routing/onadd/abc"
-	if got, remote, err := resolveIncyRoutingSource(inline); err != nil || remote || got != inline {
-		t.Fatalf("inline got=%q remote=%v err=%v", got, remote, err)
 	}
 }
 
@@ -530,55 +404,15 @@ rules:
 	}
 }
 
-func TestRemoteRoutingRejectsOversizedHappValues(t *testing.T) {
-	largeJSON := `{"Name":"large","Rules":"` + strings.Repeat("a", remoteRoutingHappMaxValue) + `"}`
-	largeDeeplink, err := normalizeHappRouting([]byte(largeJSON))
-	if err != nil {
-		t.Fatalf("prepare large deeplink: %v", err)
-	}
-
-	tests := []struct {
-		name     string
-		response func(*http.Request) *http.Response
-		wantErr  string
-	}{
-		{
-			name: "response body",
-			response: func(*http.Request) *http.Response {
-				return remoteRoutingResponse(http.StatusOK, strings.Repeat("x", remoteRoutingHappMaxBody+1))
-			},
-			wantErr: "response exceeds the size limit",
-		},
-		{
-			name: "normalized header",
-			response: func(*http.Request) *http.Response {
-				return remoteRoutingResponse(http.StatusOK, largeJSON)
-			},
-			wantErr: "header exceeds the size limit",
-		},
-		{
-			name: "redirect header",
-			response: func(req *http.Request) *http.Response {
-				response := remoteRoutingResponse(http.StatusFound, "")
-				response.Header.Set("Location", largeDeeplink)
-				response.Request = req
-				return response
-			},
-			wantErr: "header exceeds the size limit",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			client := remoteRoutingTestClient(func(req *http.Request) (*http.Response, error) {
-				return tt.response(req), nil
-			})
-			client.CheckRedirect = checkRemoteRoutingRedirect
-			resolver := newRemoteRoutingResolver(client, false)
-			err := resolver.refreshSource(remoteRoutingHapp, "https://example.com/rules")
-			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-				t.Fatalf("err=%v, want %q", err, tt.wantErr)
-			}
-		})
+func TestRemoteRoutingRejectsOversizedJsonValues(t *testing.T) {
+	client := remoteRoutingTestClient(func(*http.Request) (*http.Response, error) {
+		return remoteRoutingResponse(http.StatusOK, strings.Repeat("x", remoteRoutingJsonMaxBody+1)), nil
+	})
+	client.CheckRedirect = checkRemoteRoutingRedirect
+	resolver := newRemoteRoutingResolver(client, false)
+	err := resolver.refreshSource(remoteRoutingJson, "https://example.com/rules")
+	if err == nil || !strings.Contains(err.Error(), "response exceeds the size limit") {
+		t.Fatalf("err=%v, want response exceeds the size limit", err)
 	}
 }
 
@@ -587,7 +421,7 @@ func TestRemoteRoutingRefreshTurnsPanicsIntoErrors(t *testing.T) {
 		panic("transport exploded")
 	})
 	resolver := newRemoteRoutingResolver(client, false)
-	err := resolver.refreshSource(remoteRoutingHapp, "https://example.com/rules")
+	err := resolver.refreshSource(remoteRoutingJson, "https://example.com/rules")
 	if err == nil || !strings.Contains(err.Error(), "panicked") {
 		t.Fatalf("err=%v, want the panic converted into an error", err)
 	}
@@ -598,7 +432,7 @@ func TestRemoteRoutingRefreshTurnsPanicsIntoErrors(t *testing.T) {
 func TestRemoteRoutingHTTPClientRejectsLoopback(t *testing.T) {
 	resolver := newRemoteRoutingResolver(newRemoteRoutingHTTPClient(), false)
 	startedAt := time.Now()
-	err := resolver.refreshSource(remoteRoutingHapp, "https://127.0.0.1:1/rules")
+	err := resolver.refreshSource(remoteRoutingJson, "https://127.0.0.1:1/rules")
 	if err == nil {
 		t.Fatal("loopback remote source was accepted")
 	}
@@ -611,13 +445,10 @@ func TestRemoteRoutingPersistedLoadRetriesAfterDatabaseBecomesReady(t *testing.T
 	dbPath := filepath.Join(t.TempDir(), "x-ui.db")
 	dbtest.InitDB(t, dbPath)
 
-	deeplink, err := normalizeHappRouting([]byte(`{"Name":"persisted-after-ready"}`))
-	if err != nil {
-		t.Fatalf("normalize: %v", err)
-	}
+	const payload = `{"Name":"persisted-after-ready"}`
 	const source = "https://example.com/default.json"
-	newRemoteRoutingResolver(nil, false).persistEntry(remoteRoutingHapp, remoteRoutingCacheEntry{
-		Source: source, Content: deeplink, FetchedAt: time.Now().Unix(),
+	newRemoteRoutingResolver(nil, false).persistEntry(remoteRoutingJson, remoteRoutingCacheEntry{
+		Source: source, Content: payload, FetchedAt: time.Now().Unix(),
 	})
 	if err := database.CloseDB(); err != nil {
 		t.Fatalf("close db: %v", err)
@@ -626,7 +457,7 @@ func TestRemoteRoutingPersistedLoadRetriesAfterDatabaseBecomesReady(t *testing.T
 	resolver := newRemoteRoutingResolver(remoteRoutingTestClient(func(*http.Request) (*http.Response, error) {
 		return remoteRoutingResponse(http.StatusServiceUnavailable, "offline"), nil
 	}), true)
-	if _, _, err := resolver.resolve(remoteRoutingHapp, source); !errors.Is(err, errRemoteRoutingUnavailable) {
+	if _, _, err := resolver.resolve(remoteRoutingJson, source); !errors.Is(err, errRemoteRoutingUnavailable) {
 		t.Fatalf("closed-db resolve err=%v", err)
 	}
 	waitRemoteRoutingIdle(t, resolver)
@@ -636,8 +467,8 @@ func TestRemoteRoutingPersistedLoadRetriesAfterDatabaseBecomesReady(t *testing.T
 	}
 	resolver.triggerPersistedLoad()
 	waitRemoteRoutingLoadIdle(t, resolver)
-	got, remote, err := resolver.resolve(remoteRoutingHapp, source)
-	if err != nil || !remote || got != deeplink {
+	got, remote, err := resolver.resolve(remoteRoutingJson, source)
+	if err != nil || !remote || got != payload {
 		t.Fatalf("reloaded resolve got=%q remote=%v err=%v", got, remote, err)
 	}
 }

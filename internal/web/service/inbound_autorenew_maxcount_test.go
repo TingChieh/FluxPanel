@@ -159,7 +159,7 @@ func TestClientEditKeepsTheRenewalCap(t *testing.T) {
 	// What the edit dialog does: hydrate the record, change something else, save.
 	edited := rec.ToClient()
 	edited.Comment = "renamed"
-	if _, err := svc.clientService.Update(svc, rec.Id, *edited, rec.LimitHwid); err != nil {
+	if _, err := svc.clientService.Update(svc, rec.Id, *edited); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 
@@ -259,7 +259,7 @@ func TestClientEditChangesTheRenewalCap(t *testing.T) {
 	// the field being editable.
 	edited := rec.ToClient()
 	edited.ResetMax = 6
-	if _, err := svc.clientService.Update(svc, rec.Id, *edited, rec.LimitHwid); err != nil {
+	if _, err := svc.clientService.Update(svc, rec.Id, *edited); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 
@@ -274,7 +274,7 @@ func TestClientEditChangesTheRenewalCap(t *testing.T) {
 	// Lifting the cap entirely has to work too.
 	edited = rec.ToClient()
 	edited.ResetMax = 0
-	if _, err := svc.clientService.Update(svc, rec.Id, *edited, rec.LimitHwid); err != nil {
+	if _, err := svc.clientService.Update(svc, rec.Id, *edited); err != nil {
 		t.Fatalf("Update to uncapped: %v", err)
 	}
 	rec, err = svc.clientService.GetRecordByEmail(nil, "chg@x")

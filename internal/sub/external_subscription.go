@@ -197,10 +197,6 @@ func doFetchSubscriptionLinks(rawURL string) ([]string, error) {
 	req = req.WithContext(netsafe.ContextWithAllowPrivate(req.Context(), operatorChosePrivateHost(req.URL)))
 	// Some providers gate the link body on a known client User-Agent.
 	req.Header.Set("User-Agent", externalSubUserAgent())
-	// A 3x-ui donor with an HWID limit answers 404 when the header is empty (#6559).
-	if hwid := service.ExternalSubscriptionHwid(); hwid != "" {
-		req.Header.Set("X-HWID", hwid)
-	}
 	resp, err := subscriptionClientFor(req).Do(req)
 	if err != nil {
 		return nil, service.WithoutRequestURL(err)

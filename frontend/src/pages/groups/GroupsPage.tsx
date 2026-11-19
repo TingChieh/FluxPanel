@@ -665,8 +665,8 @@ export default function GroupsPage() {
             open={adjustOpen}
             count={groupEmails.length}
             onOpenChange={setAdjustOpen}
-            onSubmit={async (addDays, addBytes, flow, limitHwid, adTag) => {
-              const msg = await bulkAdjust(groupEmails, addDays, addBytes, flow, limitHwid, adTag);
+            onSubmit={async (addDays, addBytes, flow, adTag) => {
+              const msg = await bulkAdjust(groupEmails, addDays, addBytes, flow, adTag);
               if (msg?.success) {
                 const obj = msg.obj ?? { adjusted: 0 };
                 messageApi.success(

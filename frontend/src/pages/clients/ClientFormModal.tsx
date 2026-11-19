@@ -30,16 +30,13 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { Controller, FormProvider, useForm, useWatch, useFieldArray } from 'react-hook-form';
 
-import { HttpUtil, IntlUtil, RandomUtil, Wireguard } from '@/utils';
+import { HttpUtil, RandomUtil, Wireguard } from '@/utils';
 import { formatInboundLabel } from '@/lib/inbounds/label';
 import { normalizeClientIps, type ClientIpInfo } from '@/lib/clients/ip-log';
 import { resolveExternalLinkExpiry } from '@/lib/clients/external-link';
-import { useDatepicker } from '@/hooks/useDatepicker';
-import { useClientHwids } from '@/hooks/useClientHwids';
 import { useRawHostsQuery } from '@/api/queries/useRawHostsQuery';
 import { DateTimePicker, SelectAllClearButtons, selectTagRender } from '@/components/form';
 import { FormField } from '@/components/form/rhf';
-import ClientHwidListModal from '@/components/clients/ClientHwidList';
 import { TLS_FLOW_CONTROL, TRAFFIC_RESETS } from '@/schemas/primitives';
 import type {
   ClientRecord,
@@ -126,7 +123,6 @@ interface ClientFormModalProps {
 
 type Values = ClientFormValues & {
   expiryDate: number;
-  limitHwid: number;
   externalLinks: ExternalLinkRow[];
   clientHostRuleIds: number[];
   wgPrivateKey: string;
@@ -157,7 +153,6 @@ const EMPTY: Values = {
   trafficReset: 'never' as const,
   trafficResetDay: 1,
   limitIp: 0,
-  limitHwid: 0,
   tgId: 0,
   group: '',
   comment: '',
@@ -243,7 +238,6 @@ export default function ClientFormModal({
   const trafficReset = useWatch({ control: methods.control, name: 'trafficReset' });
   const password = useWatch({ control: methods.control, name: 'password' });
   const subId = useWatch({ control: methods.control, name: 'subId' });
-  const limitHwid = useWatch({ control: methods.control, name: 'limitHwid' });
   const auth = useWatch({ control: methods.control, name: 'auth' });
   const wgPrivateKey = useWatch({ control: methods.control, name: 'wgPrivateKey' });
   const limitIp = useWatch({ control: methods.control, name: 'limitIp' });
@@ -259,19 +253,6 @@ export default function ClientFormModal({
   const [ipsLoading, setIpsLoading] = useState(false);
   const [ipsClearing, setIpsClearing] = useState(false);
   const [ipsModalOpen, setIpsModalOpen] = useState(false);
-  const {
-    clientHwids,
-    hwidsLoading,
-    hwidsClearing,
-    deletingHwidId,
-    loadHwids,
-    clearHwids,
-    deleteHwid,
-  } = useClientHwids(client?.email);
-  const [hwidsModalOpen, setHwidsModalOpen] = useState(false);
-  const { datepicker } = useDatepicker();
-  const hwidDateLabel = (ts: number) =>
-    !ts || ts <= 0 ? '-' : IntlUtil.formatDate(ts, datepicker);
   const fail2ban = useFail2banStatusQuery();
   const limitIpDisabled = !fail2ban.usable;
   const limitIpNotice = getLimitIpNotice(fail2ban, t);
@@ -306,7 +287,6 @@ export default function ClientFormModal({
   useEffect(() => {
     if (!open) return;
     setIpsModalOpen(false);
-    setHwidsModalOpen(false);
 
     if (isEdit && client) {
       const et = Number(client.expiryTime) || 0;
@@ -340,7 +320,6 @@ export default function ClientFormModal({
         trafficReset: (client.trafficReset as ClientFormValues['trafficReset']) || 'never',
         trafficResetDay: Number(client.trafficResetDay) || 1,
         limitIp: client.limitIp || 0,
-        limitHwid: client.limitHwid || 0,
         tgId: Number(client.tgId) || 0,
         group: client.group || '',
         comment: client.comment || '',
@@ -364,7 +343,6 @@ export default function ClientFormModal({
       }
       methods.reset(seed);
       void loadIps();
-      void loadHwids();
     } else {
       const wgKeypair = Wireguard.generateKeypair();
       methods.reset({
@@ -599,11 +577,6 @@ export default function ClientFormModal({
     }
   }
 
-  function openHwidsModal() {
-    setHwidsModalOpen(true);
-    if (clientHwids.length === 0) void loadHwids();
-  }
-
   function close() {
     onOpenChange(false);
   }
@@ -651,7 +624,6 @@ export default function ClientFormModal({
       trafficReset: values.trafficReset,
       trafficResetDay: values.trafficResetDay,
       limitIp: values.limitIp,
-      limitHwid: values.limitHwid,
       tgId: values.tgId,
       group: values.group,
       comment: values.comment,
@@ -689,7 +661,6 @@ export default function ClientFormModal({
       trafficReset: values.trafficReset || 'never',
       trafficResetDay: Number(values.trafficResetDay) || 1,
       limitIp: Number(values.limitIp) || 0,
-      limitHwid: Number(values.limitHwid) || 0,
       tgId: Number(values.tgId) || 0,
       group: values.group,
       comment: values.comment,
@@ -884,39 +855,6 @@ export default function ClientFormModal({
                             </Tooltip>
                             <span id={`${uid}-limit-ip-hint`} hidden>
                               {t('pages.clients.limitIpDesc')}
-                            </span>
-                          </Form.Item>
-                        </Col>
-                        <Col xs={24} md={12}>
-                          <Form.Item
-                            htmlFor={`${uid}-limit-hwid`}
-                            label={t('pages.clients.limitHwid')}
-                            tooltip={t('pages.clients.limitHwidDesc')}
-                          >
-                            <Space.Compact style={{ display: 'flex' }}>
-                              <InputNumber
-                                id={`${uid}-limit-hwid`}
-                                aria-describedby={`${uid}-limit-hwid-hint`}
-                                value={limitHwid}
-                                min={0}
-                                style={{ flex: 1 }}
-                                onChange={(v) => methods.setValue('limitHwid', Number(v) || 0)}
-                              />
-                              {isEdit && (
-                                <Tooltip title={t('pages.clients.hwidLog')}>
-                                  <Button
-                                    aria-label={t('pages.clients.hwidLog')}
-                                    icon={<EyeOutlined aria-hidden />}
-                                    loading={hwidsLoading}
-                                    onClick={openHwidsModal}
-                                  >
-                                    {clientHwids.length > 0 ? clientHwids.length : ''}
-                                  </Button>
-                                </Tooltip>
-                              )}
-                            </Space.Compact>
-                            <span id={`${uid}-limit-hwid-hint`} hidden>
-                              {t('pages.clients.limitHwidDesc')}
                             </span>
                           </Form.Item>
                         </Col>
@@ -1528,21 +1466,6 @@ export default function ClientFormModal({
           <Tag>{t('tgbot.noIpRecord')}</Tag>
         )}
       </Modal>
-
-      <ClientHwidListModal
-        open={hwidsModalOpen}
-        email={client?.email}
-        zIndex={CLIENT_IP_LOG_MODAL_Z_INDEX}
-        hwids={clientHwids}
-        loading={hwidsLoading}
-        clearing={hwidsClearing}
-        deletingId={deletingHwidId}
-        formatDate={hwidDateLabel}
-        onRefresh={loadHwids}
-        onClearAll={clearHwids}
-        onDelete={deleteHwid}
-        onClose={() => setHwidsModalOpen(false)}
-      />
     </>
   );
 }

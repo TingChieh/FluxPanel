@@ -40,7 +40,7 @@ func TestUpdate_ReenablesDepletedClient_WhenExpiryExtended(t *testing.T) {
 	updated.ExpiryTime = now + 30*renewalReenableDay
 	// The editor round-trips the switch as the stored off state; the renewal
 	// must turn it back on by itself.
-	if _, err := svc.Update(inboundSvc, rec.Id, *updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, rec.Id, *updated); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	assertEnableEverywhere(t, svc, inboundSvc, ib.Id, email, true)
@@ -63,7 +63,7 @@ func TestUpdate_ReenablesDepletedClient_WhenTotalRaised(t *testing.T) {
 	}
 	updated := rec.ToClient()
 	updated.TotalGB = 300
-	if _, err := svc.Update(inboundSvc, rec.Id, *updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, rec.Id, *updated); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	assertEnableEverywhere(t, svc, inboundSvc, ib.Id, email, true)
@@ -87,7 +87,7 @@ func TestUpdate_KeepsDisabled_StillExpiredAfterUpdate(t *testing.T) {
 	}
 	updated := rec.ToClient()
 	updated.ExpiryTime = now - 5*renewalReenableDay // an extension that still lands in the past
-	if _, err := svc.Update(inboundSvc, rec.Id, *updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, rec.Id, *updated); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	assertEnableEverywhere(t, svc, inboundSvc, ib.Id, email, false)
@@ -107,7 +107,7 @@ func TestUpdate_KeepsDisabled_StillOverQuotaAfterUpdate(t *testing.T) {
 	}
 	updated := rec.ToClient()
 	updated.TotalGB = 80 // still below the 100 bytes of usage
-	if _, err := svc.Update(inboundSvc, rec.Id, *updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, rec.Id, *updated); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	assertEnableEverywhere(t, svc, inboundSvc, ib.Id, email, false)
@@ -128,7 +128,7 @@ func TestUpdate_KeepsDisabled_ManuallyDisabledNotDepleted(t *testing.T) {
 	}
 	updated := rec.ToClient()
 	updated.ExpiryTime = now + 60*renewalReenableDay
-	if _, err := svc.Update(inboundSvc, rec.Id, *updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, rec.Id, *updated); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	// The quota loop never switched this client off — it reads under quota —
@@ -156,14 +156,14 @@ func TestUpdate_ReenablesDepletedClient_SkipsStillDepletedGlobalUsage(t *testing
 	}
 	updated := rec.ToClient()
 	updated.TotalGB = 100
-	if _, err := svc.Update(inboundSvc, rec.Id, *updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, rec.Id, *updated); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	assertEnableEverywhere(t, svc, inboundSvc, ib.Id, email, false)
 
 	// Raising the quota above the pushed usage re-enables it.
 	updated.TotalGB = 1000
-	if _, err := svc.Update(inboundSvc, rec.Id, *updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, rec.Id, *updated); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	assertEnableEverywhere(t, svc, inboundSvc, ib.Id, email, true)
@@ -193,7 +193,7 @@ func TestUpdate_ReenablesDepletedClient_WithoutInbound(t *testing.T) {
 
 	updated := rec.ToClient()
 	updated.ExpiryTime = now + 30*renewalReenableDay
-	if _, err := svc.Update(inboundSvc, rec.Id, *updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, rec.Id, *updated); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	if got := recordEnableOf(t, svc, email); !got {

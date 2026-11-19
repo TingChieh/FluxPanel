@@ -39,7 +39,7 @@ func TestClientEditKeepsTheTrafficResetCycle(t *testing.T) {
 	// What the edit dialog does: hydrate the record, change something else, save.
 	edited := rec.ToClient()
 	edited.Comment = "renamed"
-	if _, err := svc.clientService.Update(svc, rec.Id, *edited, rec.LimitHwid); err != nil {
+	if _, err := svc.clientService.Update(svc, rec.Id, *edited); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 
@@ -97,7 +97,7 @@ func TestClientEditChangesTheTrafficResetCycle(t *testing.T) {
 	edited := rec.ToClient()
 	edited.TrafficReset = "monthly"
 	edited.TrafficResetDay = 9
-	if _, err := svc.clientService.Update(svc, rec.Id, *edited, rec.LimitHwid); err != nil {
+	if _, err := svc.clientService.Update(svc, rec.Id, *edited); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 
@@ -113,7 +113,7 @@ func TestClientEditChangesTheTrafficResetCycle(t *testing.T) {
 	// Turning it off has to work too, and "never" is not an empty value.
 	edited = rec.ToClient()
 	edited.TrafficReset = "never"
-	if _, err := svc.clientService.Update(svc, rec.Id, *edited, rec.LimitHwid); err != nil {
+	if _, err := svc.clientService.Update(svc, rec.Id, *edited); err != nil {
 		t.Fatalf("Update to never: %v", err)
 	}
 	rec, err = svc.clientService.GetRecordByEmail(nil, "chg@x")

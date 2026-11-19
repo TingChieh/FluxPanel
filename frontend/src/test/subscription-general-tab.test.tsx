@@ -165,30 +165,6 @@ describe('SubscriptionGeneralTab', () => {
   });
 
   it.each([false, true])(
-    'updates the Happ link gate beside auto-detection when stored as %s',
-    (enabled) => {
-      const updateSetting = vi.fn();
-
-      renderWithProviders(
-        <MemoryRouter initialEntries={['/settings#subscription']}>
-          <SubscriptionGeneralTab
-            allSetting={new AllSetting({ happLinkEnable: enabled })}
-            updateSetting={updateSetting}
-          />
-        </MemoryRouter>,
-      );
-
-      fireEvent.click(screen.getByRole('tab', { name: /Happ/ }));
-      const linkSwitch = screen.getByRole('switch', { name: 'Encrypted subscription links' });
-      expect(linkSwitch.getAttribute('aria-checked')).toBe(String(enabled));
-      expect(updateSetting).not.toHaveBeenCalled();
-      fireEvent.click(linkSwitch);
-
-      expect(updateSetting).toHaveBeenCalledExactlyOnceWith({ happLinkEnable: !enabled });
-    },
-  );
-
-  it.each([false, true])(
     'updates the Clash remote DNS opt-in, not the routing switch, when stored as %s',
     (enabled) => {
       const updateSetting = vi.fn();
@@ -210,25 +186,4 @@ describe('SubscriptionGeneralTab', () => {
       expect(updateSetting).toHaveBeenCalledExactlyOnceWith({ subClashRemoteDNS: !enabled });
     },
   );
-
-  it('shows the Happ link gate from the QR settings deep link without enabling generation', () => {
-    const updateSetting = vi.fn();
-
-    renderWithProviders(
-      <MemoryRouter initialEntries={['/settings?subscriptionTab=happ#subscription']}>
-        <SubscriptionGeneralTab
-          allSetting={new AllSetting({ happLinkEnable: false })}
-          updateSetting={updateSetting}
-        />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByRole('tab', { name: /Happ/ }).getAttribute('aria-selected')).toBe('true');
-    expect(
-      screen
-        .getByRole('switch', { name: 'Encrypted subscription links' })
-        .getAttribute('aria-checked'),
-    ).toBe('false');
-    expect(updateSetting).not.toHaveBeenCalled();
-  });
 });

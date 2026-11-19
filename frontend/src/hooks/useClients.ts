@@ -52,7 +52,6 @@ const JSON_HEADERS = { headers: { 'Content-Type': 'application/json' } } as cons
 
 interface SubSettings {
   enable: boolean;
-  happLinkEnable: boolean;
   subURI: string;
   subJsonURI: string;
   subJsonEnable: boolean;
@@ -271,7 +270,6 @@ export function useClients(options: UseClientsOptions = {}) {
   const subSettings: SubSettings = useMemo(
     () => ({
       enable: !!defaults.subEnable,
-      happLinkEnable: defaults.happLinkEnable === true,
       subURI: (defaults.subURI as string) || '',
       subJsonURI: (defaults.subJsonURI as string) || '',
       subJsonEnable: !!defaults.subJsonEnable,
@@ -281,7 +279,6 @@ export function useClients(options: UseClientsOptions = {}) {
     }),
     [
       defaults.subEnable,
-      defaults.happLinkEnable,
       defaults.subURI,
       defaults.subJsonURI,
       defaults.subJsonEnable,
@@ -422,7 +419,6 @@ export function useClients(options: UseClientsOptions = {}) {
       addDays: number;
       addBytes: number;
       flow?: string;
-      limitHwid?: number | null;
       adTag?: string;
     }): Promise<Msg<BulkAdjustResult>> => {
       const raw = await HttpUtil.post('/panel/api/clients/bulkAdjust', payload, JSON_HEADERS);
@@ -592,16 +588,9 @@ export function useClients(options: UseClientsOptions = {}) {
     [bulkCreateMut],
   );
   const bulkAdjust = useCallback(
-    (
-      emails: string[],
-      addDays: number,
-      addBytes: number,
-      flow = '',
-      limitHwid?: number | null,
-      adTag?: string,
-    ) => {
+    (emails: string[], addDays: number, addBytes: number, flow = '', adTag?: string) => {
       if (!Array.isArray(emails) || emails.length === 0) return Promise.resolve(null);
-      return bulkAdjustMut.mutateAsync({ emails, addDays, addBytes, flow, limitHwid, adTag });
+      return bulkAdjustMut.mutateAsync({ emails, addDays, addBytes, flow, adTag });
     },
     [bulkAdjustMut],
   );
@@ -718,7 +707,6 @@ export function useClients(options: UseClientsOptions = {}) {
         totalGB: base.totalGB || 0,
         expiryTime: base.expiryTime || 0,
         limitIp: base.limitIp || 0,
-        limitHwid: base.limitHwid || 0,
         tgId: Number(base.tgId) || 0,
         reset: Number(base.reset) || 0,
         resetDay: Number(base.resetDay) || 0,

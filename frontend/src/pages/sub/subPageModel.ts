@@ -64,8 +64,6 @@ export function buildSubApps({
     url: `sing-box://import-remote-profile?url=${encSub}#${profileName}`,
   };
   const v2raytun = { name: 'V2RayTun', url: `v2raytun://import/${subUrl}` };
-  const happ = { name: 'Happ', url: `happ://add/${subUrl}` };
-  const incy = { name: 'Incy', url: `incy://add/${subUrl}` };
   const rocketSource = `${subUrl}${subUrl.includes('?') ? '&' : '?'}flag=shadowrocket`;
   const rocketRemark = encodeURIComponent(subTitle || sId || 'Subscription');
 
@@ -75,8 +73,6 @@ export function buildSubApps({
       { name: 'V2RayNG', url: `v2rayng://install-config?url=${encSub}` },
       singBox,
       v2raytun,
-      happ,
-      incy,
     ],
     ios: [
       {
@@ -86,8 +82,6 @@ export function buildSubApps({
       v2box,
       { name: 'Streisand', url: `streisand://import/${encSub}` },
       v2raytun,
-      happ,
-      incy,
     ],
   };
 }

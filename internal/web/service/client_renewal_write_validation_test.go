@@ -123,7 +123,7 @@ func TestInboundRenewalModesRemainEditable(t *testing.T) {
 			}
 			toggle := *record.ToClient()
 			toggle.Enable = false
-			if _, err := svc.Update(inboundSvc, record.Id, toggle, 0); err != nil {
+			if _, err := svc.Update(inboundSvc, record.Id, toggle); err != nil {
 				t.Fatalf("valid inbound client could not be toggled: %v", err)
 			}
 			record, err = svc.GetRecordByEmail(nil, client.Email)

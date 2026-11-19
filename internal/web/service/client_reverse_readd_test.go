@@ -88,7 +88,7 @@ func TestClientEditKeepsTheReverseTag(t *testing.T) {
 
 	edited := reverseProbeClient(email, true)
 	edited.Comment = "edited after the tunnel was up"
-	if _, err := (&ClientService{}).Update(&InboundService{}, rec.Id, edited, 0); err != nil {
+	if _, err := (&ClientService{}).Update(&InboundService{}, rec.Id, edited); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	assertReverseReAdd(t, probe, email)

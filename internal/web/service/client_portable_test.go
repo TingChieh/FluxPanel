@@ -32,7 +32,7 @@ func TestExportImportPreservesDisabledEnable(t *testing.T) {
 	rec := lookupClientRecord(t, email)
 	updated := rec.ToClient()
 	updated.Enable = false
-	if _, err := svc.Update(inboundSvc, rec.Id, *updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, rec.Id, *updated); err != nil {
 		t.Fatalf("Update disable: %v", err)
 	}
 	assertEnableEverywhere(t, svc, inboundSvc, ib.Id, email, false)

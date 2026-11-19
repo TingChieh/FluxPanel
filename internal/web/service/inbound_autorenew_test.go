@@ -150,7 +150,7 @@ func TestAutoRenewClients_RestoresOnlyWhatTheLifecycleJobDisabled(t *testing.T) 
 	rec := record("edit-banned@x")
 	edited := rec.ToClient()
 	edited.Enable = false
-	if _, err := clientSvc.Update(inboundSvc, rec.Id, *edited, rec.LimitHwid); err != nil {
+	if _, err := clientSvc.Update(inboundSvc, rec.Id, *edited); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	if _, _, err := inboundSvc.AddTraffic(nil, []*xray.ClientTraffic{{Email: "quota-spent@x", Up: 60, Down: 60}}); err != nil {

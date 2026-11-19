@@ -14,7 +14,6 @@ export interface AllSetting {
   externalSubUserAgent: string;
   externalTrafficInformEnable: boolean;
   externalTrafficInformURI: string;
-  happLinkEnable: boolean;
   ipLimitAllowlist: string;
   pageSize: number;
   panelOutbound: string;
@@ -35,65 +34,9 @@ export interface AllSetting {
   subClashUserAgentRegex: string;
   subDomain: string;
   subEnable: boolean;
-  subEnableRouting: boolean;
   subEncrypt: boolean;
   subExpiredTemplate: string;
-  subHappAlwaysHwid: boolean;
-  subHappAutoConnect: boolean;
-  subHappAutoConnectType: string;
-  subHappAutoDetect: boolean;
-  subHappColorProfile: string;
-  subHappExcludeApns: boolean;
-  subHappExcludeRoutes: string;
-  subHappFallbackUrl: string;
-  subHappLocalProxyAuth: string;
-  subHappNewUrl: string;
-  subHappNoLimit: boolean;
-  subHappNotificationExpire: boolean;
-  subHappPerAppList: string;
-  subHappPerAppMode: string;
-  subHappPingType: string;
-  subHappProviderId: string;
-  subHappSubExpire: boolean;
-  subHappSubExpireButtonLink: string;
-  subHappSubInfoButtonLink: string;
-  subHappSubInfoButtonText: string;
-  subHappSubInfoColor: string;
-  subHappSubInfoText: string;
-  subHappTunMode: string;
-  subHappTunType: string;
-  subHideSettings: boolean;
   subHostSortMode: string;
-  subIncyAnnounceUrl: string;
-  subIncyAppAutoDetect: boolean;
-  subIncyBannerBgColor: string;
-  subIncyBannerButtonColor: string;
-  subIncyBannerButtonText: string;
-  subIncyBannerButtonUrl: string;
-  subIncyBannerText: string;
-  subIncyEnableRouting: boolean;
-  subIncyFragmentInterval: string;
-  subIncyFragmentLength: string;
-  subIncyFragmentPackets: string;
-  subIncyFragmentationEnable: string;
-  subIncyHideCheck: string;
-  subIncyHideUrl: string;
-  subIncyNoLimitEnabled: string;
-  subIncyNoisesDelay: string;
-  subIncyNoisesEnable: string;
-  subIncyNoisesPacket: string;
-  subIncyNoisesType: string;
-  subIncyPerAppEnable: string;
-  subIncyPerAppList: string;
-  subIncyPerAppMode: string;
-  subIncyPremiumUrl: string;
-  subIncyProfileDescription: string;
-  subIncyResolveDnsDomain: string;
-  subIncyResolveDnsIp: string;
-  subIncyResolveEnable: string;
-  subIncyRoutingRules: string;
-  subIncySortOrder: string;
-  subIncySupportEmail: string;
   subInfoNodeEnable: boolean;
   subJsonAlwaysArray: boolean;
   subJsonAutoDetect: boolean;
@@ -113,7 +56,6 @@ export interface AllSetting {
   subPort: number;
   subProfileMode: string;
   subProfileUrl: string;
-  subRoutingRules: string;
   subShowIdentityOnAllLinks: boolean;
   subSupportUrl: string;
   subThemeDir: string;
@@ -140,7 +82,6 @@ export interface AllSettingView {
   externalSubUserAgent: string;
   externalTrafficInformEnable: boolean;
   externalTrafficInformURI: string;
-  happLinkEnable: boolean;
   hasApiToken: boolean;
   hasTwoFactorToken: boolean;
   ipLimitAllowlist: string;
@@ -163,65 +104,9 @@ export interface AllSettingView {
   subClashUserAgentRegex: string;
   subDomain: string;
   subEnable: boolean;
-  subEnableRouting: boolean;
   subEncrypt: boolean;
   subExpiredTemplate: string;
-  subHappAlwaysHwid: boolean;
-  subHappAutoConnect: boolean;
-  subHappAutoConnectType: string;
-  subHappAutoDetect: boolean;
-  subHappColorProfile: string;
-  subHappExcludeApns: boolean;
-  subHappExcludeRoutes: string;
-  subHappFallbackUrl: string;
-  subHappLocalProxyAuth: string;
-  subHappNewUrl: string;
-  subHappNoLimit: boolean;
-  subHappNotificationExpire: boolean;
-  subHappPerAppList: string;
-  subHappPerAppMode: string;
-  subHappPingType: string;
-  subHappProviderId: string;
-  subHappSubExpire: boolean;
-  subHappSubExpireButtonLink: string;
-  subHappSubInfoButtonLink: string;
-  subHappSubInfoButtonText: string;
-  subHappSubInfoColor: string;
-  subHappSubInfoText: string;
-  subHappTunMode: string;
-  subHappTunType: string;
-  subHideSettings: boolean;
   subHostSortMode: string;
-  subIncyAnnounceUrl: string;
-  subIncyAppAutoDetect: boolean;
-  subIncyBannerBgColor: string;
-  subIncyBannerButtonColor: string;
-  subIncyBannerButtonText: string;
-  subIncyBannerButtonUrl: string;
-  subIncyBannerText: string;
-  subIncyEnableRouting: boolean;
-  subIncyFragmentInterval: string;
-  subIncyFragmentLength: string;
-  subIncyFragmentPackets: string;
-  subIncyFragmentationEnable: string;
-  subIncyHideCheck: string;
-  subIncyHideUrl: string;
-  subIncyNoLimitEnabled: string;
-  subIncyNoisesDelay: string;
-  subIncyNoisesEnable: string;
-  subIncyNoisesPacket: string;
-  subIncyNoisesType: string;
-  subIncyPerAppEnable: string;
-  subIncyPerAppList: string;
-  subIncyPerAppMode: string;
-  subIncyPremiumUrl: string;
-  subIncyProfileDescription: string;
-  subIncyResolveDnsDomain: string;
-  subIncyResolveDnsIp: string;
-  subIncyResolveEnable: string;
-  subIncyRoutingRules: string;
-  subIncySortOrder: string;
-  subIncySupportEmail: string;
   subInfoNodeEnable: boolean;
   subJsonAlwaysArray: boolean;
   subJsonAutoDetect: boolean;
@@ -241,7 +126,6 @@ export interface AllSettingView {
   subPort: number;
   subProfileMode: string;
   subProfileUrl: string;
-  subRoutingRules: string;
   subShowIdentityOnAllLinks: boolean;
   subSupportUrl: string;
   subThemeDir: string;
@@ -358,7 +242,6 @@ export interface ClientRecord {
   group: string;
   id: number;
   keepAlive: number | string;
-  limitHwid: number;
   limitIp: number;
   password: string;
   preSharedKey: string;
@@ -413,7 +296,6 @@ export interface ClientSlim {
   expiryTime: number;
   group?: string;
   inboundIds: number[];
-  limitHwid: number;
   limitIp: number;
   reset: number;
   resetDay: number;
@@ -500,10 +382,6 @@ export interface GeodataTokenIssue {
   token: string;
 }
 
-export interface HappLinkResult {
-  encryptedLink: string;
-}
-
 export interface HistoryOfSeeders {
   id: number;
   seederName: string;
@@ -588,14 +466,6 @@ export interface HostGroup {
   tags: string[];
   verifyPeerCertByName: string;
   vlessRoute: string;
-}
-
-export interface HwidSlotStatus {
-  active: boolean;
-  full: boolean;
-  limit: number;
-  registered: number;
-  remaining: number;
 }
 
 export interface Inbound {

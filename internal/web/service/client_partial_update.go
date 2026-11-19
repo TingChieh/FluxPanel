@@ -12,7 +12,7 @@ import (
 // UpdateByEmailJSON applies a POST /clients/update body: an omitted key keeps the
 // stored value and an explicit zero, empty or null value clears it.
 func (s *ClientService) UpdateByEmailJSON(inboundSvc *InboundService, email string, body []byte, inboundFilter ...int) (bool, error) {
-	var req clientPayloadWithHwid
+	var req model.Client
 	if err := json.Unmarshal(body, &req); err != nil {
 		return false, err
 	}
@@ -24,8 +24,8 @@ func (s *ClientService) UpdateByEmailJSON(inboundSvc *InboundService, email stri
 		return false, err
 	}
 	keys := clientPayloadKeys(body)
-	fillAbsentClientFields(rec, &req.Client, &req.LimitHwid, keys)
-	return s.update(inboundSvc, rec.Id, req.Client, req.LimitHwid, !keys.has("flow"), inboundFilter)
+	fillAbsentClientFields(rec, &req, keys)
+	return s.update(inboundSvc, rec.Id, req, !keys.has("flow"), inboundFilter)
 }
 
 // payloadKeys is a struct so tools/openapigen, which exports every named
@@ -56,7 +56,7 @@ func (k payloadKeys) has(name string) bool {
 }
 
 // fillAbsentClientFields leaves flow to update, which keeps it per inbound.
-func fillAbsentClientFields(rec *model.ClientRecord, updated *model.Client, limitHwid *int, keys payloadKeys) {
+func fillAbsentClientFields(rec *model.ClientRecord, updated *model.Client, keys payloadKeys) {
 	stored := rec.ToClient()
 	if !keys.has("email") {
 		updated.Email = stored.Email
@@ -108,9 +108,6 @@ func fillAbsentClientFields(rec *model.ClientRecord, updated *model.Client, limi
 	}
 	if !keys.has("reverse") {
 		updated.Reverse = stored.Reverse
-	}
-	if !keys.has("limitHwid") {
-		*limitHwid = rec.LimitHwid
 	}
 }
 

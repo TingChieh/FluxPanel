@@ -65,7 +65,7 @@ func TestEditFlagsOtherNodesBeforeApplying(t *testing.T) {
 	rec := lookupClientRecord(t, "carol")
 	if _, err := (&ClientService{}).Update(&InboundService{}, rec.Id, model.Client{
 		Email: "carol-renamed", ID: uuid, SubID: "sub-carol", Enable: true,
-	}, 0); err == nil {
+	}); err == nil {
 		t.Fatal("Update on a corrupted inbound should report the failure")
 	}
 
@@ -103,7 +103,7 @@ func TestEditFlagsNodesOutsideTheInboundFilter(t *testing.T) {
 	rec := lookupClientRecord(t, "dave")
 	if _, err := (&ClientService{}).Update(&InboundService{}, rec.Id, model.Client{
 		Email: "dave-renamed", ID: uuid, SubID: "sub-dave", Enable: true,
-	}, 0, ids[0]); err != nil {
+	}, ids[0]); err != nil {
 		t.Fatalf("filtered Update: %v", err)
 	}
 

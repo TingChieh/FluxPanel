@@ -52,20 +52,11 @@ type cachedSubTemplate struct {
 
 // SUBController handles HTTP requests for subscription links and JSON configurations.
 type SUBController struct {
-	subTitle            string
-	subSupportUrl       string
-	subProfileMode      string
-	subProfileUrl       string
-	subAnnounce         string
-	subEnableRouting    bool
-	subRoutingRules     string
-	subJsonRoutingRules string
-	subHideSettings     bool
-	happConfig          HappConfig
-	incyConfig          IncyConfig
-
-	subIncyEnableRouting bool
-	subIncyRoutingRules  string
+	subTitle       string
+	subSupportUrl  string
+	subProfileMode string
+	subProfileUrl  string
+	subAnnounce    string
 
 	subPath            string
 	subJsonPath        string
@@ -83,7 +74,6 @@ type SUBController struct {
 	subService      *SubService
 	subJsonService  *SubJsonService
 	subClashService *SubClashService
-	clientService   service.ClientService
 	settingService  service.SettingService
 
 	subTemplateMu    sync.RWMutex
@@ -119,19 +109,11 @@ type subControllerConfig struct {
 	subClashRules         string
 	subClashRemoteDNS     bool
 
-	subTitle         string
-	subSupportURL    string
-	subProfileMode   string
-	subProfileURL    string
-	subAnnounce      string
-	subEnableRouting bool
-	subRoutingRules  string
-	subHideSettings  bool
-	happConfig       HappConfig
-	incyConfig       IncyConfig
-
-	subIncyEnableRouting bool
-	subIncyRoutingRules  string
+	subTitle       string
+	subSupportURL  string
+	subProfileMode string
+	subProfileURL  string
+	subAnnounce    string
 }
 
 type SUBControllerOption func(*subControllerConfig)
@@ -244,34 +226,6 @@ func WithSUBAnnounce(value string) SUBControllerOption {
 	return func(config *subControllerConfig) { config.subAnnounce = value }
 }
 
-func WithSUBEnableRouting(value bool) SUBControllerOption {
-	return func(config *subControllerConfig) { config.subEnableRouting = value }
-}
-
-func WithSUBRoutingRules(value string) SUBControllerOption {
-	return func(config *subControllerConfig) { config.subRoutingRules = value }
-}
-
-func WithSUBHideSettings(value bool) SUBControllerOption {
-	return func(config *subControllerConfig) { config.subHideSettings = value }
-}
-
-func WithSUBIncyEnableRouting(value bool) SUBControllerOption {
-	return func(config *subControllerConfig) { config.subIncyEnableRouting = value }
-}
-
-func WithSUBIncyRoutingRules(value string) SUBControllerOption {
-	return func(config *subControllerConfig) { config.subIncyRoutingRules = value }
-}
-
-func WithSUBHappConfig(value HappConfig) SUBControllerOption {
-	return func(config *subControllerConfig) { config.happConfig = value }
-}
-
-func WithSUBIncyConfig(value IncyConfig) SUBControllerOption {
-	return func(config *subControllerConfig) { config.incyConfig = value }
-}
-
 func defaultSUBControllerConfig() subControllerConfig {
 	return subControllerConfig{
 		subPath:        "/sub/",
@@ -302,20 +256,11 @@ func NewSUBController(g *gin.RouterGroup, options ...SUBControllerOption) *SUBCo
 	subJsonSvc.SetObservatoryConfig(config.subJsonObservatory)
 	subJsonSvc.SetDnsConfig(config.subJsonDns)
 	a := &SUBController{
-		subTitle:            config.subTitle,
-		subSupportUrl:       config.subSupportURL,
-		subProfileMode:      config.subProfileMode,
-		subProfileUrl:       config.subProfileURL,
-		subAnnounce:         config.subAnnounce,
-		subEnableRouting:    config.subEnableRouting,
-		subRoutingRules:     config.subRoutingRules,
-		subJsonRoutingRules: config.subJsonRoutingRules,
-		subHideSettings:     config.subHideSettings,
-		happConfig:          config.happConfig,
-		incyConfig:          config.incyConfig,
-
-		subIncyEnableRouting: config.subIncyEnableRouting,
-		subIncyRoutingRules:  config.subIncyRoutingRules,
+		subTitle:       config.subTitle,
+		subSupportUrl:  config.subSupportURL,
+		subProfileMode: config.subProfileMode,
+		subProfileUrl:  config.subProfileURL,
+		subAnnounce:    config.subAnnounce,
 
 		subPath:            config.subPath,
 		subJsonPath:        config.subJsonPath,
@@ -347,8 +292,6 @@ func (a *SUBController) initRouter(g *gin.RouterGroup) {
 	gLink := g.Group(a.subPath, setNoCacheHeaders)
 	gLink.GET(":subid", a.subs)
 	gLink.HEAD(":subid", a.subs)
-	gLink.GET(":subid/hwid-status", a.hwidStatus)
-	gLink.HEAD(":subid/hwid-status", a.hwidStatus)
 	if a.jsonEnabled {
 		gJson := g.Group(a.subJsonPath, setNoCacheHeaders)
 		gJson.GET(":subid", a.subJsons)
@@ -485,9 +428,6 @@ func (a *SUBController) subs(c *gin.Context) {
 		logSubscriptionRoute(userAgent, "html")
 		return
 	}
-	if !a.enforceHwid(c) {
-		return
-	}
 	explicitRaw := shouldForceRawSub(c)
 	if !explicitRaw && shouldAutoServeClash(a.subClashAutoDetect, a.clashEnabled, false, userAgent, a.clashUserAgent) && a.serveClashBody(c, false, false) {
 		a.recordSubscriptionFetch(c)
@@ -504,7 +444,7 @@ func (a *SUBController) subs(c *gin.Context) {
 	scheme, host, hostWithPort, _ := a.subService.ResolveRequest(c)
 	subReq := a.subService.ForRequest(host)
 	subReq.subscriptionBody = true
-	subReq.omitServerDescription = !IsHappClient(userAgent) && !IsIncyClient(userAgent)
+	subReq.omitServerDescription = true
 	subReq.ss2022Format = resolveSS2022Format(c, userAgent)
 	subs, _, _, traffic, err := subReq.getSubs(subId)
 	if err != nil || subs == nil {
@@ -519,19 +459,7 @@ func (a *SUBController) subs(c *gin.Context) {
 		// Add headers
 		header := subReq.subscriptionUserinfo(traffic)
 		metadata := a.metadataForSubRequest(func() *SubService { return subReq }, subId, builtinProfileURL(c, scheme, hostWithPort))
-		a.ApplyCommonHeaders(c, header, a.updateInterval, metadata.Title, metadata.SupportURL, metadata.ProfileURL, metadata.Announce, a.subEnableRouting, a.subRoutingRules, a.subHideSettings)
-
-		// Incy's profile rides the raw body; other clients must not see that line (#6062).
-		if IsIncyClient(userAgent) && a.subIncyEnableRouting && a.subIncyRoutingRules != "" {
-			incyRules, _, err := resolveIncyRoutingSource(a.subIncyRoutingRules)
-			if err == nil && strings.TrimSpace(incyRules) != "" {
-				result.WriteString(incyRules)
-				result.WriteString("\n")
-				// INCY ranks a Routing header above a body line, so the shared
-				// profile must not override INCY's own one here.
-				c.Writer.Header().Del("Routing")
-			}
-		}
+		a.ApplyCommonHeaders(c, header, a.updateInterval, metadata.Title, metadata.SupportURL, metadata.ProfileURL, metadata.Announce)
 
 		if a.subEncrypt {
 			c.String(200, base64.StdEncoding.EncodeToString([]byte(result.String())))
@@ -747,52 +675,6 @@ func (a *SUBController) subPageContext(page PageData) map[string]any {
 	}
 }
 
-func (a *SUBController) enforceHwid(c *gin.Context) bool {
-	result, err := a.clientService.EnforceHwidForSubID(c.Param("subid"), service.HwidRequest{
-		Hwid:        c.GetHeader("X-HWID"),
-		UserAgent:   c.GetHeader("User-Agent"),
-		DeviceOS:    c.GetHeader("X-Device-OS"),
-		OsVersion:   c.GetHeader("X-Ver-OS"),
-		DeviceModel: c.GetHeader("X-Device-Model"),
-	})
-	if err != nil {
-		writeSubError(c, err)
-		return false
-	}
-	applyHwidHeaders(c, result)
-	if !result.Allowed {
-		c.Status(http.StatusNotFound)
-		return false
-	}
-	return true
-}
-
-func applyHwidHeaders(c *gin.Context, result service.HwidGateResult) {
-	if result.Active {
-		c.Header("X-Hwid-Active", "true")
-	}
-	if result.NotSupported {
-		c.Header("X-Hwid-Not-Supported", "true")
-	}
-	if result.LimitReached {
-		c.Header("X-Hwid-Limit", "true")
-	}
-	if result.MaxDevicesReached {
-		c.Header("X-Hwid-Max-Devices-Reached", "true")
-	}
-}
-
-// hwidStatus serves read-only device-slot counters for a subscription. It
-// deliberately skips enforceHwid: asking about slots must not consume one.
-func (a *SUBController) hwidStatus(c *gin.Context) {
-	status, found, err := a.clientService.HwidSlotStatusForSubID(c.Param("subid"))
-	if err != nil || !found {
-		writeSubError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, status)
-}
-
 // setNoCacheHeaders runs on every subscription route group: each one serves a per-subscriber body
 // with live traffic, expiry and routing headers that no cache may keep.
 func setNoCacheHeaders(c *gin.Context) {
@@ -844,13 +726,9 @@ func (a *SUBController) loadSubTemplate(themeDir string) (*template.Template, er
 	return tmpl, nil
 }
 
-// subJsons handles HTTP requests for JSON subscription configurations. The
-// device limit is enforced on every body route, ?view=raw included (#GHSA-7ww3).
+// subJsons handles HTTP requests for JSON subscription configurations.
 func (a *SUBController) subJsons(c *gin.Context) {
 	if strings.EqualFold(c.Query("view"), "raw") {
-		if !a.enforceHwid(c) {
-			return
-		}
 		if !a.serveJsonBody(c, a.jsonAlwaysArray, "application/json; charset=utf-8", true) {
 			writeSubError(c, nil)
 		}
@@ -858,9 +736,6 @@ func (a *SUBController) subJsons(c *gin.Context) {
 		return
 	}
 	if a.maybeServeSubPage(c) {
-		return
-	}
-	if !a.enforceHwid(c) {
 		return
 	}
 	a.serveJson(c, a.jsonAlwaysArray, "text/plain; charset=utf-8")
@@ -891,7 +766,7 @@ func (a *SUBController) serveJsonBody(c *gin.Context, alwaysReturnArray bool, co
 		}
 		return subReq
 	}, subId, builtinProfileURL(c, scheme, hostWithPort))
-	a.ApplyCommonHeaders(c, header, a.updateInterval, metadata.Title, metadata.SupportURL, metadata.ProfileURL, metadata.Announce, a.subEnableRouting, a.subRoutingRules, a.subHideSettings)
+	a.ApplyCommonHeaders(c, header, a.updateInterval, metadata.Title, metadata.SupportURL, metadata.ProfileURL, metadata.Announce)
 	if rawDownload {
 		c.Writer.Header().Set("Content-Disposition", `attachment; filename="subscription.json"`)
 	}
@@ -910,9 +785,6 @@ func (a *SUBController) subClashLegacy(c *gin.Context) {
 
 func (a *SUBController) subClash(c *gin.Context, legacy bool) {
 	if strings.EqualFold(c.Query("view"), "raw") {
-		if !a.enforceHwid(c) {
-			return
-		}
 		if !a.serveClashBody(c, true, legacy) {
 			writeSubError(c, nil)
 		}
@@ -920,9 +792,6 @@ func (a *SUBController) subClash(c *gin.Context, legacy bool) {
 		return
 	}
 	if a.maybeServeSubPage(c) {
-		return
-	}
-	if !a.enforceHwid(c) {
 		return
 	}
 	if !a.serveClashBody(c, false, legacy) {
@@ -959,7 +828,7 @@ func (a *SUBController) serveClashBody(c *gin.Context, rawDownload bool, legacy 
 		}
 		return subReq
 	}, subId, builtinProfileURL(c, scheme, hostWithPort))
-	a.ApplyCommonHeaders(c, header, a.updateInterval, metadata.Title, metadata.SupportURL, metadata.ProfileURL, metadata.Announce, a.subEnableRouting, a.subRoutingRules, a.subHideSettings)
+	a.ApplyCommonHeaders(c, header, a.updateInterval, metadata.Title, metadata.SupportURL, metadata.ProfileURL, metadata.Announce)
 	if rawDownload {
 		c.Writer.Header().Set("Content-Disposition", `attachment; filename="subscription.yaml"`)
 	} else if metadata.Title != "" {
@@ -984,9 +853,6 @@ func (a *SUBController) ApplyCommonHeaders(
 	profileSupportUrl string,
 	profileUrl string,
 	profileAnnounce string,
-	profileEnableRouting bool,
-	profileRoutingRules string,
-	profileHideSettings bool,
 ) {
 	c.Writer.Header().Set("Subscription-Userinfo", header)
 	c.Writer.Header().Set("Profile-Update-Interval", updateInterval)
@@ -1004,36 +870,4 @@ func (a *SUBController) ApplyCommonHeaders(
 	if profileAnnounce != "" {
 		c.Writer.Header().Set("Announce", "base64:"+base64.StdEncoding.EncodeToString([]byte(profileAnnounce)))
 	}
-
-	// The Happ tab is Happ-only, so INCY reads it as blank and gets the shared
-	// JSON profile instead; INCY takes a routing link of any scheme (#6062).
-	incyClient := c.Request != nil && IsIncyClient(c.GetHeader("User-Agent"))
-	if incyClient {
-		profileEnableRouting, profileRoutingRules = false, ""
-	}
-	rules, remote, routingErr := resolveRoutingSource(remoteRoutingHapp, profileRoutingRules)
-	if strings.TrimSpace(profileRoutingRules) == "" {
-		// Happ/INCY fetch the geo files the baked rules reference through this
-		// header; unlike the documents, it keeps the profile's own DNS servers.
-		rules, remote, routingErr = jsonRoutingHeaderSource(a.subJsonRoutingRules), false, nil
-	}
-	// The off values undo a previously pushed setting, so they ride the same
-	// opt-in as every other Happ header rather than reaching every Happ client.
-	happManaged := a.happConfig.AutoDetect && c.Request != nil && IsHappClient(c.GetHeader("User-Agent"))
-	if profileEnableRouting {
-		c.Writer.Header().Set("Routing-Enable", "true")
-	} else if happManaged {
-		c.Writer.Header().Set("Routing-Enable", "0")
-	}
-	if (routingErr == nil || !remote) && strings.TrimSpace(rules) != "" {
-		c.Writer.Header().Set("Routing", rules)
-	}
-	if profileHideSettings {
-		c.Writer.Header().Set("Hide-Settings", "1")
-	} else if happManaged {
-		c.Writer.Header().Set("Hide-Settings", "0")
-	}
-
-	ApplyHappHeaders(c, a.happConfig, happManaged)
-	ApplyIncyHeaders(c, a.incyConfig, a.incyConfig.AutoDetect && incyClient)
 }

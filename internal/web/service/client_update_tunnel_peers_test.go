@@ -79,7 +79,7 @@ func TestUpdateDoesNotBroadcastPeerCredentialsAcrossTunnelInbounds(t *testing.T)
 		Email: email, Enable: true, Comment: "renamed",
 		PrivateKey: privA, PublicKey: pubA, AllowedIPs: []string{"10.10.151.5/32"},
 	}
-	if _, err := svc.Update(inboundSvc, recId, updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, recId, updated); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 

@@ -37,7 +37,6 @@ export const ClientRecordSchema = z
     totalGB: z.number().optional(),
     expiryTime: z.number().optional(),
     limitIp: z.number().optional(),
-    limitHwid: z.number().optional(),
     tgId: z.union([z.number(), z.string()]).optional(),
     group: z.string().optional(),
     comment: z.string().optional(),
@@ -280,7 +279,6 @@ export const ClientFormSchema = z.object({
   trafficReset: z.enum(['never', 'hourly', 'daily', 'weekly', 'monthly']),
   trafficResetDay: z.number().int().min(1).max(31),
   limitIp: z.number().int().min(0),
-  limitHwid: z.number().int().min(0),
   tgId: z.number().int().min(0),
   group: z.string(),
   comment: z.string(),
@@ -297,7 +295,6 @@ export const ClientBulkAdjustFormSchema = z
     addDays: z.number().int(),
     addGB: z.number(),
     flow: z.string().optional().default(''),
-    limitHwid: z.number().int().min(0).nullable().optional(),
     adTag: z.string().optional().default(''),
   })
   .refine(
@@ -305,7 +302,6 @@ export const ClientBulkAdjustFormSchema = z
       v.addDays !== 0 ||
       v.addGB !== 0 ||
       v.flow !== '' ||
-      (v.limitHwid !== undefined && v.limitHwid !== null) ||
       (v.adTag !== undefined && v.adTag.trim() !== ''),
     {
       error: 'pages.clients.bulkAdjustNothing',
@@ -335,7 +331,6 @@ export const ClientBulkAddFormSchema = z.object({
   comment: z.string(),
   flow: z.string(),
   limitIp: z.number().int().min(0),
-  limitHwid: z.number().int().min(0),
   totalGB: z.number().min(0),
   expiryTime: z.number(),
   reset: z.number().int().min(0),

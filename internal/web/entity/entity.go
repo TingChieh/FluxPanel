@@ -46,7 +46,6 @@ type AllSetting struct {
 	TwoFactorEnable bool   `json:"twoFactorEnable" form:"twoFactorEnable"`
 	TwoFactorToken  string `json:"twoFactorToken" form:"twoFactorToken"`
 
-	HappLinkEnable              bool   `json:"happLinkEnable" form:"happLinkEnable"`
 	SubEnable                   bool   `json:"subEnable" form:"subEnable"`
 	SubJsonEnable               bool   `json:"subJsonEnable" form:"subJsonEnable"`
 	SubJsonAutoDetect           bool   `json:"subJsonAutoDetect" form:"subJsonAutoDetect"`
@@ -59,10 +58,6 @@ type AllSetting struct {
 	SubProfileMode              string `json:"subProfileMode" form:"subProfileMode"`
 	SubProfileUrl               string `json:"subProfileUrl" form:"subProfileUrl"`
 	SubAnnounce                 string `json:"subAnnounce" form:"subAnnounce"`
-	SubEnableRouting            bool   `json:"subEnableRouting" form:"subEnableRouting"`
-	SubRoutingRules             string `json:"subRoutingRules" form:"subRoutingRules"`
-	SubIncyEnableRouting        bool   `json:"subIncyEnableRouting" form:"subIncyEnableRouting"`
-	SubIncyRoutingRules         string `json:"subIncyRoutingRules" form:"subIncyRoutingRules"`
 	SubListen                   string `json:"subListen" form:"subListen"`
 	SubPort                     int    `json:"subPort" form:"subPort" validate:"gte=1,lte=65535"`
 	SubPath                     string `json:"subPath" form:"subPath"`
@@ -91,64 +86,6 @@ type AllSetting struct {
 	SubJsonFinalMask            string `json:"subJsonFinalMask" form:"subJsonFinalMask"`
 	SubJsonObservatory          string `json:"subJsonObservatory" form:"subJsonObservatory"`
 	SubThemeDir                 string `json:"subThemeDir" form:"subThemeDir"`
-	SubHideSettings             bool   `json:"subHideSettings" form:"subHideSettings"`
-
-	// Happ client customization settings (app-management / routing / UX).
-	SubHappAutoDetect          bool   `json:"subHappAutoDetect" form:"subHappAutoDetect"`
-	SubHappProviderId          string `json:"subHappProviderId" form:"subHappProviderId"`
-	SubHappNewUrl              string `json:"subHappNewUrl" form:"subHappNewUrl"`
-	SubHappFallbackUrl         string `json:"subHappFallbackUrl" form:"subHappFallbackUrl"`
-	SubHappSubInfoColor        string `json:"subHappSubInfoColor" form:"subHappSubInfoColor"`
-	SubHappSubInfoText         string `json:"subHappSubInfoText" form:"subHappSubInfoText"`
-	SubHappSubInfoButtonText   string `json:"subHappSubInfoButtonText" form:"subHappSubInfoButtonText"`
-	SubHappSubInfoButtonLink   string `json:"subHappSubInfoButtonLink" form:"subHappSubInfoButtonLink"`
-	SubHappSubExpire           bool   `json:"subHappSubExpire" form:"subHappSubExpire"`
-	SubHappSubExpireButtonLink string `json:"subHappSubExpireButtonLink" form:"subHappSubExpireButtonLink"`
-	SubHappNotificationExpire  bool   `json:"subHappNotificationExpire" form:"subHappNotificationExpire"`
-	SubHappNoLimit             bool   `json:"subHappNoLimit" form:"subHappNoLimit"`
-	SubHappAlwaysHwid          bool   `json:"subHappAlwaysHwid" form:"subHappAlwaysHwid"`
-	SubHappTunMode             string `json:"subHappTunMode" form:"subHappTunMode"`
-	SubHappTunType             string `json:"subHappTunType" form:"subHappTunType"`
-	SubHappExcludeRoutes       string `json:"subHappExcludeRoutes" form:"subHappExcludeRoutes"`
-	SubHappExcludeApns         bool   `json:"subHappExcludeApns" form:"subHappExcludeApns"`
-	SubHappColorProfile        string `json:"subHappColorProfile" form:"subHappColorProfile"`
-	SubHappPingType            string `json:"subHappPingType" form:"subHappPingType"`
-	SubHappAutoConnect         bool   `json:"subHappAutoConnect" form:"subHappAutoConnect"`
-	SubHappAutoConnectType     string `json:"subHappAutoConnectType" form:"subHappAutoConnectType"`
-	SubHappPerAppMode          string `json:"subHappPerAppMode" form:"subHappPerAppMode"`
-	SubHappPerAppList          string `json:"subHappPerAppList" form:"subHappPerAppList"`
-	SubHappLocalProxyAuth      string `json:"subHappLocalProxyAuth" form:"subHappLocalProxyAuth"`
-
-	// Incy client customization settings (app-management). A "" value omits
-	// the header so the subscriber's own app setting is left alone.
-	SubIncyAppAutoDetect       bool   `json:"subIncyAppAutoDetect" form:"subIncyAppAutoDetect"`
-	SubIncyProfileDescription  string `json:"subIncyProfileDescription" form:"subIncyProfileDescription"`
-	SubIncySortOrder           string `json:"subIncySortOrder" form:"subIncySortOrder"`
-	SubIncySupportEmail        string `json:"subIncySupportEmail" form:"subIncySupportEmail"`
-	SubIncyAnnounceUrl         string `json:"subIncyAnnounceUrl" form:"subIncyAnnounceUrl"`
-	SubIncyPremiumUrl          string `json:"subIncyPremiumUrl" form:"subIncyPremiumUrl"`
-	SubIncyBannerText          string `json:"subIncyBannerText" form:"subIncyBannerText"`
-	SubIncyBannerButtonText    string `json:"subIncyBannerButtonText" form:"subIncyBannerButtonText"`
-	SubIncyBannerButtonUrl     string `json:"subIncyBannerButtonUrl" form:"subIncyBannerButtonUrl"`
-	SubIncyBannerBgColor       string `json:"subIncyBannerBgColor" form:"subIncyBannerBgColor"`
-	SubIncyBannerButtonColor   string `json:"subIncyBannerButtonColor" form:"subIncyBannerButtonColor"`
-	SubIncyHideUrl             string `json:"subIncyHideUrl" form:"subIncyHideUrl"`
-	SubIncyHideCheck           string `json:"subIncyHideCheck" form:"subIncyHideCheck"`
-	SubIncyNoLimitEnabled      string `json:"subIncyNoLimitEnabled" form:"subIncyNoLimitEnabled"`
-	SubIncyPerAppEnable        string `json:"subIncyPerAppEnable" form:"subIncyPerAppEnable"`
-	SubIncyPerAppMode          string `json:"subIncyPerAppMode" form:"subIncyPerAppMode"`
-	SubIncyPerAppList          string `json:"subIncyPerAppList" form:"subIncyPerAppList"`
-	SubIncyFragmentationEnable string `json:"subIncyFragmentationEnable" form:"subIncyFragmentationEnable"`
-	SubIncyFragmentLength      string `json:"subIncyFragmentLength" form:"subIncyFragmentLength"`
-	SubIncyFragmentInterval    string `json:"subIncyFragmentInterval" form:"subIncyFragmentInterval"`
-	SubIncyFragmentPackets     string `json:"subIncyFragmentPackets" form:"subIncyFragmentPackets"`
-	SubIncyNoisesEnable        string `json:"subIncyNoisesEnable" form:"subIncyNoisesEnable"`
-	SubIncyNoisesType          string `json:"subIncyNoisesType" form:"subIncyNoisesType"`
-	SubIncyNoisesPacket        string `json:"subIncyNoisesPacket" form:"subIncyNoisesPacket"`
-	SubIncyNoisesDelay         string `json:"subIncyNoisesDelay" form:"subIncyNoisesDelay"`
-	SubIncyResolveEnable       string `json:"subIncyResolveEnable" form:"subIncyResolveEnable"`
-	SubIncyResolveDnsDomain    string `json:"subIncyResolveDnsDomain" form:"subIncyResolveDnsDomain"`
-	SubIncyResolveDnsIp        string `json:"subIncyResolveDnsIp" form:"subIncyResolveDnsIp"`
 }
 
 type AllSettingView struct {

@@ -115,7 +115,7 @@ func TestUpdateAcrossNodesPushesConcurrently(t *testing.T) {
 	bar.arm()
 	if _, err := (&ClientService{}).Update(&InboundService{}, recID, model.Client{
 		Email: "upfan@x", ID: uuid, SubID: "sub-upfan@x", Enable: true, Comment: "edited",
-	}, 0); err != nil {
+	}); err != nil {
 		t.Fatalf("Update across %d node inbounds: %v", nodes, err)
 	}
 

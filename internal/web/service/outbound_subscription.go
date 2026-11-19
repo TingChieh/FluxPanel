@@ -436,10 +436,6 @@ func (s *OutboundSubscriptionService) fetchOutbounds(sub *model.OutboundSubscrip
 		userAgent = defaultOutboundSubscriptionUserAgent
 	}
 	req.Header.Set("User-Agent", userAgent)
-	// A 3x-ui donor with an HWID limit answers 404 when the header is empty (#6574).
-	if hwid := ExternalSubscriptionHwid(); hwid != "" {
-		req.Header.Set("X-HWID", hwid)
-	}
 
 	resp, err := client.Do(req)
 	if err != nil {

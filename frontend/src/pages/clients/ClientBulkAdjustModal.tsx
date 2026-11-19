@@ -15,7 +15,6 @@ const EMPTY: ClientBulkAdjustFormValues = {
   addDays: 0,
   addGB: 0,
   flow: '',
-  limitHwid: null,
   adTag: '',
 };
 
@@ -27,7 +26,6 @@ interface ClientBulkAdjustModalProps {
     addDays: number,
     addBytes: number,
     flow: string,
-    limitHwid?: number | null,
     adTag?: string,
   ) => Promise<{ adjusted: number; skipped?: { email: string; reason: string }[] } | null>;
 }
@@ -53,23 +51,17 @@ export default function ClientBulkAdjustModal({
       addDays: Math.trunc(Number(values.addDays) || 0),
       addGB: Number(values.addGB) || 0,
       flow: values.flow,
-      limitHwid:
-        values.limitHwid !== null &&
-        values.limitHwid !== undefined &&
-        (values.limitHwid as unknown) !== ''
-          ? Math.trunc(Number(values.limitHwid))
-          : null,
       adTag: values.adTag?.trim() ?? '',
     });
     if (!validated.success) {
       messageApi.warning(t(validated.error.issues[0]?.message ?? 'somethingWentWrong'));
       return;
     }
-    const { addDays: days, addGB: gb, flow: flowValue, limitHwid, adTag } = validated.data;
+    const { addDays: days, addGB: gb, flow: flowValue, adTag } = validated.data;
     setSubmitting(true);
     try {
       const bytes = Math.trunc(gb * GB);
-      const result = await onSubmit(days, bytes, flowValue, limitHwid, adTag);
+      const result = await onSubmit(days, bytes, flowValue, adTag);
       if (!result) return;
       const ok = result.adjusted ?? 0;
       const skipped = result.skipped?.length ?? 0;
@@ -124,19 +116,6 @@ export default function ClientBulkAdjustModal({
                   { value: FLOW_CLEAR, label: t('pages.clients.bulkFlowDisable') },
                   ...Object.values(TLS_FLOW_CONTROL).map((k) => ({ value: k, label: k })),
                 ]}
-              />
-            </FormField>
-            <FormField
-              name="limitHwid"
-              label={t('pages.clients.limitHwid')}
-              tooltip={t('pages.clients.limitHwidDesc')}
-            >
-              <InputNumber
-                style={{ width: '100%' }}
-                min={0}
-                step={1}
-                precision={0}
-                placeholder={t('pages.clients.bulkFlowNoChange')}
               />
             </FormField>
           </Form>

@@ -31,40 +31,6 @@
           "datepicker": {
             "type": "string"
           },
-          "discordAdminIds": {
-            "type": "string"
-          },
-          "discordBotBackup": {
-            "type": "boolean"
-          },
-          "discordBotEnable": {
-            "type": "boolean"
-          },
-          "discordBotToken": {
-            "type": "string"
-          },
-          "discordChannelId": {
-            "type": "string"
-          },
-          "discordCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "discordEnabledEvents": {
-            "type": "string"
-          },
-          "discordLang": {
-            "type": "string"
-          },
-          "discordMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "discordRunTime": {
-            "type": "string"
-          },
           "expireDiff": {
             "minimum": 0,
             "type": "integer"
@@ -78,89 +44,8 @@
           "externalTrafficInformURI": {
             "type": "string"
           },
-          "happLinkEnable": {
-            "type": "boolean"
-          },
           "ipLimitAllowlist": {
             "type": "string"
-          },
-          "ldapAutoCreate": {
-            "type": "boolean"
-          },
-          "ldapAutoDelete": {
-            "type": "boolean"
-          },
-          "ldapBaseDN": {
-            "type": "string"
-          },
-          "ldapBindDN": {
-            "type": "string"
-          },
-          "ldapDefaultExpiryDays": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "ldapDefaultLimitIP": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "ldapDefaultTotalGB": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "ldapEnable": {
-            "type": "boolean"
-          },
-          "ldapFlagField": {
-            "type": "string"
-          },
-          "ldapHost": {
-            "type": "string"
-          },
-          "ldapInboundTags": {
-            "type": "string"
-          },
-          "ldapInsecureSkipVerify": {
-            "type": "boolean"
-          },
-          "ldapInvertFlag": {
-            "type": "boolean"
-          },
-          "ldapPassword": {
-            "type": "string"
-          },
-          "ldapPort": {
-            "maximum": 65535,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "ldapSyncCron": {
-            "type": "string"
-          },
-          "ldapTruthyValues": {
-            "type": "string"
-          },
-          "ldapUseTLS": {
-            "type": "boolean"
-          },
-          "ldapUserAttr": {
-            "type": "string"
-          },
-          "ldapUserFilter": {
-            "type": "string"
-          },
-          "ldapVlessField": {
-            "type": "string"
-          },
-          "nodeDownThreshold": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "outboundDownThreshold": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "integer"
           },
           "pageSize": {
             "maximum": 1000,
@@ -183,48 +68,6 @@
             "maximum": 525600,
             "minimum": 1,
             "type": "integer"
-          },
-          "smtpCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "smtpEnable": {
-            "type": "boolean"
-          },
-          "smtpEnabledEvents": {
-            "type": "string"
-          },
-          "smtpEncryptionType": {
-            "type": "string"
-          },
-          "smtpFrom": {
-            "type": "string"
-          },
-          "smtpFromName": {
-            "type": "string"
-          },
-          "smtpHost": {
-            "type": "string"
-          },
-          "smtpMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "smtpPassword": {
-            "type": "string"
-          },
-          "smtpPort": {
-            "maximum": 65535,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "smtpTo": {
-            "type": "string"
-          },
-          "smtpUsername": {
-            "type": "string"
           },
           "subAnnounce": {
             "type": "string"
@@ -265,184 +108,14 @@
           "subEnable": {
             "type": "boolean"
           },
-          "subEnableRouting": {
-            "type": "boolean"
-          },
           "subEncrypt": {
             "type": "boolean"
           },
           "subExpiredTemplate": {
             "type": "string"
           },
-          "subHappAlwaysHwid": {
-            "type": "boolean"
-          },
-          "subHappAutoConnect": {
-            "type": "boolean"
-          },
-          "subHappAutoConnectType": {
-            "type": "string"
-          },
-          "subHappAutoDetect": {
-            "description": "Happ client customization settings (app-management / routing / UX).",
-            "type": "boolean"
-          },
-          "subHappColorProfile": {
-            "type": "string"
-          },
-          "subHappExcludeApns": {
-            "type": "boolean"
-          },
-          "subHappExcludeRoutes": {
-            "type": "string"
-          },
-          "subHappFallbackUrl": {
-            "type": "string"
-          },
-          "subHappLocalProxyAuth": {
-            "type": "string"
-          },
-          "subHappNewUrl": {
-            "type": "string"
-          },
-          "subHappNoLimit": {
-            "type": "boolean"
-          },
-          "subHappNotificationExpire": {
-            "type": "boolean"
-          },
-          "subHappPerAppList": {
-            "type": "string"
-          },
-          "subHappPerAppMode": {
-            "type": "string"
-          },
-          "subHappPingType": {
-            "type": "string"
-          },
-          "subHappProviderId": {
-            "type": "string"
-          },
-          "subHappSubExpire": {
-            "type": "boolean"
-          },
-          "subHappSubExpireButtonLink": {
-            "type": "string"
-          },
-          "subHappSubInfoButtonLink": {
-            "type": "string"
-          },
-          "subHappSubInfoButtonText": {
-            "type": "string"
-          },
-          "subHappSubInfoColor": {
-            "type": "string"
-          },
-          "subHappSubInfoText": {
-            "type": "string"
-          },
-          "subHappTunMode": {
-            "type": "string"
-          },
-          "subHappTunType": {
-            "type": "string"
-          },
-          "subHideSettings": {
-            "type": "boolean"
-          },
           "subHostSortMode": {
             "example": "inbound-first",
-            "type": "string"
-          },
-          "subIncyAnnounceUrl": {
-            "type": "string"
-          },
-          "subIncyAppAutoDetect": {
-            "description": "Incy client customization settings (app-management). A \"\" value omits\nthe header so the subscriber's own app setting is left alone.",
-            "type": "boolean"
-          },
-          "subIncyBannerBgColor": {
-            "type": "string"
-          },
-          "subIncyBannerButtonColor": {
-            "type": "string"
-          },
-          "subIncyBannerButtonText": {
-            "type": "string"
-          },
-          "subIncyBannerButtonUrl": {
-            "type": "string"
-          },
-          "subIncyBannerText": {
-            "type": "string"
-          },
-          "subIncyEnableRouting": {
-            "type": "boolean"
-          },
-          "subIncyFragmentInterval": {
-            "type": "string"
-          },
-          "subIncyFragmentLength": {
-            "type": "string"
-          },
-          "subIncyFragmentPackets": {
-            "type": "string"
-          },
-          "subIncyFragmentationEnable": {
-            "type": "string"
-          },
-          "subIncyHideCheck": {
-            "type": "string"
-          },
-          "subIncyHideUrl": {
-            "type": "string"
-          },
-          "subIncyNoLimitEnabled": {
-            "type": "string"
-          },
-          "subIncyNoisesDelay": {
-            "type": "string"
-          },
-          "subIncyNoisesEnable": {
-            "type": "string"
-          },
-          "subIncyNoisesPacket": {
-            "type": "string"
-          },
-          "subIncyNoisesType": {
-            "type": "string"
-          },
-          "subIncyPerAppEnable": {
-            "type": "string"
-          },
-          "subIncyPerAppList": {
-            "type": "string"
-          },
-          "subIncyPerAppMode": {
-            "type": "string"
-          },
-          "subIncyPremiumUrl": {
-            "type": "string"
-          },
-          "subIncyProfileDescription": {
-            "type": "string"
-          },
-          "subIncyResolveDnsDomain": {
-            "type": "string"
-          },
-          "subIncyResolveDnsIp": {
-            "type": "string"
-          },
-          "subIncyResolveEnable": {
-            "type": "string"
-          },
-          "subIncyRoutingRules": {
-            "type": "string"
-          },
-          "subIncySortOrder": {
-            "type": "string"
-          },
-          "subIncySupportEmail": {
             "type": "string"
           },
           "subInfoNodeEnable": {
@@ -504,9 +177,6 @@
           "subProfileUrl": {
             "type": "string"
           },
-          "subRoutingRules": {
-            "type": "string"
-          },
           "subShowIdentityOnAllLinks": {
             "type": "boolean"
           },
@@ -530,43 +200,6 @@
             "minimum": 0,
             "type": "integer"
           },
-          "tgBotAPIServer": {
-            "type": "string"
-          },
-          "tgBotBackup": {
-            "type": "boolean"
-          },
-          "tgBotChatId": {
-            "type": "string"
-          },
-          "tgBotEnable": {
-            "type": "boolean"
-          },
-          "tgBotProxy": {
-            "type": "string"
-          },
-          "tgBotToken": {
-            "type": "string"
-          },
-          "tgCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "tgEnabledEvents": {
-            "type": "string"
-          },
-          "tgLang": {
-            "type": "string"
-          },
-          "tgMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "tgRunTime": {
-            "type": "string"
-          },
           "timeLocation": {
             "type": "string"
           },
@@ -583,10 +216,6 @@
           },
           "twoFactorToken": {
             "type": "string"
-          },
-          "warpUpdateInterval": {
-            "minimum": 0,
-            "type": "integer"
           },
           "webBasePath": {
             "type": "string"
@@ -611,63 +240,17 @@
         },
         "required": [
           "datepicker",
-          "discordAdminIds",
-          "discordBotBackup",
-          "discordBotEnable",
-          "discordBotToken",
-          "discordChannelId",
-          "discordCpu",
-          "discordEnabledEvents",
-          "discordLang",
-          "discordMemory",
-          "discordRunTime",
           "expireDiff",
           "externalSubUserAgent",
           "externalTrafficInformEnable",
           "externalTrafficInformURI",
-          "happLinkEnable",
           "ipLimitAllowlist",
-          "ldapAutoCreate",
-          "ldapAutoDelete",
-          "ldapBaseDN",
-          "ldapBindDN",
-          "ldapDefaultExpiryDays",
-          "ldapDefaultLimitIP",
-          "ldapDefaultTotalGB",
-          "ldapEnable",
-          "ldapFlagField",
-          "ldapHost",
-          "ldapInboundTags",
-          "ldapInsecureSkipVerify",
-          "ldapInvertFlag",
-          "ldapPassword",
-          "ldapPort",
-          "ldapSyncCron",
-          "ldapTruthyValues",
-          "ldapUseTLS",
-          "ldapUserAttr",
-          "ldapUserFilter",
-          "ldapVlessField",
-          "nodeDownThreshold",
-          "outboundDownThreshold",
           "pageSize",
           "panelOutbound",
           "realityScanCandidates",
           "remarkTemplate",
           "restartXrayOnClientDisable",
           "sessionMaxAge",
-          "smtpCpu",
-          "smtpEnable",
-          "smtpEnabledEvents",
-          "smtpEncryptionType",
-          "smtpFrom",
-          "smtpFromName",
-          "smtpHost",
-          "smtpMemory",
-          "smtpPassword",
-          "smtpPort",
-          "smtpTo",
-          "smtpUsername",
           "subAnnounce",
           "subCalendarExpireInclusive",
           "subCertFile",
@@ -681,65 +264,9 @@
           "subClashUserAgentRegex",
           "subDomain",
           "subEnable",
-          "subEnableRouting",
           "subEncrypt",
           "subExpiredTemplate",
-          "subHappAlwaysHwid",
-          "subHappAutoConnect",
-          "subHappAutoConnectType",
-          "subHappAutoDetect",
-          "subHappColorProfile",
-          "subHappExcludeApns",
-          "subHappExcludeRoutes",
-          "subHappFallbackUrl",
-          "subHappLocalProxyAuth",
-          "subHappNewUrl",
-          "subHappNoLimit",
-          "subHappNotificationExpire",
-          "subHappPerAppList",
-          "subHappPerAppMode",
-          "subHappPingType",
-          "subHappProviderId",
-          "subHappSubExpire",
-          "subHappSubExpireButtonLink",
-          "subHappSubInfoButtonLink",
-          "subHappSubInfoButtonText",
-          "subHappSubInfoColor",
-          "subHappSubInfoText",
-          "subHappTunMode",
-          "subHappTunType",
-          "subHideSettings",
           "subHostSortMode",
-          "subIncyAnnounceUrl",
-          "subIncyAppAutoDetect",
-          "subIncyBannerBgColor",
-          "subIncyBannerButtonColor",
-          "subIncyBannerButtonText",
-          "subIncyBannerButtonUrl",
-          "subIncyBannerText",
-          "subIncyEnableRouting",
-          "subIncyFragmentInterval",
-          "subIncyFragmentLength",
-          "subIncyFragmentPackets",
-          "subIncyFragmentationEnable",
-          "subIncyHideCheck",
-          "subIncyHideUrl",
-          "subIncyNoLimitEnabled",
-          "subIncyNoisesDelay",
-          "subIncyNoisesEnable",
-          "subIncyNoisesPacket",
-          "subIncyNoisesType",
-          "subIncyPerAppEnable",
-          "subIncyPerAppList",
-          "subIncyPerAppMode",
-          "subIncyPremiumUrl",
-          "subIncyProfileDescription",
-          "subIncyResolveDnsDomain",
-          "subIncyResolveDnsIp",
-          "subIncyResolveEnable",
-          "subIncyRoutingRules",
-          "subIncySortOrder",
-          "subIncySupportEmail",
           "subInfoNodeEnable",
           "subJsonAlwaysArray",
           "subJsonAutoDetect",
@@ -759,7 +286,6 @@
           "subPort",
           "subProfileMode",
           "subProfileUrl",
-          "subRoutingRules",
           "subShowIdentityOnAllLinks",
           "subSupportUrl",
           "subThemeDir",
@@ -767,23 +293,11 @@
           "subTrafficDepletedTemplate",
           "subURI",
           "subUpdates",
-          "tgBotAPIServer",
-          "tgBotBackup",
-          "tgBotChatId",
-          "tgBotEnable",
-          "tgBotProxy",
-          "tgBotToken",
-          "tgCpu",
-          "tgEnabledEvents",
-          "tgLang",
-          "tgMemory",
-          "tgRunTime",
           "timeLocation",
           "trafficDiff",
           "trustedProxyCIDRs",
           "twoFactorEnable",
           "twoFactorToken",
-          "warpUpdateInterval",
           "webBasePath",
           "webCertFile",
           "webDomain",
@@ -798,40 +312,6 @@
           "datepicker": {
             "type": "string"
           },
-          "discordAdminIds": {
-            "type": "string"
-          },
-          "discordBotBackup": {
-            "type": "boolean"
-          },
-          "discordBotEnable": {
-            "type": "boolean"
-          },
-          "discordBotToken": {
-            "type": "string"
-          },
-          "discordChannelId": {
-            "type": "string"
-          },
-          "discordCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "discordEnabledEvents": {
-            "type": "string"
-          },
-          "discordLang": {
-            "type": "string"
-          },
-          "discordMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "discordRunTime": {
-            "type": "string"
-          },
           "expireDiff": {
             "minimum": 0,
             "type": "integer"
@@ -845,113 +325,14 @@
           "externalTrafficInformURI": {
             "type": "string"
           },
-          "happLinkEnable": {
-            "type": "boolean"
-          },
           "hasApiToken": {
-            "type": "boolean"
-          },
-          "hasDiscordBotToken": {
-            "type": "boolean"
-          },
-          "hasLdapPassword": {
-            "type": "boolean"
-          },
-          "hasNordSecret": {
-            "type": "boolean"
-          },
-          "hasSmtpPassword": {
-            "type": "boolean"
-          },
-          "hasTgBotToken": {
             "type": "boolean"
           },
           "hasTwoFactorToken": {
             "type": "boolean"
           },
-          "hasWarpSecret": {
-            "type": "boolean"
-          },
           "ipLimitAllowlist": {
             "type": "string"
-          },
-          "ldapAutoCreate": {
-            "type": "boolean"
-          },
-          "ldapAutoDelete": {
-            "type": "boolean"
-          },
-          "ldapBaseDN": {
-            "type": "string"
-          },
-          "ldapBindDN": {
-            "type": "string"
-          },
-          "ldapDefaultExpiryDays": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "ldapDefaultLimitIP": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "ldapDefaultTotalGB": {
-            "minimum": 0,
-            "type": "integer"
-          },
-          "ldapEnable": {
-            "type": "boolean"
-          },
-          "ldapFlagField": {
-            "type": "string"
-          },
-          "ldapHost": {
-            "type": "string"
-          },
-          "ldapInboundTags": {
-            "type": "string"
-          },
-          "ldapInsecureSkipVerify": {
-            "type": "boolean"
-          },
-          "ldapInvertFlag": {
-            "type": "boolean"
-          },
-          "ldapPassword": {
-            "type": "string"
-          },
-          "ldapPort": {
-            "maximum": 65535,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "ldapSyncCron": {
-            "type": "string"
-          },
-          "ldapTruthyValues": {
-            "type": "string"
-          },
-          "ldapUseTLS": {
-            "type": "boolean"
-          },
-          "ldapUserAttr": {
-            "type": "string"
-          },
-          "ldapUserFilter": {
-            "type": "string"
-          },
-          "ldapVlessField": {
-            "type": "string"
-          },
-          "nodeDownThreshold": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "outboundDownThreshold": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "integer"
           },
           "pageSize": {
             "maximum": 1000,
@@ -974,48 +355,6 @@
             "maximum": 525600,
             "minimum": 1,
             "type": "integer"
-          },
-          "smtpCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "smtpEnable": {
-            "type": "boolean"
-          },
-          "smtpEnabledEvents": {
-            "type": "string"
-          },
-          "smtpEncryptionType": {
-            "type": "string"
-          },
-          "smtpFrom": {
-            "type": "string"
-          },
-          "smtpFromName": {
-            "type": "string"
-          },
-          "smtpHost": {
-            "type": "string"
-          },
-          "smtpMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "smtpPassword": {
-            "type": "string"
-          },
-          "smtpPort": {
-            "maximum": 65535,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "smtpTo": {
-            "type": "string"
-          },
-          "smtpUsername": {
-            "type": "string"
           },
           "subAnnounce": {
             "type": "string"
@@ -1056,184 +395,14 @@
           "subEnable": {
             "type": "boolean"
           },
-          "subEnableRouting": {
-            "type": "boolean"
-          },
           "subEncrypt": {
             "type": "boolean"
           },
           "subExpiredTemplate": {
             "type": "string"
           },
-          "subHappAlwaysHwid": {
-            "type": "boolean"
-          },
-          "subHappAutoConnect": {
-            "type": "boolean"
-          },
-          "subHappAutoConnectType": {
-            "type": "string"
-          },
-          "subHappAutoDetect": {
-            "description": "Happ client customization settings (app-management / routing / UX).",
-            "type": "boolean"
-          },
-          "subHappColorProfile": {
-            "type": "string"
-          },
-          "subHappExcludeApns": {
-            "type": "boolean"
-          },
-          "subHappExcludeRoutes": {
-            "type": "string"
-          },
-          "subHappFallbackUrl": {
-            "type": "string"
-          },
-          "subHappLocalProxyAuth": {
-            "type": "string"
-          },
-          "subHappNewUrl": {
-            "type": "string"
-          },
-          "subHappNoLimit": {
-            "type": "boolean"
-          },
-          "subHappNotificationExpire": {
-            "type": "boolean"
-          },
-          "subHappPerAppList": {
-            "type": "string"
-          },
-          "subHappPerAppMode": {
-            "type": "string"
-          },
-          "subHappPingType": {
-            "type": "string"
-          },
-          "subHappProviderId": {
-            "type": "string"
-          },
-          "subHappSubExpire": {
-            "type": "boolean"
-          },
-          "subHappSubExpireButtonLink": {
-            "type": "string"
-          },
-          "subHappSubInfoButtonLink": {
-            "type": "string"
-          },
-          "subHappSubInfoButtonText": {
-            "type": "string"
-          },
-          "subHappSubInfoColor": {
-            "type": "string"
-          },
-          "subHappSubInfoText": {
-            "type": "string"
-          },
-          "subHappTunMode": {
-            "type": "string"
-          },
-          "subHappTunType": {
-            "type": "string"
-          },
-          "subHideSettings": {
-            "type": "boolean"
-          },
           "subHostSortMode": {
             "example": "inbound-first",
-            "type": "string"
-          },
-          "subIncyAnnounceUrl": {
-            "type": "string"
-          },
-          "subIncyAppAutoDetect": {
-            "description": "Incy client customization settings (app-management). A \"\" value omits\nthe header so the subscriber's own app setting is left alone.",
-            "type": "boolean"
-          },
-          "subIncyBannerBgColor": {
-            "type": "string"
-          },
-          "subIncyBannerButtonColor": {
-            "type": "string"
-          },
-          "subIncyBannerButtonText": {
-            "type": "string"
-          },
-          "subIncyBannerButtonUrl": {
-            "type": "string"
-          },
-          "subIncyBannerText": {
-            "type": "string"
-          },
-          "subIncyEnableRouting": {
-            "type": "boolean"
-          },
-          "subIncyFragmentInterval": {
-            "type": "string"
-          },
-          "subIncyFragmentLength": {
-            "type": "string"
-          },
-          "subIncyFragmentPackets": {
-            "type": "string"
-          },
-          "subIncyFragmentationEnable": {
-            "type": "string"
-          },
-          "subIncyHideCheck": {
-            "type": "string"
-          },
-          "subIncyHideUrl": {
-            "type": "string"
-          },
-          "subIncyNoLimitEnabled": {
-            "type": "string"
-          },
-          "subIncyNoisesDelay": {
-            "type": "string"
-          },
-          "subIncyNoisesEnable": {
-            "type": "string"
-          },
-          "subIncyNoisesPacket": {
-            "type": "string"
-          },
-          "subIncyNoisesType": {
-            "type": "string"
-          },
-          "subIncyPerAppEnable": {
-            "type": "string"
-          },
-          "subIncyPerAppList": {
-            "type": "string"
-          },
-          "subIncyPerAppMode": {
-            "type": "string"
-          },
-          "subIncyPremiumUrl": {
-            "type": "string"
-          },
-          "subIncyProfileDescription": {
-            "type": "string"
-          },
-          "subIncyResolveDnsDomain": {
-            "type": "string"
-          },
-          "subIncyResolveDnsIp": {
-            "type": "string"
-          },
-          "subIncyResolveEnable": {
-            "type": "string"
-          },
-          "subIncyRoutingRules": {
-            "type": "string"
-          },
-          "subIncySortOrder": {
-            "type": "string"
-          },
-          "subIncySupportEmail": {
             "type": "string"
           },
           "subInfoNodeEnable": {
@@ -1295,9 +464,6 @@
           "subProfileUrl": {
             "type": "string"
           },
-          "subRoutingRules": {
-            "type": "string"
-          },
           "subShowIdentityOnAllLinks": {
             "type": "boolean"
           },
@@ -1321,43 +487,6 @@
             "minimum": 0,
             "type": "integer"
           },
-          "tgBotAPIServer": {
-            "type": "string"
-          },
-          "tgBotBackup": {
-            "type": "boolean"
-          },
-          "tgBotChatId": {
-            "type": "string"
-          },
-          "tgBotEnable": {
-            "type": "boolean"
-          },
-          "tgBotProxy": {
-            "type": "string"
-          },
-          "tgBotToken": {
-            "type": "string"
-          },
-          "tgCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "tgEnabledEvents": {
-            "type": "string"
-          },
-          "tgLang": {
-            "type": "string"
-          },
-          "tgMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "tgRunTime": {
-            "type": "string"
-          },
           "timeLocation": {
             "type": "string"
           },
@@ -1374,10 +503,6 @@
           },
           "twoFactorToken": {
             "type": "string"
-          },
-          "warpUpdateInterval": {
-            "minimum": 0,
-            "type": "integer"
           },
           "webBasePath": {
             "type": "string"
@@ -1402,71 +527,19 @@
         },
         "required": [
           "datepicker",
-          "discordAdminIds",
-          "discordBotBackup",
-          "discordBotEnable",
-          "discordBotToken",
-          "discordChannelId",
-          "discordCpu",
-          "discordEnabledEvents",
-          "discordLang",
-          "discordMemory",
-          "discordRunTime",
           "expireDiff",
           "externalSubUserAgent",
           "externalTrafficInformEnable",
           "externalTrafficInformURI",
-          "happLinkEnable",
           "hasApiToken",
-          "hasDiscordBotToken",
-          "hasLdapPassword",
-          "hasNordSecret",
-          "hasSmtpPassword",
-          "hasTgBotToken",
           "hasTwoFactorToken",
-          "hasWarpSecret",
           "ipLimitAllowlist",
-          "ldapAutoCreate",
-          "ldapAutoDelete",
-          "ldapBaseDN",
-          "ldapBindDN",
-          "ldapDefaultExpiryDays",
-          "ldapDefaultLimitIP",
-          "ldapDefaultTotalGB",
-          "ldapEnable",
-          "ldapFlagField",
-          "ldapHost",
-          "ldapInboundTags",
-          "ldapInsecureSkipVerify",
-          "ldapInvertFlag",
-          "ldapPassword",
-          "ldapPort",
-          "ldapSyncCron",
-          "ldapTruthyValues",
-          "ldapUseTLS",
-          "ldapUserAttr",
-          "ldapUserFilter",
-          "ldapVlessField",
-          "nodeDownThreshold",
-          "outboundDownThreshold",
           "pageSize",
           "panelOutbound",
           "realityScanCandidates",
           "remarkTemplate",
           "restartXrayOnClientDisable",
           "sessionMaxAge",
-          "smtpCpu",
-          "smtpEnable",
-          "smtpEnabledEvents",
-          "smtpEncryptionType",
-          "smtpFrom",
-          "smtpFromName",
-          "smtpHost",
-          "smtpMemory",
-          "smtpPassword",
-          "smtpPort",
-          "smtpTo",
-          "smtpUsername",
           "subAnnounce",
           "subCalendarExpireInclusive",
           "subCertFile",
@@ -1480,65 +553,9 @@
           "subClashUserAgentRegex",
           "subDomain",
           "subEnable",
-          "subEnableRouting",
           "subEncrypt",
           "subExpiredTemplate",
-          "subHappAlwaysHwid",
-          "subHappAutoConnect",
-          "subHappAutoConnectType",
-          "subHappAutoDetect",
-          "subHappColorProfile",
-          "subHappExcludeApns",
-          "subHappExcludeRoutes",
-          "subHappFallbackUrl",
-          "subHappLocalProxyAuth",
-          "subHappNewUrl",
-          "subHappNoLimit",
-          "subHappNotificationExpire",
-          "subHappPerAppList",
-          "subHappPerAppMode",
-          "subHappPingType",
-          "subHappProviderId",
-          "subHappSubExpire",
-          "subHappSubExpireButtonLink",
-          "subHappSubInfoButtonLink",
-          "subHappSubInfoButtonText",
-          "subHappSubInfoColor",
-          "subHappSubInfoText",
-          "subHappTunMode",
-          "subHappTunType",
-          "subHideSettings",
           "subHostSortMode",
-          "subIncyAnnounceUrl",
-          "subIncyAppAutoDetect",
-          "subIncyBannerBgColor",
-          "subIncyBannerButtonColor",
-          "subIncyBannerButtonText",
-          "subIncyBannerButtonUrl",
-          "subIncyBannerText",
-          "subIncyEnableRouting",
-          "subIncyFragmentInterval",
-          "subIncyFragmentLength",
-          "subIncyFragmentPackets",
-          "subIncyFragmentationEnable",
-          "subIncyHideCheck",
-          "subIncyHideUrl",
-          "subIncyNoLimitEnabled",
-          "subIncyNoisesDelay",
-          "subIncyNoisesEnable",
-          "subIncyNoisesPacket",
-          "subIncyNoisesType",
-          "subIncyPerAppEnable",
-          "subIncyPerAppList",
-          "subIncyPerAppMode",
-          "subIncyPremiumUrl",
-          "subIncyProfileDescription",
-          "subIncyResolveDnsDomain",
-          "subIncyResolveDnsIp",
-          "subIncyResolveEnable",
-          "subIncyRoutingRules",
-          "subIncySortOrder",
-          "subIncySupportEmail",
           "subInfoNodeEnable",
           "subJsonAlwaysArray",
           "subJsonAutoDetect",
@@ -1558,7 +575,6 @@
           "subPort",
           "subProfileMode",
           "subProfileUrl",
-          "subRoutingRules",
           "subShowIdentityOnAllLinks",
           "subSupportUrl",
           "subThemeDir",
@@ -1566,59 +582,17 @@
           "subTrafficDepletedTemplate",
           "subURI",
           "subUpdates",
-          "tgBotAPIServer",
-          "tgBotBackup",
-          "tgBotChatId",
-          "tgBotEnable",
-          "tgBotProxy",
-          "tgBotToken",
-          "tgCpu",
-          "tgEnabledEvents",
-          "tgLang",
-          "tgMemory",
-          "tgRunTime",
           "timeLocation",
           "trafficDiff",
           "trustedProxyCIDRs",
           "twoFactorEnable",
           "twoFactorToken",
-          "warpUpdateInterval",
           "webBasePath",
           "webCertFile",
           "webDomain",
           "webKeyFile",
           "webListen",
           "webPort"
-        ],
-        "type": "object"
-      },
-      "AmneziaWGLogs": {
-        "description": "AmneziaWGLogs is what the overview's AmneziaWG log view renders: the live\nper-peer activity of every running embedded interface, plus the panel's\nown recent AmneziaWG lifecycle log lines that explain a peer being absent\nfrom Peers at all.",
-        "properties": {
-          "events": {
-            "example": [
-              "2025/01/01 12:00:00 amneziawg: started interface awg1 for inbound 1"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "peers": {
-            "items": {
-              "$ref": "#/components/schemas/PeerActivity"
-            },
-            "type": "array"
-          },
-          "running": {
-            "example": true,
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "events",
-          "peers",
-          "running"
         ],
         "type": "object"
       },
@@ -1700,23 +674,6 @@
           "id",
           "name",
           "scope"
-        ],
-        "type": "object"
-      },
-      "Blocker": {
-        "description": "Blocker is one unmet requirement.",
-        "properties": {
-          "code": {
-            "example": "tools",
-            "type": "string"
-          },
-          "detail": {
-            "example": "awg",
-            "type": "string"
-          }
-        },
-        "required": [
-          "code"
         ],
         "type": "object"
       },
@@ -2082,9 +1039,6 @@
               }
             ]
           },
-          "limitHwid": {
-            "type": "integer"
-          },
           "limitIp": {
             "type": "integer"
           },
@@ -2158,7 +1112,6 @@
           "group",
           "id",
           "keepAlive",
-          "limitHwid",
           "limitIp",
           "password",
           "preSharedKey",
@@ -2322,10 +1275,6 @@
             },
             "type": "array"
           },
-          "limitHwid": {
-            "example": 0,
-            "type": "integer"
-          },
           "limitIp": {
             "example": 0,
             "type": "integer"
@@ -2375,7 +1324,6 @@
           "enable",
           "expiryTime",
           "inboundIds",
-          "limitHwid",
           "limitIp",
           "reset",
           "resetDay",
@@ -2727,18 +1675,6 @@
         "required": [
           "reason",
           "token"
-        ],
-        "type": "object"
-      },
-      "HappLinkResult": {
-        "properties": {
-          "encryptedLink": {
-            "example": "happ://crypt5/example",
-            "type": "string"
-          }
-        },
-        "required": [
-          "encryptedLink"
         ],
         "type": "object"
       },
@@ -3157,39 +2093,6 @@
         ],
         "type": "object"
       },
-      "HwidSlotStatus": {
-        "description": "HwidSlotStatus is the aggregate device-slot view exposed to subscribers:\ncounters only, no hwid value or hash, no email, no device metadata.",
-        "properties": {
-          "active": {
-            "example": true,
-            "type": "boolean"
-          },
-          "full": {
-            "example": false,
-            "type": "boolean"
-          },
-          "limit": {
-            "example": 2,
-            "type": "integer"
-          },
-          "registered": {
-            "example": 1,
-            "type": "integer"
-          },
-          "remaining": {
-            "example": 1,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "active",
-          "full",
-          "limit",
-          "registered",
-          "remaining"
-        ],
-        "type": "object"
-      },
       "Inbound": {
         "description": "Inbound represents an Xray inbound configuration with traffic statistics and settings.",
         "properties": {
@@ -3273,9 +2176,6 @@
               "mixed",
               "tunnel",
               "tun",
-              "mtproto",
-              "amneziawg",
-              "tuic",
               "masque"
             ],
             "example": "vless",
@@ -3428,15 +2328,6 @@
       },
       "InboundOption": {
         "properties": {
-          "awgServer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ServerSettings"
-              }
-            ],
-            "description": "AwgServer carries the full AmneziaWG server block (keys, subnet,\nobfuscation params) so the clients page can render a downloadable\nper-client .conf without a second round trip.",
-            "nullable": true
-          },
           "enable": {
             "example": true,
             "type": "boolean"
@@ -3446,9 +2337,6 @@
             "type": "integer"
           },
           "listen": {
-            "type": "string"
-          },
-          "mtprotoDomain": {
             "type": "string"
           },
           "network": {
@@ -3494,14 +2382,6 @@
           "tlsFlowCapable": {
             "example": true,
             "type": "boolean"
-          },
-          "tuicServer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/TuicServerSettings"
-              }
-            ],
-            "nullable": true
           },
           "wgDns": {
             "type": "string"
@@ -4380,68 +3260,6 @@
         ],
         "type": "object"
       },
-      "PeerActivity": {
-        "description": "PeerActivity is one peer's live embedded-Device-reported state, the\ncounterpart of an Xray access-log entry: a tunnel logs no requests, only\nhandshakes and bytes.",
-        "properties": {
-          "allowedIPs": {
-            "example": "10.8.1.2/32",
-            "type": "string"
-          },
-          "down": {
-            "example": 4194304,
-            "format": "int64",
-            "type": "integer"
-          },
-          "email": {
-            "example": "peer@example.com",
-            "type": "string"
-          },
-          "endpoint": {
-            "example": "203.0.113.9:51820",
-            "type": "string"
-          },
-          "handshake": {
-            "description": "Handshake is unix milliseconds, 0 when the peer has never connected.",
-            "example": 1735732800000,
-            "format": "int64",
-            "type": "integer"
-          },
-          "inboundId": {
-            "example": 1,
-            "type": "integer"
-          },
-          "interface": {
-            "example": "awg1",
-            "type": "string"
-          },
-          "online": {
-            "example": true,
-            "type": "boolean"
-          },
-          "tag": {
-            "example": "inbound-51820",
-            "type": "string"
-          },
-          "up": {
-            "example": 1048576,
-            "format": "int64",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "allowedIPs",
-          "down",
-          "email",
-          "endpoint",
-          "handshake",
-          "inboundId",
-          "interface",
-          "online",
-          "tag",
-          "up"
-        ],
-        "type": "object"
-      },
       "ProbeResultUI": {
         "properties": {
           "cpuPct": {
@@ -4501,37 +3319,6 @@
           "xrayError",
           "xrayState",
           "xrayVersion"
-        ],
-        "type": "object"
-      },
-      "Readiness": {
-        "description": "Readiness is the host's ability to run any kernel-mode inbound at all.",
-        "properties": {
-          "blockers": {
-            "example": [
-              {
-                "code": "tools",
-                "detail": "awg"
-              }
-            ],
-            "items": {
-              "$ref": "#/components/schemas/Blocker"
-            },
-            "type": "array"
-          },
-          "installCommand": {
-            "example": "sudo /usr/local/x-ui/x-ui install-awg-kernel",
-            "type": "string"
-          },
-          "ready": {
-            "example": false,
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "blockers",
-          "installCommand",
-          "ready"
         ],
         "type": "object"
       },
@@ -4651,154 +3438,6 @@
         ],
         "type": "object"
       },
-      "ServerSettings": {
-        "description": "ServerSettings is the \"server\" block of an AmneziaWG inbound's Settings\nJSON: the interface-level configuration shared by every client/peer. The\nlisten port is deliberately not duplicated here — it lives on the inbound\nrow itself (Inbound.Port), like every other protocol.",
-        "properties": {
-          "contentPaddingAddition": {
-            "type": "string"
-          },
-          "disableCookies": {
-            "type": "boolean"
-          },
-          "externalInterface": {
-            "description": "ExternalInterface, IPv6Enabled, and IPv6ExternalInterface are live\nagain as of Phase 3.5 -- see the matching fields on Instance for what\nthey gate (internal/amneziawgnet's IPv6-address-alias mechanism).\nIPv6Subnet was never actually vestigial either: InstanceFromInbound\nalready consumes it (via serverAddressV6) to build the server's own\ntunnel address, same as always. Only RouteThroughXray, below, remains\ngenuinely vestigial as of the hard cutover to the embedded path\n(internal/amneziawgnet) -- read from existing stored settings for\nbackward compatibility, but not acted on by anything.",
-            "type": "string"
-          },
-          "h1": {
-            "type": "string"
-          },
-          "h2": {
-            "type": "string"
-          },
-          "h3": {
-            "type": "string"
-          },
-          "h4": {
-            "type": "string"
-          },
-          "headerProtectionKey": {
-            "description": "HeaderProtectionKey and ContentPaddingAddition are AmneziaWG 3.0\nfields, flat and top-level for the same tools/openapigen reason as\nthe block above; Obfuscation() below folds them back into\nObfuscation31's own identically named fields.\nHeaderProtectionKey is a base64 32-byte key; empty (the default)\ndisables AWG 3.0 header protection. A non-empty value requires\nevery one of S1-S4 above to be >= 12 -- ValidateObfuscation\nenforces this at save time, not just at IpcSet time.\nContentPaddingAddition is a \"low-high\" range or bare integer, the\nsame grammar and uint32 cap as H1-H4.",
-            "type": "string"
-          },
-          "i1": {
-            "type": "string"
-          },
-          "i2": {
-            "type": "string"
-          },
-          "i3": {
-            "type": "string"
-          },
-          "i4": {
-            "type": "string"
-          },
-          "i5": {
-            "type": "string"
-          },
-          "ipv6Enabled": {
-            "type": "boolean"
-          },
-          "ipv6ExternalInterface": {
-            "type": "string"
-          },
-          "ipv6Subnet": {
-            "type": "string"
-          },
-          "jc": {
-            "description": "Obfuscation31's fields, repeated flat (not embedded) rather than\nnested under their own key: encoding/json would happily inline an\nembedded Obfuscation31 the same way, but the frontend's Go->Zod/TS\ngenerator (tools/openapigen) does not — it emits a genuinely nested\n`obfuscation31` object, which would silently diverge from the real\nwire JSON. See Obfuscation() below for the manager-facing conversion.",
-            "type": "integer"
-          },
-          "jmax": {
-            "type": "integer"
-          },
-          "jmin": {
-            "type": "integer"
-          },
-          "keepaliveTimeout": {
-            "type": "string"
-          },
-          "kernelMode": {
-            "description": "KernelMode runs this inbound on the AmneziaWG kernel module (internal/amneziawgkern)\ninstead of the embedded amneziawg-go + gVisor stack.",
-            "type": "boolean"
-          },
-          "maxHandshakeAttempts": {
-            "type": "string"
-          },
-          "mtu": {
-            "type": "integer"
-          },
-          "primaryDns": {
-            "description": "PrimaryDNS/SecondaryDNS seed client configs' DNS line. Blank is\nmeaningful, so no omitempty: a dropped key resurrects frontend defaults.",
-            "type": "string"
-          },
-          "privateKey": {
-            "type": "string"
-          },
-          "publicKey": {
-            "type": "string"
-          },
-          "randomTrailers": {
-            "description": "RandomTrailers/DisableCookies mirror Instance's identically named\nAmneziaWG 3.1 fields -- see that type's own doc comment for the real\nprotocol/interop details. Both real bool fields (not omitempty):\nbuildUAPIConfig always emits both lines explicitly so the\nreconfigure-in-place diff correctly notices a true->false edit, not\njust false->true.",
-            "type": "boolean"
-          },
-          "rejectAfterTime": {
-            "type": "string"
-          },
-          "rekeyAfterTime": {
-            "description": "RekeyAfterTime/RekeyTimeout/RejectAfterTime/KeepaliveTimeout/\nMaxHandshakeAttempts mirror Instance's identically named fields --\nsee that type's own doc comment for the grammar/width/real-default\ndetails. Flat and top-level for the same tools/openapigen reason as\nthe rest of this struct.",
-            "type": "string"
-          },
-          "rekeyTimeout": {
-            "type": "string"
-          },
-          "routeThroughXray": {
-            "type": "boolean"
-          },
-          "s1": {
-            "type": "integer"
-          },
-          "s2": {
-            "type": "integer"
-          },
-          "s3": {
-            "type": "integer"
-          },
-          "s4": {
-            "type": "integer"
-          },
-          "secondaryDns": {
-            "type": "string"
-          },
-          "subnetCidr": {
-            "type": "integer"
-          },
-          "subnetIp": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "disableCookies",
-          "h1",
-          "h2",
-          "h3",
-          "h4",
-          "jc",
-          "jmax",
-          "jmin",
-          "primaryDns",
-          "privateKey",
-          "publicKey",
-          "randomTrailers",
-          "s1",
-          "s2",
-          "s3",
-          "s4",
-          "secondaryDns",
-          "subnetCidr",
-          "subnetIp"
-        ],
-        "type": "object"
-      },
       "Setting": {
         "description": "Setting stores key-value configuration settings for the 3x-ui panel.",
         "properties": {
@@ -4891,35 +3530,6 @@
         ],
         "type": "object"
       },
-      "TgBotCapabilities": {
-        "description": "TgBotCapabilities is the browser-safe shape of the bot's own capabilities.",
-        "properties": {
-          "groupPrivacy": {
-            "description": "GroupPrivacy off means the bot reads every group message; when it is on,\na bare /start in a group is invisible to the bot.",
-            "example": false,
-            "type": "boolean"
-          },
-          "inlineEnabled": {
-            "example": true,
-            "type": "boolean"
-          },
-          "running": {
-            "example": true,
-            "type": "boolean"
-          },
-          "username": {
-            "example": "xui_bot",
-            "type": "string"
-          }
-        },
-        "required": [
-          "groupPrivacy",
-          "inlineEnabled",
-          "running",
-          "username"
-        ],
-        "type": "object"
-      },
       "Traffic": {
         "description": "Traffic represents network traffic statistics for Xray connections.\nIt tracks upload and download bytes for inbound or outbound traffic.",
         "properties": {
@@ -4952,78 +3562,6 @@
           "IsOutbound",
           "Tag",
           "Up"
-        ],
-        "type": "object"
-      },
-      "TuicClientSettings": {
-        "properties": {
-          "email": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          },
-          "uuid": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "email",
-          "password",
-          "uuid"
-        ],
-        "type": "object"
-      },
-      "TuicServerSettings": {
-        "properties": {
-          "alpn": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "authentication_timeout": {
-            "type": "integer"
-          },
-          "certificate": {
-            "type": "string"
-          },
-          "congestion_control": {
-            "type": "string"
-          },
-          "log_level": {
-            "type": "string"
-          },
-          "max_idle_time": {
-            "type": "integer"
-          },
-          "max_udp_relay_packet_size": {
-            "type": "integer"
-          },
-          "private_key": {
-            "type": "string"
-          },
-          "sni": {
-            "type": "string"
-          },
-          "udp_relay_mode": {
-            "type": "string"
-          },
-          "zero_rtt_handshake": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "alpn",
-          "authentication_timeout",
-          "certificate",
-          "congestion_control",
-          "log_level",
-          "max_idle_time",
-          "max_udp_relay_packet_size",
-          "private_key",
-          "udp_relay_mode",
-          "zero_rtt_handshake"
         ],
         "type": "object"
       },
@@ -5115,10 +3653,6 @@
       "description": "Per-inbound override endpoints. Each enabled host renders one extra subscription link/proxy with its own address/port/TLS, superseding the legacy externalProxy array. All endpoints under /panel/api/hosts."
     },
     {
-      "name": "Backup",
-      "description": "Operations that interact with the configured Telegram bot."
-    },
-    {
       "name": "Settings",
       "description": "Panel configuration and user credentials. All endpoints live under /panel/api/setting and require a logged-in session or Bearer token."
     },
@@ -5128,7 +3662,7 @@
     },
     {
       "name": "Xray Settings",
-      "description": "Xray configuration template, outbound management, Warp/Nord/PIA integration, and config testing. All endpoints under /panel/api/xray."
+      "description": "Xray configuration template, outbound management, and config testing. All endpoints under /panel/api/xray."
     },
     {
       "name": "Subscription Balancers",
@@ -5504,11 +4038,9 @@
                   "success": true,
                   "obj": [
                     {
-                      "awgServer": null,
                       "enable": true,
                       "id": 1,
                       "listen": "",
-                      "mtprotoDomain": "",
                       "network": "",
                       "nodeAddress": "",
                       "nodeId": null,
@@ -5521,57 +4053,11 @@
                       "ssMethod": "",
                       "tag": "in-443-tcp",
                       "tlsFlowCapable": true,
-                      "tuicServer": null,
                       "wgDns": "",
                       "wgMtu": 0,
                       "wgPublicKey": ""
                     }
                   ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/inbounds/amneziawgKernelReadiness": {
-      "get": {
-        "tags": [
-          "Inbounds"
-        ],
-        "summary": "Whether this host can run an AmneziaWG inbound on the kernel module. Returns ready, host blocker codes (root/tools/module/nft), and the command that fixes them. Saving an inbound also checks its features and rejects IPv6, port forwarding, routeThroughXray, or a pinned listen address that the kernel backend cannot honor.",
-        "operationId": "get_panel_api_inbounds_amneziawgKernelReadiness",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {
-                      "$ref": "#/components/schemas/Readiness"
-                    }
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "obj": {
-                    "blockers": [
-                      {
-                        "code": "tools",
-                        "detail": "awg"
-                      }
-                    ],
-                    "installCommand": "sudo /usr/local/x-ui/x-ui install-awg-kernel",
-                    "ready": false
-                  }
                 }
               }
             }
@@ -6962,7 +5448,7 @@
         "tags": [
           "Server"
         ],
-        "summary": "Stream a full database backup as an attachment: the SQLite .db file on SQLite panels, or a pg_dump custom-format archive (.dump) on PostgreSQL panels. Use as a manual backup.",
+        "summary": "Stream a full SQLite database backup (.db) as an attachment. Use as a manual backup.",
         "operationId": "get_panel_api_server_getDb",
         "responses": {
           "200": {
@@ -6992,7 +5478,7 @@
         "tags": [
           "Server"
         ],
-        "summary": "Stream a cross-engine migration file as an attachment: a .dump (SQL text) on SQLite, or a .db SQLite database built from the live data on PostgreSQL.",
+        "summary": "Stream a portable SQLite SQL text dump (.dump) as an attachment.",
         "operationId": "get_panel_api_server_getMigration",
         "responses": {
           "200": {
@@ -7772,94 +6258,12 @@
         }
       }
     },
-    "/panel/api/server/amneziawglogs/{count}": {
-      "post": {
-        "tags": [
-          "Server"
-        ],
-        "summary": "Return live AmneziaWG peer activity (handshake, endpoint, transfer) plus the panel’s own AmneziaWG event lines.",
-        "operationId": "post_panel_api_server_amneziawglogs_count",
-        "parameters": [
-          {
-            "name": "count",
-            "in": "path",
-            "required": true,
-            "description": "Maximum peer rows and event lines to return.",
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/x-www-form-urlencoded": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "filter": {
-                    "type": "string",
-                    "description": "Keyword filter — only rows/lines containing this string."
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {
-                      "$ref": "#/components/schemas/AmneziaWGLogs"
-                    }
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "obj": {
-                    "events": [
-                      "2025/01/01 12:00:00 amneziawg: started interface awg1 for inbound 1"
-                    ],
-                    "peers": [
-                      {
-                        "allowedIPs": "10.8.1.2/32",
-                        "down": 4194304,
-                        "email": "peer@example.com",
-                        "endpoint": "203.0.113.9:51820",
-                        "handshake": 1735732800000,
-                        "inboundId": 1,
-                        "interface": "awg1",
-                        "online": true,
-                        "tag": "inbound-51820",
-                        "up": 1048576
-                      }
-                    ],
-                    "running": true
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/panel/api/server/importDB": {
       "post": {
         "tags": [
           "Server"
         ],
-        "summary": "Restore the panel DB from an uploaded backup (multipart form, field name \"db\"). SQLite panels accept a SQLite database (.db) or a SQLite migration dump (.dump); PostgreSQL panels accept a pg_dump archive (.dump), a SQLite database (.db), or a SQLite migration dump. The panel restarts after restore. Destructive.",
+        "summary": "Restore the panel DB from an uploaded backup (multipart form, field name \"db\"). Accepts a SQLite database (.db) or a SQLite migration dump (.dump). The panel restarts after restore. Destructive.",
         "operationId": "post_panel_api_server_importDB",
         "requestBody": {
           "required": true,
@@ -8659,7 +7063,6 @@
                           3,
                           5
                         ],
-                        "limitHwid": 0,
                         "limitIp": 0,
                         "reset": 0,
                         "resetDay": 0,
@@ -8914,7 +7317,7 @@
                 "properties": {
                   "client": {
                     "type": "object",
-                    "description": "Client fields: email, subId, id (uuid), password, auth, flow, totalGB, expiryTime, limitIp, limitHwid, tgId (numeric Telegram user ID, 0 = none), comment, enable. Protocol-specific: secret and adTag (mtproto), privateKey, publicKey, preSharedKey, allowedIPs and keepAlive (WireGuard)."
+                    "description": "Client fields: email, subId, id (uuid), password, auth, flow, totalGB, expiryTime, limitIp, tgId (numeric Telegram user ID, 0 = none), comment, enable. Protocol-specific: privateKey, publicKey, preSharedKey, allowedIPs and keepAlive (WireGuard)."
                   },
                   "inboundIds": {
                     "type": "array",
@@ -8936,7 +7339,6 @@
                   "expiryTime": 1735689600000,
                   "tgId": 0,
                   "limitIp": 0,
-                  "limitHwid": 0,
                   "enable": true
                 },
                 "inboundIds": [
@@ -9095,7 +7497,6 @@
                 "email": "alice@example.com",
                 "totalGB": 107374182400,
                 "expiryTime": 1767225600000,
-                "limitHwid": 2,
                 "tgId": 123456789,
                 "enable": true
               }
@@ -9159,7 +7560,6 @@
                 "email": "alice@example.com",
                 "totalGB": 107374182400,
                 "expiryTime": 1767225600000,
-                "limitHwid": 2,
                 "tgId": 123456789,
                 "enable": true
               }
@@ -9608,7 +8008,7 @@
         "tags": [
           "Clients"
         ],
-        "summary": "Delete every client that is not attached to any inbound, along with its traffic record, IP log, HWID devices, and external links. Useful for clearing clients left unattached after their inbounds were removed. Returns the deleted count. Cannot be undone.",
+        "summary": "Delete every client that is not attached to any inbound, along with its traffic record, IP log, and external links. Useful for clearing clients left unattached after their inbounds were removed. Returns the deleted count. Cannot be undone.",
         "operationId": "post_panel_api_clients_delOrphans",
         "responses": {
           "200": {
@@ -9672,7 +8072,6 @@
                         "id": "...",
                         "totalGB": 53687091200,
                         "expiryTime": 0,
-                        "limitHwid": 2,
                         "enable": true,
                         "subId": "..."
                       },
@@ -9755,7 +8154,7 @@
         "tags": [
           "Clients"
         ],
-        "summary": "Shift expiry and/or traffic quota for many clients in one call. addDays/addBytes may be negative. Clients with unlimited expiry (expiryTime=0) or unlimited traffic (totalGB=0) are skipped for the corresponding field — bulk extend never converts unlimited to limited. A client that was auto-disabled solely because it was depleted (expired or over quota) is automatically re-enabled — locally and on its node — when the adjustment lifts it out of depletion; a manually-disabled or still-depleted client is left disabled. The optional flow directive sets the XTLS flow on every client: \"none\" clears it, \"xtls-rprx-vision\"/\"xtls-rprx-vision-udp443\" set it where the inbound supports it (omit or \"\" to leave it unchanged). The optional limitHwid sets maximum registered devices (0 = unlimited). The optional adTag sets MTProto Telegram sponsor channel (\"none\" clears). Returns the adjusted count and per-email skip reasons.",
+        "summary": "Shift expiry and/or traffic quota for many clients in one call. addDays/addBytes may be negative. Clients with unlimited expiry (expiryTime=0) or unlimited traffic (totalGB=0) are skipped for the corresponding field — bulk extend never converts unlimited to limited. A client that was auto-disabled solely because it was depleted (expired or over quota) is automatically re-enabled — locally and on its node — when the adjustment lifts it out of depletion; a manually-disabled or still-depleted client is left disabled. The optional flow directive sets the XTLS flow on every client: \"none\" clears it, \"xtls-rprx-vision\"/\"xtls-rprx-vision-udp443\" set it where the inbound supports it (omit or \"\" to leave it unchanged). Returns the adjusted count and per-email skip reasons.",
         "operationId": "post_panel_api_clients_bulkAdjust",
         "requestBody": {
           "required": true,
@@ -9771,9 +8170,7 @@
                 ],
                 "addDays": 30,
                 "addBytes": 53687091200,
-                "flow": "xtls-rprx-vision",
-                "limitHwid": 2,
-                "adTag": "0123456789abcdef0123456789abcdef"
+                "flow": "xtls-rprx-vision"
               }
             }
           }
@@ -10008,7 +8405,6 @@
                     "email": "alice@example.com",
                     "totalGB": 53687091200,
                     "expiryTime": 0,
-                    "limitHwid": 2,
                     "enable": true
                   },
                   "inboundIds": [
@@ -10020,7 +8416,6 @@
                     "email": "bob@example.com",
                     "totalGB": 53687091200,
                     "expiryTime": 0,
-                    "limitHwid": 0,
                     "enable": true
                   },
                   "inboundIds": [
@@ -10855,151 +9250,6 @@
         }
       }
     },
-    "/panel/api/clients/hwids/{email}": {
-      "post": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "List registered HWID devices for a client with a short fingerprint. Full hashes are not exposed.",
-        "operationId": "post_panel_api_clients_hwids_email",
-        "parameters": [
-          {
-            "name": "email",
-            "in": "path",
-            "required": true,
-            "description": "Client email.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "obj": [
-                    {
-                      "id": 1,
-                      "firstSeen": 1735000000000,
-                      "lastSeen": 1735100000000,
-                      "userAgent": "Happ/1.0",
-                      "deviceOs": "android",
-                      "osVersion": "15",
-                      "deviceModel": "Pixel 9",
-                      "fingerprint": "6ad17c93e821"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "Clear all registered HWID devices for a client so new devices can register again.",
-        "operationId": "delete_panel_api_clients_hwids_email",
-        "parameters": [
-          {
-            "name": "email",
-            "in": "path",
-            "required": true,
-            "description": "Client email.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/clients/hwids/{email}/{id}": {
-      "delete": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "Remove a single registered HWID device by its id, freeing one slot under the HWID limit.",
-        "operationId": "delete_panel_api_clients_hwids_email_id",
-        "parameters": [
-          {
-            "name": "email",
-            "in": "path",
-            "required": true,
-            "description": "Client email.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "description": "Device id, from the list endpoint.",
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/panel/api/clients/onlines": {
       "post": {
         "tags": [
@@ -11362,55 +9612,6 @@
                     "vless://uuid@host:443?security=reality&...#user1",
                     "vmess://eyJ2IjoyLC..."
                   ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/clients/happLink/{id}": {
-      "post": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "Generate a fresh Happ crypt5 link locally from the current client subscription URL when Happ link generation is enabled. The panel applies a resource limit of 8192 UTF-8 bytes to the source URL; this is not a Happ client maximum. Longer sources return success: false with msg: happ_source_too_long and obj: null. The source URL is not sent to a generation provider, and the result is not stored or reused.",
-        "operationId": "post_panel_api_clients_happLink_id",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "description": "Stable client record ID.",
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {
-                      "$ref": "#/components/schemas/HappLinkResult"
-                    }
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "obj": {
-                    "encryptedLink": "happ://crypt5/example"
-                  }
                 }
               }
             }
@@ -13503,42 +11704,12 @@
         }
       }
     },
-    "/panel/api/backuptotgbot": {
-      "post": {
-        "tags": [
-          "Backup"
-        ],
-        "summary": "Send a fresh DB backup to every Telegram chat configured as an admin recipient. No body, no params.",
-        "operationId": "post_panel_api_backuptotgbot",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/panel/api/setting/all": {
       "post": {
         "tags": [
           "Settings"
         ],
-        "summary": "Return every panel setting: web server, Telegram bot, subscription, security, LDAP. The full JSON blob that the Settings page edits.",
+        "summary": "Return every panel setting: web server, subscription, security. The full JSON blob that the Settings page edits.",
         "operationId": "post_panel_api_setting_all",
         "responses": {
           "200": {
@@ -13803,150 +11974,6 @@
                     },
                     "obj": {}
                   }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/setting/testSmtp": {
-      "post": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "Test SMTP connection with stage-by-stage reporting (connect, auth, send). Returns structured result with stage and message.",
-        "operationId": "post_panel_api_setting_testSmtp",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "stage": "send",
-                  "msg": "Test email sent successfully"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/setting/testTgBot": {
-      "post": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "Test Telegram bot connection by sending a test message to the configured chat.",
-        "operationId": "post_panel_api_setting_testTgBot",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "msg": "Test message sent to Telegram"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/setting/tgBotCapabilities": {
-      "post": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "Report what the configured bot can do. Inline mode is a BotFather switch, so the panel warns when it is off.",
-        "operationId": "post_panel_api_setting_tgBotCapabilities",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {
-                      "$ref": "#/components/schemas/TgBotCapabilities"
-                    }
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "obj": {
-                    "groupPrivacy": false,
-                    "inlineEnabled": true,
-                    "running": true,
-                    "username": "xui_bot"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/setting/testDiscord": {
-      "post": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "Test Discord bot connection by sending a test embed to the configured channel.",
-        "operationId": "post_panel_api_setting_testDiscord",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "msg": "Test notification sent successfully"
                 }
               }
             }
@@ -14424,209 +12451,6 @@
                 "required": [
                   "xraySetting"
                 ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/xray/warp/{action}": {
-      "post": {
-        "tags": [
-          "Xray Settings"
-        ],
-        "summary": "Manage Cloudflare Warp integration. The action parameter selects the operation.",
-        "operationId": "post_panel_api_xray_warp_action",
-        "parameters": [
-          {
-            "name": "action",
-            "in": "path",
-            "required": true,
-            "description": "data — return Warp stats. del — delete Warp data. config — return current config. reg — register (sends keys). regMasque — register a separate device enrolled for MASQUE and return its warp key pair, addresses and endpoint. changeIp — rotate the endpoint. license — set a Warp+ key. interval — set automatic rotation in hours.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/x-www-form-urlencoded": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "privateKey": {
-                    "type": "string",
-                    "description": "Required when action=reg."
-                  },
-                  "publicKey": {
-                    "type": "string",
-                    "description": "Required when action=reg."
-                  },
-                  "license": {
-                    "type": "string",
-                    "description": "Required when action=license."
-                  },
-                  "interval": {
-                    "type": "integer",
-                    "description": "Non-negative hours between automatic rotations. Required when action=interval; 0 disables rotation."
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/xray/nord/{action}": {
-      "post": {
-        "tags": [
-          "Xray Settings"
-        ],
-        "summary": "Manage NordVPN integration. The action parameter selects the operation.",
-        "operationId": "post_panel_api_xray_nord_action",
-        "parameters": [
-          {
-            "name": "action",
-            "in": "path",
-            "required": true,
-            "description": "countries — list available countries. servers — list servers in a country (sends countryId). reg — get NordVPN credentials (sends token). setKey — store NordVPN API key (sends key). data — return current NordVPN connection data. del — delete NordVPN data.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/x-www-form-urlencoded": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "countryId": {
-                    "type": "string",
-                    "description": "Required when action=servers."
-                  },
-                  "token": {
-                    "type": "string",
-                    "description": "Required when action=reg."
-                  },
-                  "key": {
-                    "type": "string",
-                    "description": "Required when action=setKey."
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/xray/pia/{action}": {
-      "post": {
-        "tags": [
-          "Xray Settings"
-        ],
-        "summary": "Manage PIA WireGuard integration. The action parameter selects the operation.",
-        "operationId": "post_panel_api_xray_pia_action",
-        "parameters": [
-          {
-            "name": "action",
-            "in": "path",
-            "required": true,
-            "description": "countries — list available countries from the signed PIA server list. servers — list regions and WireGuard servers in a country (sends countryCode). reg — sign in with a PIA username and password (sends username, password). data — return the signed-in account hint. del — delete stored PIA credentials. addKey — register a WireGuard key with the selected server (sends hostname) and return fields to build the outbound.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/x-www-form-urlencoded": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "username": {
-                    "type": "string",
-                    "description": "Required when action=reg."
-                  },
-                  "password": {
-                    "type": "string",
-                    "description": "Required when action=reg."
-                  },
-                  "countryCode": {
-                    "type": "string",
-                    "description": "Required when action=servers."
-                  },
-                  "hostname": {
-                    "type": "string",
-                    "description": "Required when action=addKey."
-                  }
-                }
               }
             }
           }
@@ -16198,99 +14022,6 @@
         }
       }
     },
-    "/{subPath}{subid}/hwid-status": {
-      "get": {
-        "tags": [
-          "Subscription Server"
-        ],
-        "summary": "Return aggregate HWID device-slot usage for the subscription: whether an HWID limit is active, the limit, how many devices are registered and how many slots remain. Read-only — it never registers a device, so asking does not consume a slot. Counters only: no HWID value, email or device metadata. The path prefix is configured by subPath.",
-        "operationId": "get_subPath_subid_hwid_status",
-        "description": "Responds with the bare HwidSlotStatus object, not the <code>{success,msg,obj}</code> panel envelope, like the other subscription-server routes. With no HWID limit configured, <code>active</code> is false and every counter is 0.",
-        "parameters": [
-          {
-            "name": "subid",
-            "in": "path",
-            "required": true,
-            "description": "Client subscription ID.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "subPath",
-            "in": "path",
-            "required": true,
-            "description": "",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Device-slot counters for the subscription.",
-            "content": {
-              "application/json": {
-                "example": {
-                  "active": true,
-                  "full": false,
-                  "limit": 2,
-                  "registered": 1,
-                  "remaining": 1
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/HwidSlotStatus"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No enabled client matches the subscription ID. Empty body."
-          },
-          "500": {
-            "description": "Database lookup failed. Empty body."
-          }
-        }
-      },
-      "head": {
-        "tags": [
-          "Subscription Server"
-        ],
-        "summary": "Return the HWID device-slot status code and headers as GET without a response body.",
-        "operationId": "head_subPath_subid_hwid_status",
-        "parameters": [
-          {
-            "name": "subid",
-            "in": "path",
-            "required": true,
-            "description": "Client subscription ID.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "subPath",
-            "in": "path",
-            "required": true,
-            "description": "",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Headers match GET; no response body."
-          },
-          "404": {
-            "description": "No enabled client matches the subscription ID. Empty body."
-          },
-          "500": {
-            "description": "Database lookup failed. Empty body."
-          }
-        }
-      }
-    },
     "/{jsonPath}{subid}": {
       "get": {
         "tags": [
@@ -16504,7 +14235,6 @@
                 "diskIO",
                 "diskTraffic",
                 "xray",
-                "amneziawg",
                 "panelVersion",
                 "panelGuid",
                 "uptime",
@@ -16635,21 +14365,6 @@
                     },
                     "version": {
                       "type": "string"
-                    }
-                  }
-                },
-                "amneziawg": {
-                  "type": "object",
-                  "required": [
-                    "configured",
-                    "running"
-                  ],
-                  "properties": {
-                    "configured": {
-                      "type": "boolean"
-                    },
-                    "running": {
-                      "type": "boolean"
                     }
                   }
                 },
@@ -16800,10 +14515,6 @@
                   "errorMsg": "",
                   "version": "25.10.31"
                 },
-                "amneziawg": {
-                  "configured": false,
-                  "running": false
-                },
                 "panelVersion": "v3.x.x",
                 "panelGuid": "panel-guid",
                 "uptime": 86400,
@@ -16841,7 +14552,7 @@
           },
           {
             "type": "traffic",
-            "summary": "Live traffic deltas plus online, per-node and last-online maps. TUIC also sends source-tagged client deltas with their sampling interval for live speed.",
+            "summary": "Live traffic deltas plus online, per-node and last-online maps.",
             "payloadSchema": {
               "type": "object",
               "properties": {
@@ -16860,10 +14571,9 @@
                 "clientTrafficSource": {
                   "type": "string",
                   "enum": [
-                    "xray",
-                    "tuic"
+                    "xray"
                   ],
-                  "description": "Present for native TUIC samples; omitted Xray samples default to xray."
+                  "description": "Traffic sampling source; omitted samples default to xray."
                 },
                 "clientTrafficIntervalMs": {
                   "type": "integer",

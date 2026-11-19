@@ -240,7 +240,7 @@ export default function SubscriptionFormatsTab({
                   >
                     <Input.TextArea
                       value={allSetting.subJsonRoutingRules}
-                      placeholder="happ://routing/onadd/... , routing JSON, or https://.../DEFAULT.JSON"
+                      placeholder="routing JSON, or https://.../DEFAULT.JSON"
                       onChange={(e) => updateSetting({ subJsonRoutingRules: e.target.value })}
                       autoSize={{ minRows: 2, maxRows: 6 }}
                     />

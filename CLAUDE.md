@@ -11,59 +11,34 @@ file locations when it can answer in one hop.
 - Backend: Go 1.27 (`module github.com/TingChieh/FluxPanel`), Gin, GORM.
   Runs Xray-core as a managed child process (`internal/xray/process.go`) and
   imports `github.com/xtls/xray-core` for config types + gRPC stats/handler/router
-  API. MTProto inbounds run a second managed child — the `mtg-multi` binary
-  (a multi-secret mtg fork — NOT a Go dependency; its prebuilt release binary is
-  fetched at image/release build time by `DockerInit.sh` + `release.yml`,
-  panel-side code in `internal/mtproto/`) — outside Xray, one process per inbound
-  serving each
-  client's FakeTLS secret via the fork's `[secrets]` section (plus per-client
-  ad-tags via `[secret-ad-tags]` and per-client data quota / expiry via
-  `[secret-limits]`, mapped from the client's `totalGB`/`expiryTime`). Client,
-  ad-tag and quota/expiry edits are hot-applied through the fork's management API
-  (`PUT /secrets`, bearer-token guarded) so connections survive; the manager
-  falls back to a process restart on older binaries. A client's panel-side
-  traffic reset also calls `POST /secrets/{name}/reset-quota` so a renewed client
-  is not re-blocked by the sidecar's quota counter.
-- Storage: SQLite by default (`/etc/x-ui/x-ui.db` on Linux; the executable dir on
-  Windows), PostgreSQL optional (`XUI_DB_TYPE` / `XUI_DB_DSN`). The CGo SQLite
+  API.
+- Storage: SQLite only (`/etc/x-ui/x-ui.db` on Linux). The CGo SQLite
   driver (`mattn/go-sqlite3`) needs a C compiler — `CGO_ENABLED=0` builds fail.
 - Frontend: React 19 + Ant Design 6 + Vite 8 + TypeScript in `frontend/`,
   built into `internal/web/dist/` (gitignored) and embedded via `embed.FS`.
 
 ## Repo map
-- `main.go` — entry point + `x-ui` CLI (run, migrate, migrate-db, encrypt-tokens, setting, cert).
+- `main.go` — entry point + `x-ui` CLI (run, migrate, encrypt-tokens, setting, cert).
 - `internal/config/` — env parsing (XUI_DEBUG, XUI_LOG_LEVEL, XUI_LOG_FOLDER,
-  XUI_BIN_FOLDER, XUI_SKIP_HSTS, XUI_PORT, XUI_DB_*).
-- `internal/database/` + `internal/database/model/` — GORM schema (~24 models;
-  Inbound, Client, Setting, User are the core), inbound Protocol enum,
+  XUI_BIN_FOLDER, XUI_SKIP_HSTS, XUI_PORT).
+- `internal/database/` + `internal/database/model/` — GORM schema
+  (Inbound, Client, Setting, User, Node are the core), inbound Protocol enum,
   AutoMigrate + hand-written migrations in `db.go`.
 - `internal/xray/` — Xray child-process lifecycle, config generation, gRPC API.
 - `internal/xray/geodata/` — streaming geosite/geoip `.dat` reader (cached
   category index + paged entries) and `geosite:`/`geoip:`/`ext:` token parsing.
-- `internal/mtproto/` — MTProto inbounds via the bundled `mtg-multi` binary.
-- `internal/tuic/` — TUIC v5 inbounds: `tuic-server` sidecar supervisor, native Go UDP relay traffic metering.
-- `internal/amneziawg/` — AmneziaWG protocol shape: instance/peer derivation
-  from an inbound, 3.1 obfuscation param generation + validation, port-forward
-  spec parsing.
-- `internal/amneziawgnet/` — embedded AmneziaWG runtime: amneziawg-go device
-  over a gVisor userspace netstack, per-inbound reconcile manager, TCP/UDP
-  relay into a loopback per-peer-auth SOCKS5 Xray inbound, port-forward
-  listeners, per-peer IPv6 egress aliases.
-- `internal/pia/` — PIA WireGuard protocol client (auth, signed server list, `/addKey`).
-- `internal/sub/` — subscription server (raw / JSON / Clash).
-- `internal/eventbus/` — in-process pub/sub (outbound/node health, xray.crash,
-  cpu.high, memory.high, login.attempt).
-- `internal/logger/`, `internal/util/` (link, crypto, sys, ldap, …),
+- `internal/sub/` — subscription server (raw / JSON / Clash / HTML SubPage).
+- `internal/logger/`, `internal/util/` (link, crypto, sys, …),
   `internal/tunnelmonitor/` — shared infrastructure.
 - `internal/web/` — Gin server (embeds `dist/` + `translation/`).
   - `controller/` — panel + REST API handlers; OpenAPI at /panel/api/openapi.json.
   - `service/` — business logic (InboundService, SettingService, XrayService,
-    node sync); subpackages tgbot/, discord/, email/, outbound/, panel/, integration/.
-  - `job/` — 19 cron jobs (traffic, fail2ban IP-limit, node heartbeat/sync, LDAP,
-    CPU/memory watchdogs, …); full table in `docs/architecture.md` §5.4.
+    node sync); subpackages outbound/, panel/.
+  - `job/` — cron jobs (traffic, fail2ban IP-limit, node heartbeat/sync,
+    remote routing/external subscription refresh, …).
   - `middleware/`, `entity/`, `global/`, `session/` (CSRF), `network/`,
     `runtime/` (master/sub-node over mTLS), `websocket/`.
-  - `locale/` + `translation/` — i18n, 14 embedded locale JSON files.
+  - `locale/` + `translation/` — i18n, 2 embedded locale JSON files (`en-US`, `zh-CN`).
 - `frontend/` — React + TS source (see `frontend/CLAUDE.md`).
 - `tools/openapigen/` — Go generator that emits frontend types + Zod/JSON schemas
   into `frontend/src/generated/` from Go structs. The OpenAPI doc itself
@@ -108,7 +83,7 @@ file locations when it can answer in one hop.
   `docs/content/docs/en/reference/api/`. The `codegen` job and `make verify`
   fail on a stale copy, and `docs-ci.yml` fails on stale MDX.
 - A new English i18n key goes in EVERY locale JSON in `internal/web/translation/`
-  (14 files) AND must be referenced from `frontend/src` or Go in the SAME commit —
+  (2 files: `en-US.json` and `zh-CN.json`) AND must be referenced from `frontend/src` or Go in the SAME commit —
   `frontend/src/test/i18n-dead-keys.test.ts` fails both ways. It is a frontend
   test, so run `npm test`, not just `make test-go`. At runtime the frontend falls
   back to en-US; Go (`internal/web/locale/`) returns "" for an unknown key.
@@ -161,10 +136,9 @@ file locations when it can answer in one hop.
   `-race`); `httptest` for HTTP. Keep `database.InitDB` for reopening a file or
   migrating a hand-built legacy DB. `internal/sub`'s `initSubDB(t)` is the template.
 - Code must pass `golangci-lint run` (gofumpt + goimports formatting): `make lint`.
-- Postgres, xray-gRPC-e2e, master+node and scale tests `t.Skip` unless
-  `XUI_TEST_PG_DSN`, `XUI_DB_TYPE`+`XUI_DB_DSN`, `XRAY_E2E_BINARY`,
-  `XUI_NODE_E2E_BINARY` or `XUI_SCALE_TEST` is set — a green `go test ./...`
-  does not mean those paths ran.
+- Xray-gRPC-e2e, master+node and scale tests `t.Skip` unless
+  `XRAY_E2E_BINARY`, `XUI_NODE_E2E_BINARY` or `XUI_SCALE_TEST` is set — a green
+  `go test ./...` does not mean those paths ran.
 
 ## Frontend conventions (summary; full version in frontend/CLAUDE.md)
 - Ant Design 6 only — no Tailwind/shadcn. Targeted tweaks, not rewrites.
@@ -193,10 +167,9 @@ reads as a broken repo, not a missing step. Run `make dist-stub` once; every
     make verify   # gen-check + lint + typecheck + test + build + build-storybook + docs-openapi-check
 
 That is the *fast* gate, not all of CI. `ci.yml` also runs `make race`,
-`make vulncheck`, a live-Postgres job (where a SKIP counts as a failure),
-`make node-e2e` (a real master and node panel, `internal/nodee2e/`) and a
-30s fuzz smoke on `FuzzParseLink`/`FuzzDecodeCertPin` — run those locally when
-you touch DB/dialect, node sync or parser code. Node sync has two layers: every
+`make vulncheck`, `make node-e2e` (a real master and node panel, `internal/nodee2e/`)
+and a 30s fuzz smoke on `FuzzParseLink`/`FuzzDecodeCertPin` — run those locally when
+you touch DB, node sync or parser code. Node sync has two layers: every
 `runtime.Remote` call gets a cell in `internal/web/node_contract_test.go` (fast,
 in `make test-go`; a method without one fails it), and a multi-tick flow (cron,
 adopt, node down) gets one in `internal/nodee2e/node_sync_test.go`.

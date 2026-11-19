@@ -191,11 +191,6 @@ const subscriptionHeadResponses = {
   '500': { description: 'Subscription generation failed.' },
 };
 
-const hwidStatusErrorResponses = {
-  '404': { description: 'No enabled client matches the subscription ID. Empty body.' },
-  '500': { description: 'Database lookup failed. Empty body.' },
-};
-
 export const sections: readonly Section[] = [
   {
     id: 'authentication',
@@ -1176,7 +1171,7 @@ export const sections: readonly Section[] = [
             name: 'client',
             in: 'body (json)',
             type: 'object',
-            desc: 'Client fields: email, subId, id (uuid), password, auth, flow, totalGB, expiryTime, limitIp, limitHwid, tgId (numeric Telegram user ID, 0 = none), comment, enable. Protocol-specific: secret and adTag (mtproto), privateKey, publicKey, preSharedKey, allowedIPs and keepAlive (WireGuard).',
+            desc: 'Client fields: email, subId, id (uuid), password, auth, flow, totalGB, expiryTime, limitIp, tgId (numeric Telegram user ID, 0 = none), comment, enable. Protocol-specific: privateKey, publicKey, preSharedKey, allowedIPs and keepAlive (WireGuard).',
           },
           {
             name: 'inboundIds',
@@ -1185,7 +1180,7 @@ export const sections: readonly Section[] = [
             desc: 'Inbound IDs to attach the client to. At least one required.',
           },
         ],
-        body: '{\n  "client": {\n    "email": "alice@example.com",\n    "totalGB": 53687091200,\n    "expiryTime": 1735689600000,\n    "tgId": 0,\n    "limitIp": 0,\n    "limitHwid": 0,\n    "enable": true\n  },\n  "inboundIds": [3, 5]\n}',
+        body: '{\n  "client": {\n    "email": "alice@example.com",\n    "totalGB": 53687091200,\n    "expiryTime": 1735689600000,\n    "tgId": 0,\n    "limitIp": 0,\n    "enable": true\n  },\n  "inboundIds": [3, 5]\n}',
         response: '{\n  "success": true,\n  "msg": "Client added"\n}',
       },
       {
@@ -1249,7 +1244,7 @@ export const sections: readonly Section[] = [
             desc: 'Current client email (unique identifier).',
           },
         ],
-        body: '{\n  "email": "alice@example.com",\n  "totalGB": 107374182400,\n  "expiryTime": 1767225600000,\n  "limitHwid": 2,\n  "tgId": 123456789,\n  "enable": true\n}',
+        body: '{\n  "email": "alice@example.com",\n  "totalGB": 107374182400,\n  "expiryTime": 1767225600000,\n  "tgId": 123456789,\n  "enable": true\n}',
         response: '{\n  "success": true,\n  "msg": "Client updated"\n}',
       },
       {
@@ -1267,7 +1262,7 @@ export const sections: readonly Section[] = [
             desc: 'Current client email (unique identifier).',
           },
         ],
-        body: '{\n  "email": "alice@example.com",\n  "totalGB": 107374182400,\n  "expiryTime": 1767225600000,\n  "limitHwid": 2,\n  "tgId": 123456789,\n  "enable": true\n}',
+        body: '{\n  "email": "alice@example.com",\n  "totalGB": 107374182400,\n  "expiryTime": 1767225600000,\n  "tgId": 123456789,\n  "enable": true\n}',
         response: '{\n  "success": true,\n  "msg": "Client updated"\n}',
       },
       {
@@ -1377,7 +1372,7 @@ export const sections: readonly Section[] = [
         method: 'POST',
         path: '/panel/api/clients/delOrphans',
         summary:
-          'Delete every client that is not attached to any inbound, along with its traffic record, IP log, HWID devices, and external links. Useful for clearing clients left unattached after their inbounds were removed. Returns the deleted count. Cannot be undone.',
+          'Delete every client that is not attached to any inbound, along with its traffic record, IP log, and external links. Useful for clearing clients left unattached after their inbounds were removed. Returns the deleted count. Cannot be undone.',
         response: '{\n  "success": true,\n  "obj": {\n    "deleted": 0\n  }\n}',
       },
       {
@@ -1386,7 +1381,7 @@ export const sections: readonly Section[] = [
         summary:
           'Return every client as a {client, inboundIds, traffic} array — the shape /import accepts — so the payload round-trips straight back through /import. traffic carries the usage counters (up, down, resetCount, lastOnline, lastSubFetch) and is omitted for a client with no traffic row; the quota itself stays in client.totalGB. Clients with no inbound attachment are included with an empty inboundIds list. The UI shows this in a CodeMirror viewer (copy / download); programmatic callers get the array in obj.',
         response:
-          '{\n  "success": true,\n  "obj": [\n    {\n      "client": {\n        "email": "alice@example.com",\n        "id": "...",\n        "totalGB": 53687091200,\n        "expiryTime": 0,\n        "limitHwid": 2,\n        "enable": true,\n        "subId": "..."\n      },\n      "inboundIds": [7, 9],\n      "traffic": {\n        "up": 1048576,\n        "down": 2097152,\n        "resetCount": 0,\n        "lastOnline": 1735680000000\n      }\n    }\n  ]\n}',
+          '{\n  "success": true,\n  "obj": [\n    {\n      "client": {\n        "email": "alice@example.com",\n        "id": "...",\n        "totalGB": 53687091200,\n        "expiryTime": 0,\n        "enable": true,\n        "subId": "..."\n      },\n      "inboundIds": [7, 9],\n      "traffic": {\n        "up": 1048576,\n        "down": 2097152,\n        "resetCount": 0,\n        "lastOnline": 1735680000000\n      }\n    }\n  ]\n}',
       },
       {
         method: 'POST',
@@ -1401,8 +1396,8 @@ export const sections: readonly Section[] = [
         method: 'POST',
         path: '/panel/api/clients/bulkAdjust',
         summary:
-          'Shift expiry and/or traffic quota for many clients in one call. addDays/addBytes may be negative. Clients with unlimited expiry (expiryTime=0) or unlimited traffic (totalGB=0) are skipped for the corresponding field — bulk extend never converts unlimited to limited. A client that was auto-disabled solely because it was depleted (expired or over quota) is automatically re-enabled — locally and on its node — when the adjustment lifts it out of depletion; a manually-disabled or still-depleted client is left disabled. The optional flow directive sets the XTLS flow on every client: "none" clears it, "xtls-rprx-vision"/"xtls-rprx-vision-udp443" set it where the inbound supports it (omit or "" to leave it unchanged). The optional limitHwid sets maximum registered devices (0 = unlimited). The optional adTag sets MTProto Telegram sponsor channel ("none" clears). Returns the adjusted count and per-email skip reasons.',
-        body: '{\n  "emails": ["alice", "bob"],\n  "addDays": 30,\n  "addBytes": 53687091200,\n  "flow": "xtls-rprx-vision",\n  "limitHwid": 2,\n  "adTag": "0123456789abcdef0123456789abcdef"\n}',
+          'Shift expiry and/or traffic quota for many clients in one call. addDays/addBytes may be negative. Clients with unlimited expiry (expiryTime=0) or unlimited traffic (totalGB=0) are skipped for the corresponding field — bulk extend never converts unlimited to limited. A client that was auto-disabled solely because it was depleted (expired or over quota) is automatically re-enabled — locally and on its node — when the adjustment lifts it out of depletion; a manually-disabled or still-depleted client is left disabled. The optional flow directive sets the XTLS flow on every client: "none" clears it, "xtls-rprx-vision"/"xtls-rprx-vision-udp443" set it where the inbound supports it (omit or "" to leave it unchanged). Returns the adjusted count and per-email skip reasons.',
+        body: '{\n  "emails": ["alice", "bob"],\n  "addDays": 30,\n  "addBytes": 53687091200,\n  "flow": "xtls-rprx-vision"\n}',
         response:
           '{\n  "success": true,\n  "obj": {\n    "adjusted": 2,\n    "skipped": [\n      { "email": "carol", "reason": "unlimited expiry" }\n    ]\n  }\n}',
       },
@@ -1438,7 +1433,7 @@ export const sections: readonly Section[] = [
         path: '/panel/api/clients/bulkCreate',
         summary:
           'Create many clients in one call. Body is a JSON array of {client, inboundIds} payloads — the same shape /add accepts. Items are processed sequentially; per-email skip reasons are returned for items that fail (e.g., duplicate email). Triggers a single Xray restart at the end if any inbound was running.',
-        body: '[\n  {\n    "client": {\n      "email": "alice@example.com",\n      "totalGB": 53687091200,\n      "expiryTime": 0,\n      "limitHwid": 2,\n      "enable": true\n    },\n    "inboundIds": [7]\n  },\n  {\n    "client": {\n      "email": "bob@example.com",\n      "totalGB": 53687091200,\n      "expiryTime": 0,\n      "limitHwid": 0,\n      "enable": true\n    },\n    "inboundIds": [7, 9]\n  }\n]',
+        body: '[\n  {\n    "client": {\n      "email": "alice@example.com",\n      "totalGB": 53687091200,\n      "expiryTime": 0,\n      "enable": true\n    },\n    "inboundIds": [7]\n  },\n  {\n    "client": {\n      "email": "bob@example.com",\n      "totalGB": 53687091200,\n      "expiryTime": 0,\n      "enable": true\n    },\n    "inboundIds": [7, 9]\n  }\n]',
         response:
           '{\n  "success": true,\n  "obj": {\n    "created": 2,\n    "skipped": [\n      { "email": "alice@example.com", "reason": "email already in use" }\n    ]\n  }\n}',
       },
@@ -1590,32 +1585,6 @@ export const sections: readonly Section[] = [
       },
       {
         method: 'POST',
-        path: '/panel/api/clients/hwids/:email',
-        summary:
-          'List registered HWID devices for a client with a short fingerprint. Full hashes are not exposed.',
-        params: [{ name: 'email', in: 'path', type: 'string', desc: 'Client email.' }],
-        response:
-          '{\n  "success": true,\n  "obj": [\n    {\n      "id": 1,\n      "firstSeen": 1735000000000,\n      "lastSeen": 1735100000000,\n      "userAgent": "Happ/1.0",\n      "deviceOs": "android",\n      "osVersion": "15",\n      "deviceModel": "Pixel 9",\n      "fingerprint": "6ad17c93e821"\n    }\n  ]\n}',
-      },
-      {
-        method: 'DELETE',
-        path: '/panel/api/clients/hwids/:email',
-        summary:
-          'Clear all registered HWID devices for a client so new devices can register again.',
-        params: [{ name: 'email', in: 'path', type: 'string', desc: 'Client email.' }],
-      },
-      {
-        method: 'DELETE',
-        path: '/panel/api/clients/hwids/:email/:id',
-        summary:
-          'Remove a single registered HWID device by its id, freeing one slot under the HWID limit.',
-        params: [
-          { name: 'email', in: 'path', type: 'string', desc: 'Client email.' },
-          { name: 'id', in: 'path', type: 'number', desc: 'Device id, from the list endpoint.' },
-        ],
-      },
-      {
-        method: 'POST',
         path: '/panel/api/clients/onlines',
         summary:
           'List the emails of currently connected clients (last seen within the heartbeat window), deduped across every node.',
@@ -1696,14 +1665,6 @@ export const sections: readonly Section[] = [
         ],
         response:
           '{\n  "success": true,\n  "obj": [\n    "vless://uuid@host:443?security=reality&...#user1",\n    "vmess://eyJ2IjoyLC..."\n  ]\n}',
-      },
-      {
-        method: 'POST',
-        path: '/panel/api/clients/happLink/:id',
-        summary:
-          'Generate a fresh Happ crypt5 link locally from the current client subscription URL when Happ link generation is enabled. The panel applies a resource limit of 8192 UTF-8 bytes to the source URL; this is not a Happ client maximum. Longer sources return success: false with msg: happ_source_too_long and obj: null. The source URL is not sent to a generation provider, and the result is not stored or reused.',
-        params: [{ name: 'id', in: 'path', type: 'integer', desc: 'Stable client record ID.' }],
-        responseSchema: 'HappLinkResult',
       },
       {
         method: 'GET',
@@ -2610,14 +2571,6 @@ export const sections: readonly Section[] = [
         desc: 'Suggested polling interval in minutes (e.g. <code>10</code>)',
       },
       { name: 'Announce', desc: 'Base64-encoded announcement string' },
-      {
-        name: 'Routing-Enable',
-        desc: '<code>true</code> or <code>false</code> — whether routing rules are included',
-      },
-      {
-        name: 'Routing',
-        desc: 'Global routing rules for client apps that support them (e.g. Happ)',
-      },
     ],
     endpoints: [
       {
@@ -2643,35 +2596,6 @@ export const sections: readonly Section[] = [
           'Return the same status and subscription metadata headers as GET without a response body.',
         params: [{ name: 'subid', in: 'path', type: 'string', desc: 'Client subscription ID.' }],
         responses: subscriptionHeadResponses,
-      },
-      {
-        method: 'GET',
-        path: '/{subPath}:subid/hwid-status',
-        summary:
-          'Return aggregate HWID device-slot usage for the subscription: whether an HWID limit is active, the limit, how many devices are registered and how many slots remain. Read-only — it never registers a device, so asking does not consume a slot. Counters only: no HWID value, email or device metadata. The path prefix is configured by subPath.',
-        description:
-          'Responds with the bare HwidSlotStatus object, not the <code>{success,msg,obj}</code> panel envelope, like the other subscription-server routes. With no HWID limit configured, <code>active</code> is false and every counter is 0.',
-        params: [{ name: 'subid', in: 'path', type: 'string', desc: 'Client subscription ID.' }],
-        responses: {
-          '200': {
-            description: 'Device-slot counters for the subscription.',
-            content: {
-              'application/json': { schema: { $ref: '#/components/schemas/HwidSlotStatus' } },
-            },
-          },
-          ...hwidStatusErrorResponses,
-        },
-      },
-      {
-        method: 'HEAD',
-        path: '/{subPath}:subid/hwid-status',
-        summary:
-          'Return the HWID device-slot status code and headers as GET without a response body.',
-        params: [{ name: 'subid', in: 'path', type: 'string', desc: 'Client subscription ID.' }],
-        responses: {
-          '200': { description: 'Headers match GET; no response body.' },
-          ...hwidStatusErrorResponses,
-        },
       },
       {
         method: 'GET',

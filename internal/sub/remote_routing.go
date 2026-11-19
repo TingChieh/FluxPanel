@@ -3,7 +3,6 @@ package sub
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,28 +28,20 @@ import (
 type remoteRoutingKind string
 
 const (
-	remoteRoutingHapp  remoteRoutingKind = "happ"
-	remoteRoutingJson  remoteRoutingKind = "jsonhapp"
+	remoteRoutingJson  remoteRoutingKind = "json"
 	remoteRoutingClash remoteRoutingKind = "clash"
 
 	remoteRoutingCacheTTL     = 10 * time.Minute
 	remoteRoutingRetryDelay   = 30 * time.Second
 	remoteRoutingHTTPTimeout  = 6 * time.Second
-	remoteRoutingHappMaxBody  = 16 << 10 // 16 KiB; Happ emits the result in a response header
-	remoteRoutingHappMaxValue = 8 << 10  // normalized Routing header value
-	remoteRoutingClashMaxBody = 2 << 20  // 2 MiB
+	remoteRoutingJsonMaxBody  = 16 << 10
+	remoteRoutingClashMaxBody = 2 << 20 // 2 MiB
 
 	// What a document may marshal to, aliases copied out; the encoder re-indents a node's text
 	// once per enclosing level, hence the depth bound.
 	remoteRoutingClashMaxWritten = 4 << 20
 	remoteRoutingClashMaxDepth   = 16
 )
-
-// isHappPayloadKind reports whether the kind carries a happ-payload source:
-// same validation and size caps, but a separate persisted cache row.
-func isHappPayloadKind(kind remoteRoutingKind) bool {
-	return kind == remoteRoutingHapp || kind == remoteRoutingJson
-}
 
 var errRemoteRoutingUnavailable = errors.New("remote routing source is temporarily unavailable")
 
@@ -180,9 +171,8 @@ func (r *remoteRoutingResolver) resolveEntry(kind remoteRoutingKind, raw string)
 
 // RefreshRemoteRoutingSources warms and refreshes configured remote sources
 // from the cron job; concurrent resolver reads are safe, fetches coalesce.
-func RefreshRemoteRoutingSources(happ, clash, jsonRouting string) {
+func RefreshRemoteRoutingSources(clash, jsonRouting string) {
 	for kind, raw := range map[remoteRoutingKind][]string{
-		remoteRoutingHapp:  {happ},
 		remoteRoutingJson:  {jsonRouting},
 		remoteRoutingClash: {clash},
 	} {
@@ -301,26 +291,11 @@ func (r *remoteRoutingResolver) fetch(key remoteRoutingKey, previous remoteRouti
 		}
 		return previous, nil
 	}
-	if isHappPayloadKind(key.kind) && isRemoteHappRedirect(resp.StatusCode) {
-		location := strings.TrimSpace(resp.Header.Get("Location"))
-		content, locationErr := normalizeHappRouting([]byte(location))
-		if locationErr != nil {
-			return remoteRoutingCacheEntry{}, fmt.Errorf("invalid Happ redirect target: %w", locationErr)
-		}
-		if len(content) > remoteRoutingHappMaxValue {
-			return remoteRoutingCacheEntry{}, errors.New("Happ routing header exceeds the size limit")
-		}
-		return remoteRoutingCacheEntry{
-			Source:    key.source,
-			Content:   content,
-			FetchedAt: r.now().Unix(),
-		}, nil
-	}
 	if resp.StatusCode != http.StatusOK {
 		return remoteRoutingCacheEntry{}, fmt.Errorf("remote source returned HTTP %d", resp.StatusCode)
 	}
 
-	limit := int64(remoteRoutingHappMaxBody)
+	limit := int64(remoteRoutingJsonMaxBody)
 	if key.kind == remoteRoutingClash {
 		limit = remoteRoutingClashMaxBody
 	}
@@ -336,9 +311,6 @@ func (r *remoteRoutingResolver) fetch(key remoteRoutingKey, previous remoteRouti
 	if err != nil {
 		return remoteRoutingCacheEntry{}, err
 	}
-	if isHappPayloadKind(key.kind) && len(content) > remoteRoutingHappMaxValue {
-		return remoteRoutingCacheEntry{}, errors.New("Happ routing header exceeds the size limit")
-	}
 	return remoteRoutingCacheEntry{
 		Source:       key.source,
 		Content:      content,
@@ -349,66 +321,19 @@ func (r *remoteRoutingResolver) fetch(key remoteRoutingKey, previous remoteRouti
 	}, nil
 }
 
-func isRemoteHappRedirect(status int) bool {
-	switch status {
-	case http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther,
-		http.StatusTemporaryRedirect, http.StatusPermanentRedirect:
-		return true
-	default:
-		return false
-	}
-}
-
 func normalizeRemoteRoutingContent(kind remoteRoutingKind, body []byte) (string, map[string]any, error) {
 	switch kind {
-	case remoteRoutingHapp, remoteRoutingJson:
-		content, err := normalizeHappRouting(body)
-		return content, nil, err
+	case remoteRoutingJson:
+		compact, err := validateAndCompactJSONObject([]byte(strings.TrimSpace(string(body))))
+		if err != nil {
+			return "", nil, fmt.Errorf("invalid routing JSON: %w", err)
+		}
+		return string(compact), nil, nil
 	case remoteRoutingClash:
 		return normalizeClashRouting(body)
 	default:
 		return "", nil, fmt.Errorf("unsupported remote routing kind %q", kind)
 	}
-}
-
-func normalizeHappRouting(body []byte) (string, error) {
-	text := strings.TrimSpace(string(body))
-	if text == "" {
-		return "", errors.New("empty Happ routing response")
-	}
-
-	if strings.HasPrefix(text, "{") {
-		compact, err := validateAndCompactJSONObject([]byte(text))
-		if err != nil {
-			return "", fmt.Errorf("invalid Happ routing JSON: %w", err)
-		}
-		return "happ://routing/onadd/" + base64.StdEncoding.EncodeToString(compact), nil
-	}
-	if text == "happ://routing/off" {
-		return text, nil
-	}
-	if strings.ContainsAny(text, "\r\n") {
-		return "", errors.New("Happ deeplink must be a single line")
-	}
-
-	payload := ""
-	for _, prefix := range []string{"happ://routing/onadd/", "happ://routing/add/"} {
-		if after, ok := strings.CutPrefix(text, prefix); ok {
-			payload = after
-			break
-		}
-	}
-	if payload == "" {
-		return "", errors.New("Happ response is neither routing JSON nor a routing deeplink")
-	}
-	decoded, err := decodeRoutingBase64(payload)
-	if err != nil {
-		return "", fmt.Errorf("invalid Happ routing payload: %w", err)
-	}
-	if _, err := validateAndCompactJSONObject(decoded); err != nil {
-		return "", fmt.Errorf("invalid Happ routing payload JSON: %w", err)
-	}
-	return text, nil
 }
 
 func validateAndCompactJSONObject(raw []byte) ([]byte, error) {
@@ -420,25 +345,6 @@ func validateAndCompactJSONObject(raw []byte) ([]byte, error) {
 		return nil, errors.New("expected a JSON object")
 	}
 	return json.Marshal(object)
-}
-
-func decodeRoutingBase64(value string) ([]byte, error) {
-	value = strings.TrimSpace(value)
-	encodings := []*base64.Encoding{
-		base64.StdEncoding,
-		base64.RawStdEncoding,
-		base64.URLEncoding,
-		base64.RawURLEncoding,
-	}
-	var lastErr error
-	for _, encoding := range encodings {
-		decoded, err := encoding.DecodeString(value)
-		if err == nil {
-			return decoded, nil
-		}
-		lastErr = err
-	}
-	return nil, lastErr
 }
 
 func normalizeClashRouting(body []byte) (string, map[string]any, error) {
@@ -516,14 +422,6 @@ func clashFitsWritten(v any, depth int, budget *int) bool {
 	return *budget >= 0
 }
 
-func resolveIncyRoutingSource(raw string) (string, bool, error) {
-	source, remote, err := common.ParseRemoteRoutingURL(raw)
-	if err != nil || !remote {
-		return raw, remote, err
-	}
-	return "incy://autorouting/onadd/" + source, true, nil
-}
-
 func newRemoteRoutingHTTPClient() *http.Client {
 	transport := &http.Transport{
 		Proxy:                 nil,
@@ -545,11 +443,6 @@ func newRemoteRoutingHTTPClient() *http.Client {
 func checkRemoteRoutingRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) >= 5 {
 		return errors.New("stopped after 5 redirects")
-	}
-	if strings.EqualFold(req.URL.Scheme, "happ") {
-		// routing.help-style services publish the deeplink as the final Location;
-		// hand the 3xx back to fetch(), which validates it without a request.
-		return http.ErrUseLastResponse
 	}
 	if !strings.EqualFold(req.URL.Scheme, "https") || req.URL.Hostname() == "" || req.URL.User != nil {
 		return errors.New("remote routing redirect must stay on an absolute HTTPS URL")
@@ -630,7 +523,7 @@ func (r *remoteRoutingResolver) triggerPersistedLoad() {
 
 func (r *remoteRoutingResolver) loadPersisted() {
 	loaded := make(map[remoteRoutingKey]remoteRoutingCacheEntry, 2)
-	for _, kind := range []remoteRoutingKind{remoteRoutingHapp, remoteRoutingJson, remoteRoutingClash} {
+	for _, kind := range []remoteRoutingKind{remoteRoutingJson, remoteRoutingClash} {
 		var setting model.Setting
 		err := database.GetDB().Where("key = ?", remoteRoutingSettingKey(kind)).First(&setting).Error
 		if err != nil {
@@ -645,9 +538,6 @@ func (r *remoteRoutingResolver) loadPersisted() {
 		}
 		normalized, clash, err := normalizeRemoteRoutingContent(kind, []byte(entry.Content))
 		if err != nil {
-			continue
-		}
-		if isHappPayloadKind(kind) && len(normalized) > remoteRoutingHappMaxValue {
 			continue
 		}
 		entry.Content = normalized

@@ -46,7 +46,7 @@ func TestNodePushGivesUpBeforeTheRemoteTimeout(t *testing.T) {
 	start := time.Now()
 	if _, err := (&ClientService{}).Update(&InboundService{}, rec.Id, model.Client{
 		Email: "hung@x", ID: uuid, SubID: "sub-hung", Enable: true, Comment: "edited",
-	}, 0); err != nil {
+	}); err != nil {
 		t.Fatalf("Update against a hung node: %v", err)
 	}
 	elapsed := time.Since(start)

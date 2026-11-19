@@ -44,9 +44,6 @@
           "externalTrafficInformURI": {
             "type": "string"
           },
-          "happLinkEnable": {
-            "type": "boolean"
-          },
           "ipLimitAllowlist": {
             "type": "string"
           },
@@ -111,184 +108,14 @@
           "subEnable": {
             "type": "boolean"
           },
-          "subEnableRouting": {
-            "type": "boolean"
-          },
           "subEncrypt": {
             "type": "boolean"
           },
           "subExpiredTemplate": {
             "type": "string"
           },
-          "subHappAlwaysHwid": {
-            "type": "boolean"
-          },
-          "subHappAutoConnect": {
-            "type": "boolean"
-          },
-          "subHappAutoConnectType": {
-            "type": "string"
-          },
-          "subHappAutoDetect": {
-            "description": "Happ client customization settings (app-management / routing / UX).",
-            "type": "boolean"
-          },
-          "subHappColorProfile": {
-            "type": "string"
-          },
-          "subHappExcludeApns": {
-            "type": "boolean"
-          },
-          "subHappExcludeRoutes": {
-            "type": "string"
-          },
-          "subHappFallbackUrl": {
-            "type": "string"
-          },
-          "subHappLocalProxyAuth": {
-            "type": "string"
-          },
-          "subHappNewUrl": {
-            "type": "string"
-          },
-          "subHappNoLimit": {
-            "type": "boolean"
-          },
-          "subHappNotificationExpire": {
-            "type": "boolean"
-          },
-          "subHappPerAppList": {
-            "type": "string"
-          },
-          "subHappPerAppMode": {
-            "type": "string"
-          },
-          "subHappPingType": {
-            "type": "string"
-          },
-          "subHappProviderId": {
-            "type": "string"
-          },
-          "subHappSubExpire": {
-            "type": "boolean"
-          },
-          "subHappSubExpireButtonLink": {
-            "type": "string"
-          },
-          "subHappSubInfoButtonLink": {
-            "type": "string"
-          },
-          "subHappSubInfoButtonText": {
-            "type": "string"
-          },
-          "subHappSubInfoColor": {
-            "type": "string"
-          },
-          "subHappSubInfoText": {
-            "type": "string"
-          },
-          "subHappTunMode": {
-            "type": "string"
-          },
-          "subHappTunType": {
-            "type": "string"
-          },
-          "subHideSettings": {
-            "type": "boolean"
-          },
           "subHostSortMode": {
             "example": "inbound-first",
-            "type": "string"
-          },
-          "subIncyAnnounceUrl": {
-            "type": "string"
-          },
-          "subIncyAppAutoDetect": {
-            "description": "Incy client customization settings (app-management). A \"\" value omits\nthe header so the subscriber's own app setting is left alone.",
-            "type": "boolean"
-          },
-          "subIncyBannerBgColor": {
-            "type": "string"
-          },
-          "subIncyBannerButtonColor": {
-            "type": "string"
-          },
-          "subIncyBannerButtonText": {
-            "type": "string"
-          },
-          "subIncyBannerButtonUrl": {
-            "type": "string"
-          },
-          "subIncyBannerText": {
-            "type": "string"
-          },
-          "subIncyEnableRouting": {
-            "type": "boolean"
-          },
-          "subIncyFragmentInterval": {
-            "type": "string"
-          },
-          "subIncyFragmentLength": {
-            "type": "string"
-          },
-          "subIncyFragmentPackets": {
-            "type": "string"
-          },
-          "subIncyFragmentationEnable": {
-            "type": "string"
-          },
-          "subIncyHideCheck": {
-            "type": "string"
-          },
-          "subIncyHideUrl": {
-            "type": "string"
-          },
-          "subIncyNoLimitEnabled": {
-            "type": "string"
-          },
-          "subIncyNoisesDelay": {
-            "type": "string"
-          },
-          "subIncyNoisesEnable": {
-            "type": "string"
-          },
-          "subIncyNoisesPacket": {
-            "type": "string"
-          },
-          "subIncyNoisesType": {
-            "type": "string"
-          },
-          "subIncyPerAppEnable": {
-            "type": "string"
-          },
-          "subIncyPerAppList": {
-            "type": "string"
-          },
-          "subIncyPerAppMode": {
-            "type": "string"
-          },
-          "subIncyPremiumUrl": {
-            "type": "string"
-          },
-          "subIncyProfileDescription": {
-            "type": "string"
-          },
-          "subIncyResolveDnsDomain": {
-            "type": "string"
-          },
-          "subIncyResolveDnsIp": {
-            "type": "string"
-          },
-          "subIncyResolveEnable": {
-            "type": "string"
-          },
-          "subIncyRoutingRules": {
-            "type": "string"
-          },
-          "subIncySortOrder": {
-            "type": "string"
-          },
-          "subIncySupportEmail": {
             "type": "string"
           },
           "subInfoNodeEnable": {
@@ -348,9 +175,6 @@
             "type": "string"
           },
           "subProfileUrl": {
-            "type": "string"
-          },
-          "subRoutingRules": {
             "type": "string"
           },
           "subShowIdentityOnAllLinks": {
@@ -420,7 +244,6 @@
           "externalSubUserAgent",
           "externalTrafficInformEnable",
           "externalTrafficInformURI",
-          "happLinkEnable",
           "ipLimitAllowlist",
           "pageSize",
           "panelOutbound",
@@ -441,65 +264,9 @@
           "subClashUserAgentRegex",
           "subDomain",
           "subEnable",
-          "subEnableRouting",
           "subEncrypt",
           "subExpiredTemplate",
-          "subHappAlwaysHwid",
-          "subHappAutoConnect",
-          "subHappAutoConnectType",
-          "subHappAutoDetect",
-          "subHappColorProfile",
-          "subHappExcludeApns",
-          "subHappExcludeRoutes",
-          "subHappFallbackUrl",
-          "subHappLocalProxyAuth",
-          "subHappNewUrl",
-          "subHappNoLimit",
-          "subHappNotificationExpire",
-          "subHappPerAppList",
-          "subHappPerAppMode",
-          "subHappPingType",
-          "subHappProviderId",
-          "subHappSubExpire",
-          "subHappSubExpireButtonLink",
-          "subHappSubInfoButtonLink",
-          "subHappSubInfoButtonText",
-          "subHappSubInfoColor",
-          "subHappSubInfoText",
-          "subHappTunMode",
-          "subHappTunType",
-          "subHideSettings",
           "subHostSortMode",
-          "subIncyAnnounceUrl",
-          "subIncyAppAutoDetect",
-          "subIncyBannerBgColor",
-          "subIncyBannerButtonColor",
-          "subIncyBannerButtonText",
-          "subIncyBannerButtonUrl",
-          "subIncyBannerText",
-          "subIncyEnableRouting",
-          "subIncyFragmentInterval",
-          "subIncyFragmentLength",
-          "subIncyFragmentPackets",
-          "subIncyFragmentationEnable",
-          "subIncyHideCheck",
-          "subIncyHideUrl",
-          "subIncyNoLimitEnabled",
-          "subIncyNoisesDelay",
-          "subIncyNoisesEnable",
-          "subIncyNoisesPacket",
-          "subIncyNoisesType",
-          "subIncyPerAppEnable",
-          "subIncyPerAppList",
-          "subIncyPerAppMode",
-          "subIncyPremiumUrl",
-          "subIncyProfileDescription",
-          "subIncyResolveDnsDomain",
-          "subIncyResolveDnsIp",
-          "subIncyResolveEnable",
-          "subIncyRoutingRules",
-          "subIncySortOrder",
-          "subIncySupportEmail",
           "subInfoNodeEnable",
           "subJsonAlwaysArray",
           "subJsonAutoDetect",
@@ -519,7 +286,6 @@
           "subPort",
           "subProfileMode",
           "subProfileUrl",
-          "subRoutingRules",
           "subShowIdentityOnAllLinks",
           "subSupportUrl",
           "subThemeDir",
@@ -558,9 +324,6 @@
           },
           "externalTrafficInformURI": {
             "type": "string"
-          },
-          "happLinkEnable": {
-            "type": "boolean"
           },
           "hasApiToken": {
             "type": "boolean"
@@ -632,184 +395,14 @@
           "subEnable": {
             "type": "boolean"
           },
-          "subEnableRouting": {
-            "type": "boolean"
-          },
           "subEncrypt": {
             "type": "boolean"
           },
           "subExpiredTemplate": {
             "type": "string"
           },
-          "subHappAlwaysHwid": {
-            "type": "boolean"
-          },
-          "subHappAutoConnect": {
-            "type": "boolean"
-          },
-          "subHappAutoConnectType": {
-            "type": "string"
-          },
-          "subHappAutoDetect": {
-            "description": "Happ client customization settings (app-management / routing / UX).",
-            "type": "boolean"
-          },
-          "subHappColorProfile": {
-            "type": "string"
-          },
-          "subHappExcludeApns": {
-            "type": "boolean"
-          },
-          "subHappExcludeRoutes": {
-            "type": "string"
-          },
-          "subHappFallbackUrl": {
-            "type": "string"
-          },
-          "subHappLocalProxyAuth": {
-            "type": "string"
-          },
-          "subHappNewUrl": {
-            "type": "string"
-          },
-          "subHappNoLimit": {
-            "type": "boolean"
-          },
-          "subHappNotificationExpire": {
-            "type": "boolean"
-          },
-          "subHappPerAppList": {
-            "type": "string"
-          },
-          "subHappPerAppMode": {
-            "type": "string"
-          },
-          "subHappPingType": {
-            "type": "string"
-          },
-          "subHappProviderId": {
-            "type": "string"
-          },
-          "subHappSubExpire": {
-            "type": "boolean"
-          },
-          "subHappSubExpireButtonLink": {
-            "type": "string"
-          },
-          "subHappSubInfoButtonLink": {
-            "type": "string"
-          },
-          "subHappSubInfoButtonText": {
-            "type": "string"
-          },
-          "subHappSubInfoColor": {
-            "type": "string"
-          },
-          "subHappSubInfoText": {
-            "type": "string"
-          },
-          "subHappTunMode": {
-            "type": "string"
-          },
-          "subHappTunType": {
-            "type": "string"
-          },
-          "subHideSettings": {
-            "type": "boolean"
-          },
           "subHostSortMode": {
             "example": "inbound-first",
-            "type": "string"
-          },
-          "subIncyAnnounceUrl": {
-            "type": "string"
-          },
-          "subIncyAppAutoDetect": {
-            "description": "Incy client customization settings (app-management). A \"\" value omits\nthe header so the subscriber's own app setting is left alone.",
-            "type": "boolean"
-          },
-          "subIncyBannerBgColor": {
-            "type": "string"
-          },
-          "subIncyBannerButtonColor": {
-            "type": "string"
-          },
-          "subIncyBannerButtonText": {
-            "type": "string"
-          },
-          "subIncyBannerButtonUrl": {
-            "type": "string"
-          },
-          "subIncyBannerText": {
-            "type": "string"
-          },
-          "subIncyEnableRouting": {
-            "type": "boolean"
-          },
-          "subIncyFragmentInterval": {
-            "type": "string"
-          },
-          "subIncyFragmentLength": {
-            "type": "string"
-          },
-          "subIncyFragmentPackets": {
-            "type": "string"
-          },
-          "subIncyFragmentationEnable": {
-            "type": "string"
-          },
-          "subIncyHideCheck": {
-            "type": "string"
-          },
-          "subIncyHideUrl": {
-            "type": "string"
-          },
-          "subIncyNoLimitEnabled": {
-            "type": "string"
-          },
-          "subIncyNoisesDelay": {
-            "type": "string"
-          },
-          "subIncyNoisesEnable": {
-            "type": "string"
-          },
-          "subIncyNoisesPacket": {
-            "type": "string"
-          },
-          "subIncyNoisesType": {
-            "type": "string"
-          },
-          "subIncyPerAppEnable": {
-            "type": "string"
-          },
-          "subIncyPerAppList": {
-            "type": "string"
-          },
-          "subIncyPerAppMode": {
-            "type": "string"
-          },
-          "subIncyPremiumUrl": {
-            "type": "string"
-          },
-          "subIncyProfileDescription": {
-            "type": "string"
-          },
-          "subIncyResolveDnsDomain": {
-            "type": "string"
-          },
-          "subIncyResolveDnsIp": {
-            "type": "string"
-          },
-          "subIncyResolveEnable": {
-            "type": "string"
-          },
-          "subIncyRoutingRules": {
-            "type": "string"
-          },
-          "subIncySortOrder": {
-            "type": "string"
-          },
-          "subIncySupportEmail": {
             "type": "string"
           },
           "subInfoNodeEnable": {
@@ -869,9 +462,6 @@
             "type": "string"
           },
           "subProfileUrl": {
-            "type": "string"
-          },
-          "subRoutingRules": {
             "type": "string"
           },
           "subShowIdentityOnAllLinks": {
@@ -941,7 +531,6 @@
           "externalSubUserAgent",
           "externalTrafficInformEnable",
           "externalTrafficInformURI",
-          "happLinkEnable",
           "hasApiToken",
           "hasTwoFactorToken",
           "ipLimitAllowlist",
@@ -964,65 +553,9 @@
           "subClashUserAgentRegex",
           "subDomain",
           "subEnable",
-          "subEnableRouting",
           "subEncrypt",
           "subExpiredTemplate",
-          "subHappAlwaysHwid",
-          "subHappAutoConnect",
-          "subHappAutoConnectType",
-          "subHappAutoDetect",
-          "subHappColorProfile",
-          "subHappExcludeApns",
-          "subHappExcludeRoutes",
-          "subHappFallbackUrl",
-          "subHappLocalProxyAuth",
-          "subHappNewUrl",
-          "subHappNoLimit",
-          "subHappNotificationExpire",
-          "subHappPerAppList",
-          "subHappPerAppMode",
-          "subHappPingType",
-          "subHappProviderId",
-          "subHappSubExpire",
-          "subHappSubExpireButtonLink",
-          "subHappSubInfoButtonLink",
-          "subHappSubInfoButtonText",
-          "subHappSubInfoColor",
-          "subHappSubInfoText",
-          "subHappTunMode",
-          "subHappTunType",
-          "subHideSettings",
           "subHostSortMode",
-          "subIncyAnnounceUrl",
-          "subIncyAppAutoDetect",
-          "subIncyBannerBgColor",
-          "subIncyBannerButtonColor",
-          "subIncyBannerButtonText",
-          "subIncyBannerButtonUrl",
-          "subIncyBannerText",
-          "subIncyEnableRouting",
-          "subIncyFragmentInterval",
-          "subIncyFragmentLength",
-          "subIncyFragmentPackets",
-          "subIncyFragmentationEnable",
-          "subIncyHideCheck",
-          "subIncyHideUrl",
-          "subIncyNoLimitEnabled",
-          "subIncyNoisesDelay",
-          "subIncyNoisesEnable",
-          "subIncyNoisesPacket",
-          "subIncyNoisesType",
-          "subIncyPerAppEnable",
-          "subIncyPerAppList",
-          "subIncyPerAppMode",
-          "subIncyPremiumUrl",
-          "subIncyProfileDescription",
-          "subIncyResolveDnsDomain",
-          "subIncyResolveDnsIp",
-          "subIncyResolveEnable",
-          "subIncyRoutingRules",
-          "subIncySortOrder",
-          "subIncySupportEmail",
           "subInfoNodeEnable",
           "subJsonAlwaysArray",
           "subJsonAutoDetect",
@@ -1042,7 +575,6 @@
           "subPort",
           "subProfileMode",
           "subProfileUrl",
-          "subRoutingRules",
           "subShowIdentityOnAllLinks",
           "subSupportUrl",
           "subThemeDir",
@@ -1507,9 +1039,6 @@
               }
             ]
           },
-          "limitHwid": {
-            "type": "integer"
-          },
           "limitIp": {
             "type": "integer"
           },
@@ -1583,7 +1112,6 @@
           "group",
           "id",
           "keepAlive",
-          "limitHwid",
           "limitIp",
           "password",
           "preSharedKey",
@@ -1747,10 +1275,6 @@
             },
             "type": "array"
           },
-          "limitHwid": {
-            "example": 0,
-            "type": "integer"
-          },
           "limitIp": {
             "example": 0,
             "type": "integer"
@@ -1800,7 +1324,6 @@
           "enable",
           "expiryTime",
           "inboundIds",
-          "limitHwid",
           "limitIp",
           "reset",
           "resetDay",
@@ -2152,18 +1675,6 @@
         "required": [
           "reason",
           "token"
-        ],
-        "type": "object"
-      },
-      "HappLinkResult": {
-        "properties": {
-          "encryptedLink": {
-            "example": "happ://crypt5/example",
-            "type": "string"
-          }
-        },
-        "required": [
-          "encryptedLink"
         ],
         "type": "object"
       },
@@ -2579,39 +2090,6 @@
           "tags",
           "verifyPeerCertByName",
           "vlessRoute"
-        ],
-        "type": "object"
-      },
-      "HwidSlotStatus": {
-        "description": "HwidSlotStatus is the aggregate device-slot view exposed to subscribers:\ncounters only, no hwid value or hash, no email, no device metadata.",
-        "properties": {
-          "active": {
-            "example": true,
-            "type": "boolean"
-          },
-          "full": {
-            "example": false,
-            "type": "boolean"
-          },
-          "limit": {
-            "example": 2,
-            "type": "integer"
-          },
-          "registered": {
-            "example": 1,
-            "type": "integer"
-          },
-          "remaining": {
-            "example": 1,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "active",
-          "full",
-          "limit",
-          "registered",
-          "remaining"
         ],
         "type": "object"
       },
@@ -7585,7 +7063,6 @@
                           3,
                           5
                         ],
-                        "limitHwid": 0,
                         "limitIp": 0,
                         "reset": 0,
                         "resetDay": 0,
@@ -7840,7 +7317,7 @@
                 "properties": {
                   "client": {
                     "type": "object",
-                    "description": "Client fields: email, subId, id (uuid), password, auth, flow, totalGB, expiryTime, limitIp, limitHwid, tgId (numeric Telegram user ID, 0 = none), comment, enable. Protocol-specific: secret and adTag (mtproto), privateKey, publicKey, preSharedKey, allowedIPs and keepAlive (WireGuard)."
+                    "description": "Client fields: email, subId, id (uuid), password, auth, flow, totalGB, expiryTime, limitIp, tgId (numeric Telegram user ID, 0 = none), comment, enable. Protocol-specific: privateKey, publicKey, preSharedKey, allowedIPs and keepAlive (WireGuard)."
                   },
                   "inboundIds": {
                     "type": "array",
@@ -7862,7 +7339,6 @@
                   "expiryTime": 1735689600000,
                   "tgId": 0,
                   "limitIp": 0,
-                  "limitHwid": 0,
                   "enable": true
                 },
                 "inboundIds": [
@@ -8021,7 +7497,6 @@
                 "email": "alice@example.com",
                 "totalGB": 107374182400,
                 "expiryTime": 1767225600000,
-                "limitHwid": 2,
                 "tgId": 123456789,
                 "enable": true
               }
@@ -8085,7 +7560,6 @@
                 "email": "alice@example.com",
                 "totalGB": 107374182400,
                 "expiryTime": 1767225600000,
-                "limitHwid": 2,
                 "tgId": 123456789,
                 "enable": true
               }
@@ -8534,7 +8008,7 @@
         "tags": [
           "Clients"
         ],
-        "summary": "Delete every client that is not attached to any inbound, along with its traffic record, IP log, HWID devices, and external links. Useful for clearing clients left unattached after their inbounds were removed. Returns the deleted count. Cannot be undone.",
+        "summary": "Delete every client that is not attached to any inbound, along with its traffic record, IP log, and external links. Useful for clearing clients left unattached after their inbounds were removed. Returns the deleted count. Cannot be undone.",
         "operationId": "post_panel_api_clients_delOrphans",
         "responses": {
           "200": {
@@ -8598,7 +8072,6 @@
                         "id": "...",
                         "totalGB": 53687091200,
                         "expiryTime": 0,
-                        "limitHwid": 2,
                         "enable": true,
                         "subId": "..."
                       },
@@ -8681,7 +8154,7 @@
         "tags": [
           "Clients"
         ],
-        "summary": "Shift expiry and/or traffic quota for many clients in one call. addDays/addBytes may be negative. Clients with unlimited expiry (expiryTime=0) or unlimited traffic (totalGB=0) are skipped for the corresponding field — bulk extend never converts unlimited to limited. A client that was auto-disabled solely because it was depleted (expired or over quota) is automatically re-enabled — locally and on its node — when the adjustment lifts it out of depletion; a manually-disabled or still-depleted client is left disabled. The optional flow directive sets the XTLS flow on every client: \"none\" clears it, \"xtls-rprx-vision\"/\"xtls-rprx-vision-udp443\" set it where the inbound supports it (omit or \"\" to leave it unchanged). The optional limitHwid sets maximum registered devices (0 = unlimited). The optional adTag sets MTProto Telegram sponsor channel (\"none\" clears). Returns the adjusted count and per-email skip reasons.",
+        "summary": "Shift expiry and/or traffic quota for many clients in one call. addDays/addBytes may be negative. Clients with unlimited expiry (expiryTime=0) or unlimited traffic (totalGB=0) are skipped for the corresponding field — bulk extend never converts unlimited to limited. A client that was auto-disabled solely because it was depleted (expired or over quota) is automatically re-enabled — locally and on its node — when the adjustment lifts it out of depletion; a manually-disabled or still-depleted client is left disabled. The optional flow directive sets the XTLS flow on every client: \"none\" clears it, \"xtls-rprx-vision\"/\"xtls-rprx-vision-udp443\" set it where the inbound supports it (omit or \"\" to leave it unchanged). Returns the adjusted count and per-email skip reasons.",
         "operationId": "post_panel_api_clients_bulkAdjust",
         "requestBody": {
           "required": true,
@@ -8697,9 +8170,7 @@
                 ],
                 "addDays": 30,
                 "addBytes": 53687091200,
-                "flow": "xtls-rprx-vision",
-                "limitHwid": 2,
-                "adTag": "0123456789abcdef0123456789abcdef"
+                "flow": "xtls-rprx-vision"
               }
             }
           }
@@ -8934,7 +8405,6 @@
                     "email": "alice@example.com",
                     "totalGB": 53687091200,
                     "expiryTime": 0,
-                    "limitHwid": 2,
                     "enable": true
                   },
                   "inboundIds": [
@@ -8946,7 +8416,6 @@
                     "email": "bob@example.com",
                     "totalGB": 53687091200,
                     "expiryTime": 0,
-                    "limitHwid": 0,
                     "enable": true
                   },
                   "inboundIds": [
@@ -9781,151 +9250,6 @@
         }
       }
     },
-    "/panel/api/clients/hwids/{email}": {
-      "post": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "List registered HWID devices for a client with a short fingerprint. Full hashes are not exposed.",
-        "operationId": "post_panel_api_clients_hwids_email",
-        "parameters": [
-          {
-            "name": "email",
-            "in": "path",
-            "required": true,
-            "description": "Client email.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "obj": [
-                    {
-                      "id": 1,
-                      "firstSeen": 1735000000000,
-                      "lastSeen": 1735100000000,
-                      "userAgent": "Happ/1.0",
-                      "deviceOs": "android",
-                      "osVersion": "15",
-                      "deviceModel": "Pixel 9",
-                      "fingerprint": "6ad17c93e821"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "Clear all registered HWID devices for a client so new devices can register again.",
-        "operationId": "delete_panel_api_clients_hwids_email",
-        "parameters": [
-          {
-            "name": "email",
-            "in": "path",
-            "required": true,
-            "description": "Client email.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/clients/hwids/{email}/{id}": {
-      "delete": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "Remove a single registered HWID device by its id, freeing one slot under the HWID limit.",
-        "operationId": "delete_panel_api_clients_hwids_email_id",
-        "parameters": [
-          {
-            "name": "email",
-            "in": "path",
-            "required": true,
-            "description": "Client email.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "description": "Device id, from the list endpoint.",
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/panel/api/clients/onlines": {
       "post": {
         "tags": [
@@ -10288,55 +9612,6 @@
                     "vless://uuid@host:443?security=reality&...#user1",
                     "vmess://eyJ2IjoyLC..."
                   ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/clients/happLink/{id}": {
-      "post": {
-        "tags": [
-          "Clients"
-        ],
-        "summary": "Generate a fresh Happ crypt5 link locally from the current client subscription URL when Happ link generation is enabled. The panel applies a resource limit of 8192 UTF-8 bytes to the source URL; this is not a Happ client maximum. Longer sources return success: false with msg: happ_source_too_long and obj: null. The source URL is not sent to a generation provider, and the result is not stored or reused.",
-        "operationId": "post_panel_api_clients_happLink_id",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "description": "Stable client record ID.",
-            "schema": {
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {
-                      "$ref": "#/components/schemas/HappLinkResult"
-                    }
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "obj": {
-                    "encryptedLink": "happ://crypt5/example"
-                  }
                 }
               }
             }
@@ -14743,99 +14018,6 @@
           },
           "500": {
             "description": "Subscription generation failed."
-          }
-        }
-      }
-    },
-    "/{subPath}{subid}/hwid-status": {
-      "get": {
-        "tags": [
-          "Subscription Server"
-        ],
-        "summary": "Return aggregate HWID device-slot usage for the subscription: whether an HWID limit is active, the limit, how many devices are registered and how many slots remain. Read-only — it never registers a device, so asking does not consume a slot. Counters only: no HWID value, email or device metadata. The path prefix is configured by subPath.",
-        "operationId": "get_subPath_subid_hwid_status",
-        "description": "Responds with the bare HwidSlotStatus object, not the <code>{success,msg,obj}</code> panel envelope, like the other subscription-server routes. With no HWID limit configured, <code>active</code> is false and every counter is 0.",
-        "parameters": [
-          {
-            "name": "subid",
-            "in": "path",
-            "required": true,
-            "description": "Client subscription ID.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "subPath",
-            "in": "path",
-            "required": true,
-            "description": "",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Device-slot counters for the subscription.",
-            "content": {
-              "application/json": {
-                "example": {
-                  "active": true,
-                  "full": false,
-                  "limit": 2,
-                  "registered": 1,
-                  "remaining": 1
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/HwidSlotStatus"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No enabled client matches the subscription ID. Empty body."
-          },
-          "500": {
-            "description": "Database lookup failed. Empty body."
-          }
-        }
-      },
-      "head": {
-        "tags": [
-          "Subscription Server"
-        ],
-        "summary": "Return the HWID device-slot status code and headers as GET without a response body.",
-        "operationId": "head_subPath_subid_hwid_status",
-        "parameters": [
-          {
-            "name": "subid",
-            "in": "path",
-            "required": true,
-            "description": "Client subscription ID.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "subPath",
-            "in": "path",
-            "required": true,
-            "description": "",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Headers match GET; no response body."
-          },
-          "404": {
-            "description": "No enabled client matches the subscription ID. Empty body."
-          },
-          "500": {
-            "description": "Database lookup failed. Empty body."
           }
         }
       }

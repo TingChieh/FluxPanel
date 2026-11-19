@@ -102,8 +102,6 @@ describe('buildSubApps', () => {
       { name: 'V2RayNG', url: `v2rayng://install-config?url=${encSub}` },
       { name: 'Sing-box', url: `sing-box://import-remote-profile?url=${encSub}#Nova%20Net` },
       { name: 'V2RayTun', url: `v2raytun://import/${subUrl}` },
-      { name: 'Happ', url: `happ://add/${subUrl}` },
-      { name: 'Incy', url: `incy://add/${subUrl}` },
     ]);
   });
 
@@ -114,8 +112,6 @@ describe('buildSubApps', () => {
       { name: 'V2Box', url: `v2box://install-sub?url=${encSub}&name=abc` },
       { name: 'Streisand', url: `streisand://import/${encSub}` },
       { name: 'V2RayTun', url: `v2raytun://import/${subUrl}` },
-      { name: 'Happ', url: `happ://add/${subUrl}` },
-      { name: 'Incy', url: `incy://add/${subUrl}` },
     ]);
   });
 

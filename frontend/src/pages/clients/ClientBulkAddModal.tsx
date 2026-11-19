@@ -52,7 +52,6 @@ const EMPTY: ClientBulkAddFormValues = {
   comment: '',
   flow: '',
   limitIp: 0,
-  limitHwid: 0,
   totalGB: 0,
   expiryTime: 0,
   reset: 0,
@@ -209,7 +208,6 @@ export default function ClientBulkAddModal({
           trafficReset: current.trafficReset || 'never',
           trafficResetDay: Number(current.trafficResetDay) || 1,
           limitIp: Number(current.limitIp) || 0,
-          limitHwid: Number(current.limitHwid) || 0,
           group: current.group,
           comment: current.comment,
           enable: true,
@@ -355,15 +353,6 @@ export default function ClientBulkAddModal({
                 options={groups.map((g) => ({ value: g }))}
                 allowClear
               />
-            </FormField>
-
-            <FormField
-              name="limitHwid"
-              label={t('pages.clients.limitHwid')}
-              tooltip={t('pages.clients.limitHwidDesc')}
-              transform={{ output: (v) => Number(v) || 0 }}
-            >
-              <InputNumber min={0} />
             </FormField>
 
             <FormField name="comment" label={t('comment')}>

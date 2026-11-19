@@ -1,7 +1,6 @@
 package sub
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -16,9 +15,6 @@ func mustMarshal(t *testing.T, v any) string {
 	}
 	return string(data)
 }
-
-func b64Std(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
-func b64URL(s string) string { return base64.RawURLEncoding.EncodeToString([]byte(s)) }
 
 func fullRoutingPayload() map[string]any {
 	return map[string]any{
@@ -106,24 +102,6 @@ func TestParseJsonRoutingSpecRouteOrderKeepsEachGroupOnce(t *testing.T) {
 	}
 }
 
-func TestParseJsonRoutingSpecDeeplinks(t *testing.T) {
-	payload := mustMarshal(t, fullRoutingPayload())
-	cases := []string{
-		"happ://routing/onadd/" + b64Std(payload),
-		"incy://routing/onadd/" + b64Std(payload),
-		"happ://routing/onadd/" + b64URL(payload),
-	}
-	for _, raw := range cases {
-		spec, _, err := parseJsonRoutingSpec(raw)
-		if err != nil {
-			t.Fatalf("parse %q: %v", raw[:32], err)
-		}
-		if spec.DomainStrategy != "IPIfNonMatch" || len(spec.DirectSites) != 2 || spec.RouteOrder[1] != "proxy" {
-			t.Fatalf("spec from %q = %+v", raw[:32], spec)
-		}
-	}
-}
-
 func TestParseJsonRoutingSpecRejectsBadPayloads(t *testing.T) {
 	cases := []string{
 		"not json at all",
@@ -176,29 +154,5 @@ func TestParseJsonRoutingSpecRemoteUnavailable(t *testing.T) {
 	}), false)
 	if _, _, err := parseJsonRoutingSpec("https://example.com/bad"); err == nil {
 		t.Fatal("unavailable remote source must error")
-	}
-}
-
-// normalizeHappRouting accepts happ://routing/add/ as a routing deeplink
-// (remote_routing.go), so the baked-JSON parser has to accept it too.
-func TestParseJsonRoutingSpecAcceptsAddDeeplink(t *testing.T) {
-	payload := mustMarshal(t, fullRoutingPayload())
-	for _, prefix := range []string{"happ://routing/onadd/", "happ://routing/add/", "incy://routing/onadd/"} {
-		t.Run(prefix, func(t *testing.T) {
-			if _, err := normalizeHappRouting([]byte(prefix + b64Std(payload))); err != nil &&
-				!strings.HasPrefix(prefix, "incy://") {
-				t.Fatalf("normalizeHappRouting rejects %s: %v", prefix, err)
-			}
-			spec, remote, err := parseJsonRoutingSpec(prefix + b64Std(payload))
-			if err != nil || remote {
-				t.Fatalf("parse %s: err=%v remote=%v", prefix, err, remote)
-			}
-			if spec.empty() {
-				t.Fatalf("parse %s: spec is empty, routing would not be baked", prefix)
-			}
-			if spec.DomainStrategy != "IPIfNonMatch" {
-				t.Fatalf("parse %s: DomainStrategy = %q", prefix, spec.DomainStrategy)
-			}
-		})
 	}
 }

@@ -13,8 +13,8 @@ import (
 	"github.com/TingChieh/FluxPanel/internal/util/common"
 )
 
-// jsonRoutingSpec is the canonical form of the generic Happ/INCY routing
-// payload (inline JSON, happ:// or incy:// deeplink, or remote URL).
+// jsonRoutingSpec is the canonical form of a JSON routing payload
+// (inline JSON or remote URL).
 type jsonRoutingSpec struct {
 	DomainStrategy    string
 	RemoteDNSDomain   string
@@ -50,11 +50,6 @@ func (s jsonRoutingSpec) equal(other jsonRoutingSpec) bool {
 		slices.Equal(s.BlockSites, other.BlockSites) && slices.Equal(s.BlockIp, other.BlockIp)
 }
 
-// Both happ forms appear in the wild; normalizeHappRouting accepts each.
-var jsonRoutingDeeplinkPrefixes = []string{
-	"happ://routing/onadd/", "happ://routing/add/", "incy://routing/onadd/",
-}
-
 // bakedTemplate resolves once per emitted document, so an unusable profile
 // must not write one identical warning per document on every public fetch.
 var lastJsonRoutingWarning atomic.Value
@@ -78,40 +73,8 @@ func resolveJsonRoutingSpec(raw string) jsonRoutingSpec {
 	return spec
 }
 
-// jsonRoutingHeaderSource turns the JSON routing setting into a Routing header
-// value; blank means unusable, and the header then stays unset.
-func jsonRoutingHeaderSource(raw string) string {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return ""
-	}
-	if strings.HasPrefix(trimmed, "incy://") {
-		_, rest, ok := cutAnyPrefix(trimmed, jsonRoutingDeeplinkPrefixes)
-		if !ok {
-			return ""
-		}
-		decoded, err := decodeRoutingBase64(rest)
-		if err != nil {
-			return ""
-		}
-		if _, err := validateAndCompactJSONObject(decoded); err != nil || len(trimmed) > remoteRoutingHappMaxValue {
-			return ""
-		}
-		return trimmed
-	}
-	resolved, _, err := resolveRoutingSource(remoteRoutingJson, trimmed)
-	if err != nil {
-		return ""
-	}
-	content, err := normalizeHappRouting([]byte(resolved))
-	if err != nil || len(content) > remoteRoutingHappMaxValue {
-		return ""
-	}
-	return content
-}
-
-// parseJsonRoutingSpec resolves raw (inline JSON, happ:// or incy:// deeplink,
-// or https:// URL) into a spec; the caller degrades on error, never fails.
+// parseJsonRoutingSpec resolves raw (inline JSON or https:// URL) into a spec;
+// the caller degrades on error, never fails.
 func parseJsonRoutingSpec(raw string) (jsonRoutingSpec, bool, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -130,14 +93,8 @@ func parseJsonRoutingSpec(raw string) (jsonRoutingSpec, bool, error) {
 	}
 
 	payload := []byte(trimmed)
-	if _, rest, ok := cutAnyPrefix(trimmed, jsonRoutingDeeplinkPrefixes); ok {
-		decoded, err := decodeRoutingBase64(rest)
-		if err != nil {
-			return jsonRoutingSpec{}, false, fmt.Errorf("invalid routing deeplink payload: %w", err)
-		}
-		payload = decoded
-	} else if !strings.HasPrefix(trimmed, "{") {
-		return jsonRoutingSpec{}, false, errors.New("routing payload must be a JSON object or a happ/incy deeplink")
+	if !strings.HasPrefix(trimmed, "{") {
+		return jsonRoutingSpec{}, false, errors.New("routing payload must be a JSON object")
 	}
 
 	var object map[string]any
@@ -153,15 +110,6 @@ func parseJsonRoutingSpec(raw string) (jsonRoutingSpec, bool, error) {
 		return jsonRoutingSpec{}, false, err
 	}
 	return spec, false, nil
-}
-
-func cutAnyPrefix(s string, prefixes []string) (string, string, bool) {
-	for _, prefix := range prefixes {
-		if after, ok := strings.CutPrefix(s, prefix); ok {
-			return prefix, after, true
-		}
-	}
-	return "", "", false
 }
 
 func buildJsonRoutingSpec(object map[string]any) (jsonRoutingSpec, error) {

@@ -18,9 +18,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "externalTrafficInformURI": {
         "type": "string"
       },
-      "happLinkEnable": {
-        "type": "boolean"
-      },
       "ipLimitAllowlist": {
         "type": "string"
       },
@@ -85,184 +82,14 @@ export const SCHEMAS: Record<string, unknown> = {
       "subEnable": {
         "type": "boolean"
       },
-      "subEnableRouting": {
-        "type": "boolean"
-      },
       "subEncrypt": {
         "type": "boolean"
       },
       "subExpiredTemplate": {
         "type": "string"
       },
-      "subHappAlwaysHwid": {
-        "type": "boolean"
-      },
-      "subHappAutoConnect": {
-        "type": "boolean"
-      },
-      "subHappAutoConnectType": {
-        "type": "string"
-      },
-      "subHappAutoDetect": {
-        "description": "Happ client customization settings (app-management / routing / UX).",
-        "type": "boolean"
-      },
-      "subHappColorProfile": {
-        "type": "string"
-      },
-      "subHappExcludeApns": {
-        "type": "boolean"
-      },
-      "subHappExcludeRoutes": {
-        "type": "string"
-      },
-      "subHappFallbackUrl": {
-        "type": "string"
-      },
-      "subHappLocalProxyAuth": {
-        "type": "string"
-      },
-      "subHappNewUrl": {
-        "type": "string"
-      },
-      "subHappNoLimit": {
-        "type": "boolean"
-      },
-      "subHappNotificationExpire": {
-        "type": "boolean"
-      },
-      "subHappPerAppList": {
-        "type": "string"
-      },
-      "subHappPerAppMode": {
-        "type": "string"
-      },
-      "subHappPingType": {
-        "type": "string"
-      },
-      "subHappProviderId": {
-        "type": "string"
-      },
-      "subHappSubExpire": {
-        "type": "boolean"
-      },
-      "subHappSubExpireButtonLink": {
-        "type": "string"
-      },
-      "subHappSubInfoButtonLink": {
-        "type": "string"
-      },
-      "subHappSubInfoButtonText": {
-        "type": "string"
-      },
-      "subHappSubInfoColor": {
-        "type": "string"
-      },
-      "subHappSubInfoText": {
-        "type": "string"
-      },
-      "subHappTunMode": {
-        "type": "string"
-      },
-      "subHappTunType": {
-        "type": "string"
-      },
-      "subHideSettings": {
-        "type": "boolean"
-      },
       "subHostSortMode": {
         "example": "inbound-first",
-        "type": "string"
-      },
-      "subIncyAnnounceUrl": {
-        "type": "string"
-      },
-      "subIncyAppAutoDetect": {
-        "description": "Incy client customization settings (app-management). A \"\" value omits\nthe header so the subscriber's own app setting is left alone.",
-        "type": "boolean"
-      },
-      "subIncyBannerBgColor": {
-        "type": "string"
-      },
-      "subIncyBannerButtonColor": {
-        "type": "string"
-      },
-      "subIncyBannerButtonText": {
-        "type": "string"
-      },
-      "subIncyBannerButtonUrl": {
-        "type": "string"
-      },
-      "subIncyBannerText": {
-        "type": "string"
-      },
-      "subIncyEnableRouting": {
-        "type": "boolean"
-      },
-      "subIncyFragmentInterval": {
-        "type": "string"
-      },
-      "subIncyFragmentLength": {
-        "type": "string"
-      },
-      "subIncyFragmentPackets": {
-        "type": "string"
-      },
-      "subIncyFragmentationEnable": {
-        "type": "string"
-      },
-      "subIncyHideCheck": {
-        "type": "string"
-      },
-      "subIncyHideUrl": {
-        "type": "string"
-      },
-      "subIncyNoLimitEnabled": {
-        "type": "string"
-      },
-      "subIncyNoisesDelay": {
-        "type": "string"
-      },
-      "subIncyNoisesEnable": {
-        "type": "string"
-      },
-      "subIncyNoisesPacket": {
-        "type": "string"
-      },
-      "subIncyNoisesType": {
-        "type": "string"
-      },
-      "subIncyPerAppEnable": {
-        "type": "string"
-      },
-      "subIncyPerAppList": {
-        "type": "string"
-      },
-      "subIncyPerAppMode": {
-        "type": "string"
-      },
-      "subIncyPremiumUrl": {
-        "type": "string"
-      },
-      "subIncyProfileDescription": {
-        "type": "string"
-      },
-      "subIncyResolveDnsDomain": {
-        "type": "string"
-      },
-      "subIncyResolveDnsIp": {
-        "type": "string"
-      },
-      "subIncyResolveEnable": {
-        "type": "string"
-      },
-      "subIncyRoutingRules": {
-        "type": "string"
-      },
-      "subIncySortOrder": {
-        "type": "string"
-      },
-      "subIncySupportEmail": {
         "type": "string"
       },
       "subInfoNodeEnable": {
@@ -322,9 +149,6 @@ export const SCHEMAS: Record<string, unknown> = {
         "type": "string"
       },
       "subProfileUrl": {
-        "type": "string"
-      },
-      "subRoutingRules": {
         "type": "string"
       },
       "subShowIdentityOnAllLinks": {
@@ -394,7 +218,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "externalSubUserAgent",
       "externalTrafficInformEnable",
       "externalTrafficInformURI",
-      "happLinkEnable",
       "ipLimitAllowlist",
       "pageSize",
       "panelOutbound",
@@ -415,65 +238,9 @@ export const SCHEMAS: Record<string, unknown> = {
       "subClashUserAgentRegex",
       "subDomain",
       "subEnable",
-      "subEnableRouting",
       "subEncrypt",
       "subExpiredTemplate",
-      "subHappAlwaysHwid",
-      "subHappAutoConnect",
-      "subHappAutoConnectType",
-      "subHappAutoDetect",
-      "subHappColorProfile",
-      "subHappExcludeApns",
-      "subHappExcludeRoutes",
-      "subHappFallbackUrl",
-      "subHappLocalProxyAuth",
-      "subHappNewUrl",
-      "subHappNoLimit",
-      "subHappNotificationExpire",
-      "subHappPerAppList",
-      "subHappPerAppMode",
-      "subHappPingType",
-      "subHappProviderId",
-      "subHappSubExpire",
-      "subHappSubExpireButtonLink",
-      "subHappSubInfoButtonLink",
-      "subHappSubInfoButtonText",
-      "subHappSubInfoColor",
-      "subHappSubInfoText",
-      "subHappTunMode",
-      "subHappTunType",
-      "subHideSettings",
       "subHostSortMode",
-      "subIncyAnnounceUrl",
-      "subIncyAppAutoDetect",
-      "subIncyBannerBgColor",
-      "subIncyBannerButtonColor",
-      "subIncyBannerButtonText",
-      "subIncyBannerButtonUrl",
-      "subIncyBannerText",
-      "subIncyEnableRouting",
-      "subIncyFragmentInterval",
-      "subIncyFragmentLength",
-      "subIncyFragmentPackets",
-      "subIncyFragmentationEnable",
-      "subIncyHideCheck",
-      "subIncyHideUrl",
-      "subIncyNoLimitEnabled",
-      "subIncyNoisesDelay",
-      "subIncyNoisesEnable",
-      "subIncyNoisesPacket",
-      "subIncyNoisesType",
-      "subIncyPerAppEnable",
-      "subIncyPerAppList",
-      "subIncyPerAppMode",
-      "subIncyPremiumUrl",
-      "subIncyProfileDescription",
-      "subIncyResolveDnsDomain",
-      "subIncyResolveDnsIp",
-      "subIncyResolveEnable",
-      "subIncyRoutingRules",
-      "subIncySortOrder",
-      "subIncySupportEmail",
       "subInfoNodeEnable",
       "subJsonAlwaysArray",
       "subJsonAutoDetect",
@@ -493,7 +260,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "subPort",
       "subProfileMode",
       "subProfileUrl",
-      "subRoutingRules",
       "subShowIdentityOnAllLinks",
       "subSupportUrl",
       "subThemeDir",
@@ -532,9 +298,6 @@ export const SCHEMAS: Record<string, unknown> = {
       },
       "externalTrafficInformURI": {
         "type": "string"
-      },
-      "happLinkEnable": {
-        "type": "boolean"
       },
       "hasApiToken": {
         "type": "boolean"
@@ -606,184 +369,14 @@ export const SCHEMAS: Record<string, unknown> = {
       "subEnable": {
         "type": "boolean"
       },
-      "subEnableRouting": {
-        "type": "boolean"
-      },
       "subEncrypt": {
         "type": "boolean"
       },
       "subExpiredTemplate": {
         "type": "string"
       },
-      "subHappAlwaysHwid": {
-        "type": "boolean"
-      },
-      "subHappAutoConnect": {
-        "type": "boolean"
-      },
-      "subHappAutoConnectType": {
-        "type": "string"
-      },
-      "subHappAutoDetect": {
-        "description": "Happ client customization settings (app-management / routing / UX).",
-        "type": "boolean"
-      },
-      "subHappColorProfile": {
-        "type": "string"
-      },
-      "subHappExcludeApns": {
-        "type": "boolean"
-      },
-      "subHappExcludeRoutes": {
-        "type": "string"
-      },
-      "subHappFallbackUrl": {
-        "type": "string"
-      },
-      "subHappLocalProxyAuth": {
-        "type": "string"
-      },
-      "subHappNewUrl": {
-        "type": "string"
-      },
-      "subHappNoLimit": {
-        "type": "boolean"
-      },
-      "subHappNotificationExpire": {
-        "type": "boolean"
-      },
-      "subHappPerAppList": {
-        "type": "string"
-      },
-      "subHappPerAppMode": {
-        "type": "string"
-      },
-      "subHappPingType": {
-        "type": "string"
-      },
-      "subHappProviderId": {
-        "type": "string"
-      },
-      "subHappSubExpire": {
-        "type": "boolean"
-      },
-      "subHappSubExpireButtonLink": {
-        "type": "string"
-      },
-      "subHappSubInfoButtonLink": {
-        "type": "string"
-      },
-      "subHappSubInfoButtonText": {
-        "type": "string"
-      },
-      "subHappSubInfoColor": {
-        "type": "string"
-      },
-      "subHappSubInfoText": {
-        "type": "string"
-      },
-      "subHappTunMode": {
-        "type": "string"
-      },
-      "subHappTunType": {
-        "type": "string"
-      },
-      "subHideSettings": {
-        "type": "boolean"
-      },
       "subHostSortMode": {
         "example": "inbound-first",
-        "type": "string"
-      },
-      "subIncyAnnounceUrl": {
-        "type": "string"
-      },
-      "subIncyAppAutoDetect": {
-        "description": "Incy client customization settings (app-management). A \"\" value omits\nthe header so the subscriber's own app setting is left alone.",
-        "type": "boolean"
-      },
-      "subIncyBannerBgColor": {
-        "type": "string"
-      },
-      "subIncyBannerButtonColor": {
-        "type": "string"
-      },
-      "subIncyBannerButtonText": {
-        "type": "string"
-      },
-      "subIncyBannerButtonUrl": {
-        "type": "string"
-      },
-      "subIncyBannerText": {
-        "type": "string"
-      },
-      "subIncyEnableRouting": {
-        "type": "boolean"
-      },
-      "subIncyFragmentInterval": {
-        "type": "string"
-      },
-      "subIncyFragmentLength": {
-        "type": "string"
-      },
-      "subIncyFragmentPackets": {
-        "type": "string"
-      },
-      "subIncyFragmentationEnable": {
-        "type": "string"
-      },
-      "subIncyHideCheck": {
-        "type": "string"
-      },
-      "subIncyHideUrl": {
-        "type": "string"
-      },
-      "subIncyNoLimitEnabled": {
-        "type": "string"
-      },
-      "subIncyNoisesDelay": {
-        "type": "string"
-      },
-      "subIncyNoisesEnable": {
-        "type": "string"
-      },
-      "subIncyNoisesPacket": {
-        "type": "string"
-      },
-      "subIncyNoisesType": {
-        "type": "string"
-      },
-      "subIncyPerAppEnable": {
-        "type": "string"
-      },
-      "subIncyPerAppList": {
-        "type": "string"
-      },
-      "subIncyPerAppMode": {
-        "type": "string"
-      },
-      "subIncyPremiumUrl": {
-        "type": "string"
-      },
-      "subIncyProfileDescription": {
-        "type": "string"
-      },
-      "subIncyResolveDnsDomain": {
-        "type": "string"
-      },
-      "subIncyResolveDnsIp": {
-        "type": "string"
-      },
-      "subIncyResolveEnable": {
-        "type": "string"
-      },
-      "subIncyRoutingRules": {
-        "type": "string"
-      },
-      "subIncySortOrder": {
-        "type": "string"
-      },
-      "subIncySupportEmail": {
         "type": "string"
       },
       "subInfoNodeEnable": {
@@ -843,9 +436,6 @@ export const SCHEMAS: Record<string, unknown> = {
         "type": "string"
       },
       "subProfileUrl": {
-        "type": "string"
-      },
-      "subRoutingRules": {
         "type": "string"
       },
       "subShowIdentityOnAllLinks": {
@@ -915,7 +505,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "externalSubUserAgent",
       "externalTrafficInformEnable",
       "externalTrafficInformURI",
-      "happLinkEnable",
       "hasApiToken",
       "hasTwoFactorToken",
       "ipLimitAllowlist",
@@ -938,65 +527,9 @@ export const SCHEMAS: Record<string, unknown> = {
       "subClashUserAgentRegex",
       "subDomain",
       "subEnable",
-      "subEnableRouting",
       "subEncrypt",
       "subExpiredTemplate",
-      "subHappAlwaysHwid",
-      "subHappAutoConnect",
-      "subHappAutoConnectType",
-      "subHappAutoDetect",
-      "subHappColorProfile",
-      "subHappExcludeApns",
-      "subHappExcludeRoutes",
-      "subHappFallbackUrl",
-      "subHappLocalProxyAuth",
-      "subHappNewUrl",
-      "subHappNoLimit",
-      "subHappNotificationExpire",
-      "subHappPerAppList",
-      "subHappPerAppMode",
-      "subHappPingType",
-      "subHappProviderId",
-      "subHappSubExpire",
-      "subHappSubExpireButtonLink",
-      "subHappSubInfoButtonLink",
-      "subHappSubInfoButtonText",
-      "subHappSubInfoColor",
-      "subHappSubInfoText",
-      "subHappTunMode",
-      "subHappTunType",
-      "subHideSettings",
       "subHostSortMode",
-      "subIncyAnnounceUrl",
-      "subIncyAppAutoDetect",
-      "subIncyBannerBgColor",
-      "subIncyBannerButtonColor",
-      "subIncyBannerButtonText",
-      "subIncyBannerButtonUrl",
-      "subIncyBannerText",
-      "subIncyEnableRouting",
-      "subIncyFragmentInterval",
-      "subIncyFragmentLength",
-      "subIncyFragmentPackets",
-      "subIncyFragmentationEnable",
-      "subIncyHideCheck",
-      "subIncyHideUrl",
-      "subIncyNoLimitEnabled",
-      "subIncyNoisesDelay",
-      "subIncyNoisesEnable",
-      "subIncyNoisesPacket",
-      "subIncyNoisesType",
-      "subIncyPerAppEnable",
-      "subIncyPerAppList",
-      "subIncyPerAppMode",
-      "subIncyPremiumUrl",
-      "subIncyProfileDescription",
-      "subIncyResolveDnsDomain",
-      "subIncyResolveDnsIp",
-      "subIncyResolveEnable",
-      "subIncyRoutingRules",
-      "subIncySortOrder",
-      "subIncySupportEmail",
       "subInfoNodeEnable",
       "subJsonAlwaysArray",
       "subJsonAutoDetect",
@@ -1016,7 +549,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "subPort",
       "subProfileMode",
       "subProfileUrl",
-      "subRoutingRules",
       "subShowIdentityOnAllLinks",
       "subSupportUrl",
       "subThemeDir",
@@ -1481,9 +1013,6 @@ export const SCHEMAS: Record<string, unknown> = {
           }
         ]
       },
-      "limitHwid": {
-        "type": "integer"
-      },
       "limitIp": {
         "type": "integer"
       },
@@ -1557,7 +1086,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "group",
       "id",
       "keepAlive",
-      "limitHwid",
       "limitIp",
       "password",
       "preSharedKey",
@@ -1721,10 +1249,6 @@ export const SCHEMAS: Record<string, unknown> = {
         },
         "type": "array"
       },
-      "limitHwid": {
-        "example": 0,
-        "type": "integer"
-      },
       "limitIp": {
         "example": 0,
         "type": "integer"
@@ -1774,7 +1298,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "enable",
       "expiryTime",
       "inboundIds",
-      "limitHwid",
       "limitIp",
       "reset",
       "resetDay",
@@ -2126,18 +1649,6 @@ export const SCHEMAS: Record<string, unknown> = {
     "required": [
       "reason",
       "token"
-    ],
-    "type": "object"
-  },
-  "HappLinkResult": {
-    "properties": {
-      "encryptedLink": {
-        "example": "happ://crypt5/example",
-        "type": "string"
-      }
-    },
-    "required": [
-      "encryptedLink"
     ],
     "type": "object"
   },
@@ -2553,39 +2064,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "tags",
       "verifyPeerCertByName",
       "vlessRoute"
-    ],
-    "type": "object"
-  },
-  "HwidSlotStatus": {
-    "description": "HwidSlotStatus is the aggregate device-slot view exposed to subscribers:\ncounters only, no hwid value or hash, no email, no device metadata.",
-    "properties": {
-      "active": {
-        "example": true,
-        "type": "boolean"
-      },
-      "full": {
-        "example": false,
-        "type": "boolean"
-      },
-      "limit": {
-        "example": 2,
-        "type": "integer"
-      },
-      "registered": {
-        "example": 1,
-        "type": "integer"
-      },
-      "remaining": {
-        "example": 1,
-        "type": "integer"
-      }
-    },
-    "required": [
-      "active",
-      "full",
-      "limit",
-      "registered",
-      "remaining"
     ],
     "type": "object"
   },

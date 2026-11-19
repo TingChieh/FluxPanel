@@ -63,7 +63,7 @@ func TestUpdateCanClearKeepAliveOnAnExistingClient(t *testing.T) {
 		AllowedIPs: []string{"10.0.0.5/32"},
 		KeepAlive:  model.KeepAlivePtr(0),
 	}
-	if _, err := svc.Update(inboundSvc, recId, updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, recId, updated); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 
@@ -89,7 +89,7 @@ func TestUpdateWithoutKeepAlivePreservesTheStoredValue(t *testing.T) {
 		Enable:     true,
 		AllowedIPs: []string{"10.0.0.5/32"},
 	}
-	if _, err := svc.Update(inboundSvc, recId, updated, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, recId, updated); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 

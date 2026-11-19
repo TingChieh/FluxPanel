@@ -104,20 +104,15 @@ func TestSubscriptionProfileURLRequiresExplicitConfiguration(t *testing.T) {
 		t.Run(config.name, func(t *testing.T) {
 			for _, client := range []struct {
 				name, userAgent string
-				happAutoDetect  bool
 			}{
-				{name: "Happ", userAgent: "Happ/3.22.0 (Android)", happAutoDetect: true},
-				{name: "Happ without auto-detection", userAgent: "Happ/3.22.0 (Android)"},
-				{name: "standard", userAgent: "v2rayNG/1.8.5", happAutoDetect: true},
+				{name: "standard", userAgent: "v2rayNG/1.8.5"},
 			} {
 				t.Run(client.name, func(t *testing.T) {
-					// All formats must honor the opt-in, independently of Happ customization.
 					router := gin.New()
 					NewSUBController(router.Group("/"),
 						WithSUBJsonEnabled(true), WithSUBClashEnabled(true),
 						WithSUBProfileURL(config.profileURL),
 						WithSUBProfileMode(service.SubProfileModeCustom),
-						WithSUBHappConfig(HappConfig{AutoDetect: client.happAutoDetect}),
 					)
 					for _, path := range []string{"/sub/profile-sub", "/json/profile-sub", "/clash/profile-sub"} {
 						t.Run(path, func(t *testing.T) {

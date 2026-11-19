@@ -35,7 +35,7 @@ func TestUpdate_OmittedPreservesAndEmptyClearsHostBindings(t *testing.T) {
 	omitted := rec.ToClient()
 	omitted.ClientHostRuleIds = nil
 	omitted.Comment = "touch"
-	if _, err := svc.Update(inboundSvc, rec.Id, *omitted, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, rec.Id, *omitted); err != nil {
 		t.Fatalf("Update omitted: %v", err)
 	}
 	got, err := svc.GetByID(rec.Id)
@@ -48,7 +48,7 @@ func TestUpdate_OmittedPreservesAndEmptyClearsHostBindings(t *testing.T) {
 
 	cleared := got.ToClient()
 	cleared.ClientHostRuleIds = []int{}
-	if _, err := svc.Update(inboundSvc, rec.Id, *cleared, 0); err != nil {
+	if _, err := svc.Update(inboundSvc, rec.Id, *cleared); err != nil {
 		t.Fatalf("Update clear: %v", err)
 	}
 	after, err := svc.GetByID(rec.Id)

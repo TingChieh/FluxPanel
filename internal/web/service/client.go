@@ -68,16 +68,10 @@ var ErrClientNotInInbound = errors.New("client not found in inbound")
 type ClientCreatePayload struct {
 	Client     model.Client           `json:"client"`
 	InboundIds []int                  `json:"inboundIds"`
-	LimitHwid  int                    `json:"-"`
 	Traffic    *ClientPortableTraffic `json:"traffic,omitempty"`
 }
 
 const sqlInChunk = 400
-
-type clientPayloadWithHwid struct {
-	model.Client
-	LimitHwid int `json:"limitHwid"`
-}
 
 func (p *ClientCreatePayload) UnmarshalJSON(data []byte) error {
 	var raw struct {
@@ -88,15 +82,14 @@ func (p *ClientCreatePayload) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	var withHwid clientPayloadWithHwid
+	var client model.Client
 	if len(raw.Client) > 0 {
-		if err := json.Unmarshal(raw.Client, &withHwid); err != nil {
+		if err := json.Unmarshal(raw.Client, &client); err != nil {
 			return err
 		}
 	}
-	p.Client = withHwid.Client
+	p.Client = client
 	p.InboundIds = raw.InboundIds
-	p.LimitHwid = withHwid.LimitHwid
 	p.Traffic = raw.Traffic
 	// Omit enable → true (legacy API); explicit false is preserved (#6478).
 	var keys map[string]json.RawMessage
@@ -110,11 +103,11 @@ func (p *ClientCreatePayload) UnmarshalJSON(data []byte) error {
 
 func (p ClientCreatePayload) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Client     clientPayloadWithHwid  `json:"client"`
+		Client     model.Client           `json:"client"`
 		InboundIds []int                  `json:"inboundIds"`
 		Traffic    *ClientPortableTraffic `json:"traffic,omitempty"`
 	}{
-		Client:     clientPayloadWithHwid{Client: p.Client, LimitHwid: p.LimitHwid},
+		Client:     p.Client,
 		InboundIds: p.InboundIds,
 		Traffic:    p.Traffic,
 	})

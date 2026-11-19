@@ -22,7 +22,7 @@ func TestValidateRemoteRoutingURLSettings(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			settings := &entity.AllSetting{SubRoutingRules: tt.value}
+			settings := &entity.AllSetting{SubClashRules: tt.value}
 			err := validateSettingsURLs(settings)
 			if tt.wantError != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantError) {
@@ -30,8 +30,8 @@ func TestValidateRemoteRoutingURLSettings(t *testing.T) {
 				}
 				return
 			}
-			if err != nil || settings.SubRoutingRules != tt.want {
-				t.Fatalf("value=%q err=%v", settings.SubRoutingRules, err)
+			if err != nil || settings.SubClashRules != tt.want {
+				t.Fatalf("value=%q err=%v", settings.SubClashRules, err)
 			}
 		})
 	}

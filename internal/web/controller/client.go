@@ -3,12 +3,10 @@ package controller
 import (
 	"encoding/json"
 	"errors"
-	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/TingChieh/FluxPanel/internal/database/model"
-	"github.com/TingChieh/FluxPanel/internal/web/entity"
 	"github.com/TingChieh/FluxPanel/internal/web/service"
 	"github.com/TingChieh/FluxPanel/internal/web/websocket"
 
@@ -40,12 +38,10 @@ type ClientController struct {
 	inboundService service.InboundService
 	xrayService    service.XrayService
 	settingService service.SettingService
-	happGenerator  service.HappLinkGenerator
 }
 
 func NewClientController(g *gin.RouterGroup) *ClientController {
 	a := &ClientController{}
-	a.happGenerator = service.NewHappService(&a.clientService, &a.settingService)
 	a.initRouter(g)
 	return a
 }
@@ -61,7 +57,6 @@ func (a *ClientController) initRouter(g *gin.RouterGroup) {
 	g.GET("/nodeTraffics/:email", a.getNodeTraffics)
 	g.GET("/subLinks/:subId", a.getSubLinks)
 	g.GET("/links/:email", a.getClientLinks)
-	g.POST("/happLink/:id", a.generateHappLink)
 
 	g.POST("/add", a.create)
 	g.POST("/renewalPreview", a.renewalPreview)
@@ -89,9 +84,6 @@ func (a *ClientController) initRouter(g *gin.RouterGroup) {
 	g.POST("/updateTraffic/:email", a.updateTrafficByEmail)
 	g.POST("/ips/:email", a.getIps)
 	g.POST("/clearIps/:email", a.clearIps)
-	g.POST("/hwids/:email", a.getHwids)
-	g.DELETE("/hwids/:email", a.clearHwids)
-	g.DELETE("/hwids/:email/:id", a.deleteHwid)
 	g.POST("/onlines", a.onlines)
 	g.POST("/onlinesByGuid", a.onlinesByGuid)
 	g.POST("/clientIpsByGuid", a.clientIpsByGuid)
@@ -376,12 +368,11 @@ func (a *ClientController) resetAllTraffics(c *gin.Context) {
 }
 
 type bulkAdjustRequest struct {
-	Emails    []string `json:"emails"`
-	AddDays   int      `json:"addDays"`
-	AddBytes  int64    `json:"addBytes"`
-	Flow      string   `json:"flow"`
-	LimitHwid *int     `json:"limitHwid"`
-	AdTag     string   `json:"adTag"`
+	Emails   []string `json:"emails"`
+	AddDays  int      `json:"addDays"`
+	AddBytes int64    `json:"addBytes"`
+	Flow     string   `json:"flow"`
+	AdTag    string   `json:"adTag"`
 }
 
 func (a *ClientController) bulkAdjust(c *gin.Context) {
@@ -390,7 +381,7 @@ func (a *ClientController) bulkAdjust(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
-	result, needRestart, err := a.clientService.BulkAdjust(&a.inboundService, req.Emails, req.AddDays, req.AddBytes, req.Flow, req.LimitHwid, req.AdTag)
+	result, needRestart, err := a.clientService.BulkAdjust(&a.inboundService, req.Emails, req.AddDays, req.AddBytes, req.Flow, req.AdTag)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
@@ -642,32 +633,6 @@ func (a *ClientController) clearIps(c *gin.Context) {
 	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.logCleanSuccess"), nil)
 }
 
-func (a *ClientController) getHwids(c *gin.Context) {
-	infos, err := a.clientService.ListClientHwids(c.Param("email"))
-	jsonObj(c, infos, err)
-}
-
-func (a *ClientController) clearHwids(c *gin.Context) {
-	if err := a.clientService.ClearClientHwids(c.Param("email")); err != nil {
-		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.updateSuccess"), err)
-		return
-	}
-	jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.logCleanSuccess"), nil)
-}
-
-func (a *ClientController) deleteHwid(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	if err := a.clientService.DeleteClientHwid(c.Param("email"), id); err != nil {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
-		return
-	}
-	jsonMsg(c, I18nWeb(c, "pages.clients.hwidDeleted"), nil)
-}
-
 func (a *ClientController) onlines(c *gin.Context) {
 	jsonObj(c, a.inboundService.GetOnlineClients(), nil)
 }
@@ -721,26 +686,6 @@ func (a *ClientController) getClientLinks(c *gin.Context) {
 		return
 	}
 	jsonObj(c, links, nil)
-}
-
-func (a *ClientController) generateHappLink(c *gin.Context) {
-	c.Header("Cache-Control", "no-store")
-	clientID, err := strconv.Atoi(c.Param("id"))
-	if err != nil || clientID < 1 {
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), service.ErrHappLinkUnavailable)
-		return
-	}
-	result, err := a.happGenerator.Generate(c.Request.Context(), clientID, c.Request.Host)
-	if err != nil {
-		if errors.Is(err, service.ErrHappSourceTooLong) {
-			// Keep the code exact so clients can localize it without exposing internal error details.
-			c.JSON(http.StatusOK, entity.Msg{Success: false, Msg: "happ_source_too_long", Obj: nil})
-			return
-		}
-		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), service.ErrHappLinkUnavailable)
-		return
-	}
-	jsonObj(c, result, nil)
 }
 
 func (a *ClientController) detach(c *gin.Context) {
