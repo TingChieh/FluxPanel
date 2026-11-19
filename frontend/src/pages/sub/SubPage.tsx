@@ -58,7 +58,6 @@ const heroData = {
 
 const apps = buildSubApps({ subUrl, sId, subTitle });
 const initialPlatform = detectPlatform(navigator.userAgent);
-const RTL_LANGUAGES = new Set(['fa-IR', 'ar-EG']);
 
 export default function SubPage() {
   const { t } = useTranslation();
@@ -128,15 +127,14 @@ export default function SubPage() {
     return items;
   }, [t, copy, open]);
 
-  const direction = RTL_LANGUAGES.has(lang) ? 'rtl' : 'ltr';
   const pageClass = ['subscription-page', isDark && 'is-dark', isUltra && 'is-ultra']
     .filter(Boolean)
     .join(' ');
 
   return (
-    <ConfigProvider theme={antdThemeConfig} direction={direction}>
+    <ConfigProvider theme={antdThemeConfig}>
       {messageContextHolder}
-      <Layout className={pageClass} dir={direction}>
+      <Layout className={pageClass}>
         <Layout.Content className="sub-content">
           <Card className="sub-card">
             <SubHeader
