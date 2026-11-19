@@ -275,4 +275,3 @@ func TestAddTrafficClientUpdateFailureRollsBackWholeBatch(t *testing.T) {
 	assertTraffic("healthy@x", 100, 200)
 	assertTraffic("rejected@x", 300, 400)
 }
-

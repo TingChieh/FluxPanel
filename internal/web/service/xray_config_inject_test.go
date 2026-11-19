@@ -413,4 +413,3 @@ func TestInjectNodeEgresses_BadRoutingSkips(t *testing.T) {
 		t.Fatalf("unparsable routing must be left untouched, got %s", cfg.RouterConfig)
 	}
 }
-

@@ -23,4 +23,3 @@ func TestTryHotApplyWritesConfigFile(t *testing.T) {
 		t.Fatalf("config.json not written after hot apply (err %v)", err)
 	}
 }
-

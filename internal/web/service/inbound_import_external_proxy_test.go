@@ -101,4 +101,3 @@ func TestAddInbound_NoExternalProxyCreatesNoHosts(t *testing.T) {
 		t.Fatalf("host count = %d, want 0", count)
 	}
 }
-
