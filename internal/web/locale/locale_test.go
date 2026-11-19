@@ -10,12 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type fixedLang string
-
-func (l fixedLang) GetTgLang() (string, error) { return string(l), nil }
-
-// The Telegram bot re-runs InitLocalizer while the panel serves requests; a request must
-// never read the bundle while it is being filled (a concurrent map access kills the process).
+// InitLocalizer may run while the panel serves requests; a request must never
+// read the bundle while it is being filled (a concurrent map access kills the process).
 func TestInitLocalizerWhileServingRequests(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	translations := fstest.MapFS{"translation/en_US.json": {Data: []byte(`{"hello": "Hello"}`)}}
@@ -26,7 +22,7 @@ func TestInitLocalizerWhileServingRequests(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		for range 200 {
-			if err := InitLocalizer(translations, fixedLang("en-US")); err != nil {
+			if err := InitLocalizer(translations); err != nil {
 				t.Errorf("InitLocalizer: %v", err)
 				return
 			}

@@ -1970,20 +1970,6 @@ export const sections: readonly Section[] = [
   },
 
   {
-    id: 'backup',
-    title: 'Backup',
-    description: 'Operations that interact with the configured Telegram bot.',
-    endpoints: [
-      {
-        method: 'POST',
-        path: '/panel/api/backuptotgbot',
-        summary:
-          'Send a fresh DB backup to every Telegram chat configured as an admin recipient. No body, no params.',
-      },
-    ],
-  },
-
-  {
     id: 'settings',
     title: 'Settings',
     description:
@@ -1993,9 +1979,9 @@ export const sections: readonly Section[] = [
         method: 'POST',
         path: '/panel/api/setting/all',
         summary:
-          'Return every panel setting: web server, Telegram bot, subscription, security. The full JSON blob that the Settings page edits.',
+          'Return every panel setting: web server, subscription, security. The full JSON blob that the Settings page edits.',
         response:
-          '{\n  "success": true,\n  "obj": {\n    "webPort": 2053,\n    "webCertFile": "",\n    "webKeyFile": "",\n    "webBasePath": "/",\n    "subPort": 10882,\n    "subPath": "/sub/",\n    "subClashAutoDetect": false,\n    "subClashUserAgentRegex": "",\n    "subJsonEnable": false,\n    "subJsonAutoDetect": false,\n    "subJsonAlwaysArray": false,\n    "subJsonUserAgentRegex": "",\n    "subJsonPath": "/json/",\n    "subJsonURI": "https://sub.example.com/json/",\n    "subClashEnable": true,\n    "subClashPath": "/clash/",\n    "subClashURI": "https://sub.example.com/clash/",\n    "tgBotEnable": false,\n    "tgBotToken": "",\n    ...\n  }\n}',
+          '{\n  "success": true,\n  "obj": {\n    "webPort": 2053,\n    "webCertFile": "",\n    "webKeyFile": "",\n    "webBasePath": "/",\n    "subPort": 10882,\n    "subPath": "/sub/",\n    "subClashAutoDetect": false,\n    "subClashUserAgentRegex": "",\n    "subJsonEnable": false,\n    "subJsonAutoDetect": false,\n    "subJsonAlwaysArray": false,\n    "subJsonUserAgentRegex": "",\n    "subJsonPath": "/json/",\n    "subJsonURI": "https://sub.example.com/json/",\n    "subClashEnable": true,\n    "subClashPath": "/clash/",\n    "subClashURI": "https://sub.example.com/clash/",\n    ...\n  }\n}',
       },
       {
         method: 'POST',
@@ -2014,7 +2000,7 @@ export const sections: readonly Section[] = [
         path: '/panel/api/setting/update',
         summary:
           'Persist every setting at once. The body mirrors the shape returned by /all. Invalid values (bad ports, missing cert pairs, etc.) are rejected before write.',
-        body: '{\n  "webPort": 2053,\n  "webBasePath": "/",\n  "subPort": 10882,\n  "subPath": "/sub/",\n  "subClashAutoDetect": false,\n  "subClashUserAgentRegex": "",\n  "subJsonEnable": false,\n  "subJsonAutoDetect": false,\n  "subJsonAlwaysArray": false,\n  "subJsonUserAgentRegex": "",\n  "subJsonPath": "/json/",\n  "subJsonURI": "https://sub.example.com/json/",\n  "subClashEnable": true,\n  "subClashPath": "/clash/",\n  "subClashURI": "https://sub.example.com/clash/",\n  "tgBotEnable": false,\n  ...\n}',
+        body: '{\n  "webPort": 2053,\n  "webBasePath": "/",\n  "subPort": 10882,\n  "subPath": "/sub/",\n  "subClashAutoDetect": false,\n  "subClashUserAgentRegex": "",\n  "subJsonEnable": false,\n  "subJsonAutoDetect": false,\n  "subJsonAlwaysArray": false,\n  "subJsonUserAgentRegex": "",\n  "subJsonPath": "/json/",\n  "subJsonURI": "https://sub.example.com/json/",\n  "subClashEnable": true,\n  "subClashPath": "/clash/",\n  "subClashURI": "https://sub.example.com/clash/",\n  ...\n}',
       },
       {
         method: 'POST',
@@ -2042,33 +2028,6 @@ export const sections: readonly Section[] = [
         path: '/panel/api/setting/restartPanel',
         summary:
           'Restart the entire FluxPanel process after a 3-second grace period. The connection drops immediately; the panel comes back online ~5-10 seconds later.',
-      },
-      {
-        method: 'POST',
-        path: '/panel/api/setting/testSmtp',
-        summary:
-          'Test SMTP connection with stage-by-stage reporting (connect, auth, send). Returns structured result with stage and message.',
-        response:
-          '{\n  "success": true,\n  "stage": "send",\n  "msg": "Test email sent successfully"\n}',
-      },
-      {
-        method: 'POST',
-        path: '/panel/api/setting/testTgBot',
-        summary: 'Test Telegram bot connection by sending a test message to the configured chat.',
-        response: '{\n  "success": true,\n  "msg": "Test message sent to Telegram"\n}',
-      },
-      {
-        method: 'POST',
-        path: '/panel/api/setting/tgBotCapabilities',
-        summary:
-          'Report what the configured bot can do. Inline mode is a BotFather switch, so the panel warns when it is off.',
-        responseSchema: 'TgBotCapabilities',
-      },
-      {
-        method: 'POST',
-        path: '/panel/api/setting/testDiscord',
-        summary: 'Test Discord bot connection by sending a test embed to the configured channel.',
-        response: '{\n  "success": true,\n  "msg": "Test notification sent successfully"\n}',
       },
       {
         method: 'GET',

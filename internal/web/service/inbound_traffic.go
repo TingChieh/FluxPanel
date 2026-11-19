@@ -1101,40 +1101,6 @@ func (s *InboundService) DelDepletedClients(id int) (err error) {
 	return nil
 }
 
-// ClientsTable migrates legacy JSON at startup; normal writes synchronize these
-// records. Never fall back to settings JSON, which can retain stale ownership.
-func (s *InboundService) GetClientTrafficTgBot(tgId int64) ([]*xray.ClientTraffic, error) {
-	if tgId <= 0 {
-		return nil, nil
-	}
-	type row struct {
-		xray.ClientTraffic
-		ClientEnable bool
-		ClientUUID   string
-		ClientSubID  string
-	}
-	var rows []row
-	err := database.GetDB().Table("clients").
-		Select("client_traffics.*, clients.enable AS client_enable, clients.uuid AS client_uuid, clients.sub_id AS client_sub_id").
-		Joins("JOIN client_traffics ON client_traffics.email = clients.email").
-		Where("clients.tg_id = ?", tgId).
-		Where("EXISTS (SELECT 1 FROM client_inbounds JOIN inbounds ON inbounds.id = client_inbounds.inbound_id WHERE client_inbounds.client_id = clients.id)").
-		Order("clients.id ASC").
-		Find(&rows).Error
-	if err != nil {
-		return nil, err
-	}
-	traffics := make([]*xray.ClientTraffic, 0, len(rows))
-	for i := range rows {
-		traffic := &rows[i].ClientTraffic
-		traffic.Enable = rows[i].ClientEnable
-		traffic.UUID = rows[i].ClientUUID
-		traffic.SubId = rows[i].ClientSubID
-		traffics = append(traffics, traffic)
-	}
-	return traffics, nil
-}
-
 // BumpClientsLastOnline sets client_traffics.last_online to now for the given
 // emails. Used in online-API mode for clients that hold a live connection but
 // moved no bytes this poll — the traffic path (addClientTraffic) only bumps

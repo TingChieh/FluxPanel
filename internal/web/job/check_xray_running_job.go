@@ -3,13 +3,9 @@
 package job
 
 import (
-	"github.com/TingChieh/FluxPanel/internal/eventbus"
 	"github.com/TingChieh/FluxPanel/internal/logger"
 	"github.com/TingChieh/FluxPanel/internal/web/service"
 )
-
-// EventBus is set from web layer to publish events.
-var EventBus *eventbus.Bus
 
 // CheckXrayRunningJob monitors Xray process health and restarts it if it crashes.
 type CheckXrayRunningJob struct {

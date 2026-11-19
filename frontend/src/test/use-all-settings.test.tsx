@@ -141,7 +141,9 @@ describe('useAllSettings', () => {
         return new Msg(
           true,
           '',
-          fetchCount === 1 ? { hasTgBotToken: false } : { hasTgBotToken: true, tgBotToken: '' },
+          fetchCount === 1
+            ? { hasTwoFactorToken: false }
+            : { hasTwoFactorToken: true, twoFactorEnable: true, twoFactorToken: '' },
         );
       }
       return new Msg(true, '');
@@ -153,14 +155,14 @@ describe('useAllSettings', () => {
     const { result } = renderHook(() => useAllSettings(), { wrapper });
 
     await waitFor(() => expect(result.current.fetched).toBe(true));
-    act(() => result.current.updateSetting({ tgBotToken: 'secret' }));
+    act(() => result.current.updateSetting({ twoFactorToken: 'JBSWY3DPEHPK3PXP' }));
     await act(async () => {
       await result.current.saveAll();
     });
 
     await waitFor(() => expect(HttpUtil.post).toHaveBeenCalledTimes(3));
-    expect(result.current.allSetting.tgBotToken).toBe('');
-    expect(result.current.allSetting.hasTgBotToken).toBe(true);
+    expect(result.current.allSetting.twoFactorToken).toBe('');
+    expect(result.current.allSetting.hasTwoFactorToken).toBe(true);
     expect(result.current.saveDisabled).toBe(true);
   });
 
@@ -172,7 +174,9 @@ describe('useAllSettings', () => {
         return new Msg(
           true,
           '',
-          fetchCount === 1 ? { hasTgBotToken: false } : { hasTgBotToken: true, tgBotToken: '' },
+          fetchCount === 1
+            ? { hasTwoFactorToken: false }
+            : { hasTwoFactorToken: true, twoFactorEnable: true, twoFactorToken: '' },
         );
       }
       return new Msg(true, '');
@@ -184,18 +188,20 @@ describe('useAllSettings', () => {
     const { result } = renderHook(() => useAllSettings(), { wrapper });
 
     await waitFor(() => expect(result.current.fetched).toBe(true));
-    act(() => result.current.updateSetting({ tgBotToken: 'secret' }));
+    act(() =>
+      result.current.updateSetting({ twoFactorEnable: true, twoFactorToken: 'JBSWY3DPEHPK3PXP' }),
+    );
     await act(async () => {
       await result.current.savePayload({
         ...result.current.allSetting,
-        twoFactorEnable: false,
-        twoFactorToken: '',
+        twoFactorEnable: true,
+        twoFactorToken: 'JBSWY3DPEHPK3PXP',
       });
     });
 
     await waitFor(() => expect(HttpUtil.post).toHaveBeenCalledTimes(3));
-    expect(result.current.allSetting.tgBotToken).toBe('');
-    expect(result.current.allSetting.hasTgBotToken).toBe(true);
+    expect(result.current.allSetting.twoFactorToken).toBe('');
+    expect(result.current.allSetting.hasTwoFactorToken).toBe(true);
     expect(result.current.saveDisabled).toBe(true);
   });
 });

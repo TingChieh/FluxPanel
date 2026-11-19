@@ -10,42 +10,18 @@ export type transportBits = number;
 
 export interface AllSetting {
   datepicker: string;
-  discordAdminIds: string;
-  discordBotBackup: boolean;
-  discordBotEnable: boolean;
-  discordBotToken: string;
-  discordChannelId: string;
-  discordCpu: number;
-  discordEnabledEvents: string;
-  discordLang: string;
-  discordMemory: number;
-  discordRunTime: string;
   expireDiff: number;
   externalSubUserAgent: string;
   externalTrafficInformEnable: boolean;
   externalTrafficInformURI: string;
   happLinkEnable: boolean;
   ipLimitAllowlist: string;
-  nodeDownThreshold: number;
-  outboundDownThreshold: number;
   pageSize: number;
   panelOutbound: string;
   realityScanCandidates: string;
   remarkTemplate: string;
   restartXrayOnClientDisable: boolean;
   sessionMaxAge: number;
-  smtpCpu: number;
-  smtpEnable: boolean;
-  smtpEnabledEvents: string;
-  smtpEncryptionType: string;
-  smtpFrom: string;
-  smtpFromName: string;
-  smtpHost: string;
-  smtpMemory: number;
-  smtpPassword: string;
-  smtpPort: number;
-  smtpTo: string;
-  smtpUsername: string;
   subAnnounce: string;
   subCalendarExpireInclusive: boolean;
   subCertFile: string;
@@ -145,17 +121,6 @@ export interface AllSetting {
   subTrafficDepletedTemplate: string;
   subURI: string;
   subUpdates: number;
-  tgBotAPIServer: string;
-  tgBotBackup: boolean;
-  tgBotChatId: string;
-  tgBotEnable: boolean;
-  tgBotProxy: string;
-  tgBotToken: string;
-  tgCpu: number;
-  tgEnabledEvents: string;
-  tgLang: string;
-  tgMemory: number;
-  tgRunTime: string;
   timeLocation: string;
   trafficDiff: number;
   trustedProxyCIDRs: string;
@@ -171,47 +136,20 @@ export interface AllSetting {
 
 export interface AllSettingView {
   datepicker: string;
-  discordAdminIds: string;
-  discordBotBackup: boolean;
-  discordBotEnable: boolean;
-  discordBotToken: string;
-  discordChannelId: string;
-  discordCpu: number;
-  discordEnabledEvents: string;
-  discordLang: string;
-  discordMemory: number;
-  discordRunTime: string;
   expireDiff: number;
   externalSubUserAgent: string;
   externalTrafficInformEnable: boolean;
   externalTrafficInformURI: string;
   happLinkEnable: boolean;
   hasApiToken: boolean;
-  hasDiscordBotToken: boolean;
-  hasSmtpPassword: boolean;
-  hasTgBotToken: boolean;
   hasTwoFactorToken: boolean;
   ipLimitAllowlist: string;
-  nodeDownThreshold: number;
-  outboundDownThreshold: number;
   pageSize: number;
   panelOutbound: string;
   realityScanCandidates: string;
   remarkTemplate: string;
   restartXrayOnClientDisable: boolean;
   sessionMaxAge: number;
-  smtpCpu: number;
-  smtpEnable: boolean;
-  smtpEnabledEvents: string;
-  smtpEncryptionType: string;
-  smtpFrom: string;
-  smtpFromName: string;
-  smtpHost: string;
-  smtpMemory: number;
-  smtpPassword: string;
-  smtpPort: number;
-  smtpTo: string;
-  smtpUsername: string;
   subAnnounce: string;
   subCalendarExpireInclusive: boolean;
   subCertFile: string;
@@ -311,17 +249,6 @@ export interface AllSettingView {
   subTrafficDepletedTemplate: string;
   subURI: string;
   subUpdates: number;
-  tgBotAPIServer: string;
-  tgBotBackup: boolean;
-  tgBotChatId: string;
-  tgBotEnable: boolean;
-  tgBotProxy: string;
-  tgBotToken: string;
-  tgCpu: number;
-  tgEnabledEvents: string;
-  tgLang: string;
-  tgMemory: number;
-  tgRunTime: string;
   timeLocation: string;
   trafficDiff: number;
   trustedProxyCIDRs: string;
@@ -976,13 +903,6 @@ export interface SubBalancer {
   sortOrder: number;
   strategy: string;
   updatedAt: number;
-}
-
-export interface TgBotCapabilities {
-  groupPrivacy: boolean;
-  inlineEnabled: boolean;
-  running: boolean;
-  username: string;
 }
 
 export interface Traffic {

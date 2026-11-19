@@ -16,28 +16,21 @@ import (
 	"golang.org/x/text/language"
 )
 
-// Each is published whole: InitLocalizer runs again (Telegram bot start) while requests read them.
+// Published atomically so InitLocalizer can be re-run safely while serving requests.
 var (
 	i18nBundle   atomic.Pointer[i18n.Bundle]
 	localizerWeb atomic.Pointer[i18n.Localizer]
-	localizerBot atomic.Pointer[i18n.Localizer]
 )
 
 // I18nType represents the type of interface for internationalization.
 type I18nType string
 
 const (
-	Bot I18nType = "bot" // Bot interface type
 	Web I18nType = "web" // Web interface type
 )
 
-// SettingService interface defines methods for accessing locale settings.
-type SettingService interface {
-	GetTgLang() (string, error)
-}
-
 // InitLocalizer initializes the internationalization system with embedded translation files.
-func InitLocalizer(i18nFS fs.FS, settingService SettingService) error {
+func InitLocalizer(i18nFS fs.FS) error {
 	// set default bundle to English
 	bundle := i18n.NewBundle(language.MustParse("en-US"))
 	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
@@ -47,11 +40,6 @@ func InitLocalizer(i18nFS fs.FS, settingService SettingService) error {
 		return err
 	}
 	i18nBundle.Store(bundle)
-
-	// setup bot locale
-	if err := initTGBotLocalizer(settingService); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -79,8 +67,6 @@ func I18n(i18nType I18nType, key string, params ...string) string {
 	var localizer *i18n.Localizer
 
 	switch i18nType {
-	case "bot":
-		localizer = localizerBot.Load()
 	case "web":
 		localizer = localizerWeb.Load()
 	default:
@@ -131,17 +117,6 @@ func I18nForLang(lang string, key string, params ...string) string {
 		return key
 	}
 	return msg
-}
-
-// initTGBotLocalizer initializes the bot localizer with the configured language.
-func initTGBotLocalizer(settingService SettingService) error {
-	botLang, err := settingService.GetTgLang()
-	if err != nil {
-		return err
-	}
-
-	localizerBot.Store(i18n.NewLocalizer(i18nBundle.Load(), botLang))
-	return nil
 }
 
 // LocalizerMiddleware returns a Gin middleware that sets up localization for web requests.
@@ -224,9 +199,4 @@ func parseTranslationFiles(i18nFS fs.FS, i18nBundle *i18n.Bundle) error {
 	}
 
 	return nil
-}
-
-// SwapBotLocalizer installs l as the bot localizer and returns the previous one.
-func SwapBotLocalizer(l *i18n.Localizer) *i18n.Localizer {
-	return localizerBot.Swap(l)
 }

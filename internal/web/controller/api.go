@@ -7,7 +7,6 @@ import (
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 	"github.com/TingChieh/FluxPanel/internal/web/middleware"
 	"github.com/TingChieh/FluxPanel/internal/web/service/panel"
-	"github.com/TingChieh/FluxPanel/internal/web/service/tgbot"
 	"github.com/TingChieh/FluxPanel/internal/web/session"
 
 	"github.com/gin-gonic/gin"
@@ -24,7 +23,6 @@ type APIController struct {
 	xraySettingController *XraySettingController
 	userService           panel.UserService
 	apiTokenService       panel.ApiTokenService
-	Tgbot                 tgbot.Tgbot
 }
 
 // NewAPIController creates a new APIController instance and initializes its routes.
@@ -232,12 +230,4 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 
 	// Subscription balancers — client-side balancers for the JSON sub output
 	NewSubBalancerController(api)
-
-	// Extra routes
-	api.POST("/backuptotgbot", a.BackuptoTgbot)
-}
-
-// BackuptoTgbot sends a backup of the panel data to Telegram bot admins.
-func (a *APIController) BackuptoTgbot(c *gin.Context) {
-	a.Tgbot.SendBackupToAdmins()
 }

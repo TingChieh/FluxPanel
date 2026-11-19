@@ -339,7 +339,6 @@ export default function ClientsPage() {
     fetched,
     fetchError,
     subSettings,
-    tgBotEnable,
     expireDiff,
     trafficDiff,
     pageSize,
@@ -1907,7 +1906,6 @@ export default function ClientsPage() {
             attachedExternalLinks={editingExternalLinks}
             tunnelAllowedIPs={editingTunnelAllowedIPs}
             inbounds={inbounds}
-            tgBotEnable={tgBotEnable}
             groups={allGroups}
             save={onSave}
             resetTraffic={resetTraffic}

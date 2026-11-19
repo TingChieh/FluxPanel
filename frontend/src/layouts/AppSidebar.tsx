@@ -11,10 +11,8 @@ import {
   ClusterOutlined,
   CodeOutlined,
   DatabaseOutlined,
-  DiscordOutlined,
   GithubOutlined,
   LogoutOutlined,
-  MailOutlined,
   MenuOutlined,
   MoonFilled,
   MoonOutlined,
@@ -25,7 +23,6 @@ import {
   SearchOutlined,
   SettingOutlined,
   SunOutlined,
-  TelegramFilled,
 } from '@ant-design/icons';
 
 import { HttpUtil } from '@/utils';
@@ -197,21 +194,6 @@ export default function AppSidebar() {
         key: '/settings#security',
         icon: <SafetyOutlined aria-hidden />,
         label: t('pages.settings.securitySettings'),
-      },
-      {
-        key: '/settings#telegram',
-        icon: <TelegramFilled aria-hidden />,
-        label: t('pages.settings.TGBotSettings'),
-      },
-      {
-        key: '/settings#email',
-        icon: <MailOutlined aria-hidden />,
-        label: t('pages.settings.emailSettings'),
-      },
-      {
-        key: '/settings#discord',
-        icon: <DiscordOutlined aria-hidden />,
-        label: t('pages.settings.discordSettings'),
       },
       {
         key: '/settings#subscription',

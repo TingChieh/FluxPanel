@@ -39,7 +39,6 @@ export default function InboundInfoModal({
   expireDiff = 0,
   trafficDiff = 0,
   ipLimitEnable = false,
-  tgBotEnable = false,
   nodeAddress = '',
   subSettings,
   hosts = EMPTY_HOSTS,
@@ -501,23 +500,6 @@ export default function InboundInfoModal({
           </tr>
         </tbody>
       </table>
-
-      {tgBotEnable && clientSettings?.tgId && (
-        <>
-          <Divider>Telegram</Divider>
-          <div className="tg-row">
-            <Tag color="blue">{clientSettings.tgId}</Tag>
-            <Tooltip title={t('copy')}>
-              <Button
-                size="small"
-                icon={<CopyOutlined aria-hidden />}
-                aria-label={t('copy')}
-                onClick={() => copyText(clientSettings.tgId, t)}
-              />
-            </Tooltip>
-          </div>
-        </>
-      )}
 
       {hasShareLink(dbInbound.protocol) && links.length > 0 && (
         <>

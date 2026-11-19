@@ -115,7 +115,6 @@ interface ClientFormModalProps {
   attachedExternalLinks?: ExternalLink[];
   attachedIds?: number[];
   tunnelAllowedIPs?: Record<number, string>;
-  tgBotEnable?: boolean;
   groups?: string[];
   save: (
     payload: Record<string, unknown> | SaveCreatePayload,
@@ -221,7 +220,6 @@ export default function ClientFormModal({
   attachedExternalLinks = [],
   attachedIds = [],
   tunnelAllowedIPs = {},
-  tgBotEnable = false,
   groups = [],
   save,
   resetTraffic,
@@ -1058,25 +1056,6 @@ export default function ClientFormModal({
                           </Col>
                         )}
                       </Row>
-
-                      {tgBotEnable && (
-                        <Row gutter={16}>
-                          <Col xs={24} md={12}>
-                            <FormField
-                              name="tgId"
-                              label={t('pages.clients.telegramId')}
-                              transform={{ output: (v) => Number(v) || 0 }}
-                            >
-                              <InputNumber
-                                min={0}
-                                controls={false}
-                                placeholder={t('pages.clients.telegramIdPlaceholder')}
-                                style={{ width: '100%' }}
-                              />
-                            </FormField>
-                          </Col>
-                        </Row>
-                      )}
 
                       <Form.Item
                         label={t('pages.clients.attachedInbounds')}

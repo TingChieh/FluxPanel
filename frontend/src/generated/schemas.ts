@@ -5,40 +5,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "datepicker": {
         "type": "string"
       },
-      "discordAdminIds": {
-        "type": "string"
-      },
-      "discordBotBackup": {
-        "type": "boolean"
-      },
-      "discordBotEnable": {
-        "type": "boolean"
-      },
-      "discordBotToken": {
-        "type": "string"
-      },
-      "discordChannelId": {
-        "type": "string"
-      },
-      "discordCpu": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "discordEnabledEvents": {
-        "type": "string"
-      },
-      "discordLang": {
-        "type": "string"
-      },
-      "discordMemory": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "discordRunTime": {
-        "type": "string"
-      },
       "expireDiff": {
         "minimum": 0,
         "type": "integer"
@@ -57,16 +23,6 @@ export const SCHEMAS: Record<string, unknown> = {
       },
       "ipLimitAllowlist": {
         "type": "string"
-      },
-      "nodeDownThreshold": {
-        "maximum": 100,
-        "minimum": 1,
-        "type": "integer"
-      },
-      "outboundDownThreshold": {
-        "maximum": 100,
-        "minimum": 1,
-        "type": "integer"
       },
       "pageSize": {
         "maximum": 1000,
@@ -89,48 +45,6 @@ export const SCHEMAS: Record<string, unknown> = {
         "maximum": 525600,
         "minimum": 1,
         "type": "integer"
-      },
-      "smtpCpu": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "smtpEnable": {
-        "type": "boolean"
-      },
-      "smtpEnabledEvents": {
-        "type": "string"
-      },
-      "smtpEncryptionType": {
-        "type": "string"
-      },
-      "smtpFrom": {
-        "type": "string"
-      },
-      "smtpFromName": {
-        "type": "string"
-      },
-      "smtpHost": {
-        "type": "string"
-      },
-      "smtpMemory": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "smtpPassword": {
-        "type": "string"
-      },
-      "smtpPort": {
-        "maximum": 65535,
-        "minimum": 1,
-        "type": "integer"
-      },
-      "smtpTo": {
-        "type": "string"
-      },
-      "smtpUsername": {
-        "type": "string"
       },
       "subAnnounce": {
         "type": "string"
@@ -436,43 +350,6 @@ export const SCHEMAS: Record<string, unknown> = {
         "minimum": 0,
         "type": "integer"
       },
-      "tgBotAPIServer": {
-        "type": "string"
-      },
-      "tgBotBackup": {
-        "type": "boolean"
-      },
-      "tgBotChatId": {
-        "type": "string"
-      },
-      "tgBotEnable": {
-        "type": "boolean"
-      },
-      "tgBotProxy": {
-        "type": "string"
-      },
-      "tgBotToken": {
-        "type": "string"
-      },
-      "tgCpu": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "tgEnabledEvents": {
-        "type": "string"
-      },
-      "tgLang": {
-        "type": "string"
-      },
-      "tgMemory": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "tgRunTime": {
-        "type": "string"
-      },
       "timeLocation": {
         "type": "string"
       },
@@ -513,42 +390,18 @@ export const SCHEMAS: Record<string, unknown> = {
     },
     "required": [
       "datepicker",
-      "discordAdminIds",
-      "discordBotBackup",
-      "discordBotEnable",
-      "discordBotToken",
-      "discordChannelId",
-      "discordCpu",
-      "discordEnabledEvents",
-      "discordLang",
-      "discordMemory",
-      "discordRunTime",
       "expireDiff",
       "externalSubUserAgent",
       "externalTrafficInformEnable",
       "externalTrafficInformURI",
       "happLinkEnable",
       "ipLimitAllowlist",
-      "nodeDownThreshold",
-      "outboundDownThreshold",
       "pageSize",
       "panelOutbound",
       "realityScanCandidates",
       "remarkTemplate",
       "restartXrayOnClientDisable",
       "sessionMaxAge",
-      "smtpCpu",
-      "smtpEnable",
-      "smtpEnabledEvents",
-      "smtpEncryptionType",
-      "smtpFrom",
-      "smtpFromName",
-      "smtpHost",
-      "smtpMemory",
-      "smtpPassword",
-      "smtpPort",
-      "smtpTo",
-      "smtpUsername",
       "subAnnounce",
       "subCalendarExpireInclusive",
       "subCertFile",
@@ -648,17 +501,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "subTrafficDepletedTemplate",
       "subURI",
       "subUpdates",
-      "tgBotAPIServer",
-      "tgBotBackup",
-      "tgBotChatId",
-      "tgBotEnable",
-      "tgBotProxy",
-      "tgBotToken",
-      "tgCpu",
-      "tgEnabledEvents",
-      "tgLang",
-      "tgMemory",
-      "tgRunTime",
       "timeLocation",
       "trafficDiff",
       "trustedProxyCIDRs",
@@ -676,40 +518,6 @@ export const SCHEMAS: Record<string, unknown> = {
   "AllSettingView": {
     "properties": {
       "datepicker": {
-        "type": "string"
-      },
-      "discordAdminIds": {
-        "type": "string"
-      },
-      "discordBotBackup": {
-        "type": "boolean"
-      },
-      "discordBotEnable": {
-        "type": "boolean"
-      },
-      "discordBotToken": {
-        "type": "string"
-      },
-      "discordChannelId": {
-        "type": "string"
-      },
-      "discordCpu": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "discordEnabledEvents": {
-        "type": "string"
-      },
-      "discordLang": {
-        "type": "string"
-      },
-      "discordMemory": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "discordRunTime": {
         "type": "string"
       },
       "expireDiff": {
@@ -731,30 +539,11 @@ export const SCHEMAS: Record<string, unknown> = {
       "hasApiToken": {
         "type": "boolean"
       },
-      "hasDiscordBotToken": {
-        "type": "boolean"
-      },
-      "hasSmtpPassword": {
-        "type": "boolean"
-      },
-      "hasTgBotToken": {
-        "type": "boolean"
-      },
       "hasTwoFactorToken": {
         "type": "boolean"
       },
       "ipLimitAllowlist": {
         "type": "string"
-      },
-      "nodeDownThreshold": {
-        "maximum": 100,
-        "minimum": 1,
-        "type": "integer"
-      },
-      "outboundDownThreshold": {
-        "maximum": 100,
-        "minimum": 1,
-        "type": "integer"
       },
       "pageSize": {
         "maximum": 1000,
@@ -777,48 +566,6 @@ export const SCHEMAS: Record<string, unknown> = {
         "maximum": 525600,
         "minimum": 1,
         "type": "integer"
-      },
-      "smtpCpu": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "smtpEnable": {
-        "type": "boolean"
-      },
-      "smtpEnabledEvents": {
-        "type": "string"
-      },
-      "smtpEncryptionType": {
-        "type": "string"
-      },
-      "smtpFrom": {
-        "type": "string"
-      },
-      "smtpFromName": {
-        "type": "string"
-      },
-      "smtpHost": {
-        "type": "string"
-      },
-      "smtpMemory": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "smtpPassword": {
-        "type": "string"
-      },
-      "smtpPort": {
-        "maximum": 65535,
-        "minimum": 1,
-        "type": "integer"
-      },
-      "smtpTo": {
-        "type": "string"
-      },
-      "smtpUsername": {
-        "type": "string"
       },
       "subAnnounce": {
         "type": "string"
@@ -1124,43 +871,6 @@ export const SCHEMAS: Record<string, unknown> = {
         "minimum": 0,
         "type": "integer"
       },
-      "tgBotAPIServer": {
-        "type": "string"
-      },
-      "tgBotBackup": {
-        "type": "boolean"
-      },
-      "tgBotChatId": {
-        "type": "string"
-      },
-      "tgBotEnable": {
-        "type": "boolean"
-      },
-      "tgBotProxy": {
-        "type": "string"
-      },
-      "tgBotToken": {
-        "type": "string"
-      },
-      "tgCpu": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "tgEnabledEvents": {
-        "type": "string"
-      },
-      "tgLang": {
-        "type": "string"
-      },
-      "tgMemory": {
-        "maximum": 100,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "tgRunTime": {
-        "type": "string"
-      },
       "timeLocation": {
         "type": "string"
       },
@@ -1201,47 +911,20 @@ export const SCHEMAS: Record<string, unknown> = {
     },
     "required": [
       "datepicker",
-      "discordAdminIds",
-      "discordBotBackup",
-      "discordBotEnable",
-      "discordBotToken",
-      "discordChannelId",
-      "discordCpu",
-      "discordEnabledEvents",
-      "discordLang",
-      "discordMemory",
-      "discordRunTime",
       "expireDiff",
       "externalSubUserAgent",
       "externalTrafficInformEnable",
       "externalTrafficInformURI",
       "happLinkEnable",
       "hasApiToken",
-      "hasDiscordBotToken",
-      "hasSmtpPassword",
-      "hasTgBotToken",
       "hasTwoFactorToken",
       "ipLimitAllowlist",
-      "nodeDownThreshold",
-      "outboundDownThreshold",
       "pageSize",
       "panelOutbound",
       "realityScanCandidates",
       "remarkTemplate",
       "restartXrayOnClientDisable",
       "sessionMaxAge",
-      "smtpCpu",
-      "smtpEnable",
-      "smtpEnabledEvents",
-      "smtpEncryptionType",
-      "smtpFrom",
-      "smtpFromName",
-      "smtpHost",
-      "smtpMemory",
-      "smtpPassword",
-      "smtpPort",
-      "smtpTo",
-      "smtpUsername",
       "subAnnounce",
       "subCalendarExpireInclusive",
       "subCertFile",
@@ -1341,17 +1024,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "subTrafficDepletedTemplate",
       "subURI",
       "subUpdates",
-      "tgBotAPIServer",
-      "tgBotBackup",
-      "tgBotChatId",
-      "tgBotEnable",
-      "tgBotProxy",
-      "tgBotToken",
-      "tgCpu",
-      "tgEnabledEvents",
-      "tgLang",
-      "tgMemory",
-      "tgRunTime",
       "timeLocation",
       "trafficDiff",
       "trustedProxyCIDRs",
@@ -4351,35 +4023,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "sortOrder",
       "strategy",
       "updatedAt"
-    ],
-    "type": "object"
-  },
-  "TgBotCapabilities": {
-    "description": "TgBotCapabilities is the browser-safe shape of the bot's own capabilities.",
-    "properties": {
-      "groupPrivacy": {
-        "description": "GroupPrivacy off means the bot reads every group message; when it is on,\na bare /start in a group is invisible to the bot.",
-        "example": false,
-        "type": "boolean"
-      },
-      "inlineEnabled": {
-        "example": true,
-        "type": "boolean"
-      },
-      "running": {
-        "example": true,
-        "type": "boolean"
-      },
-      "username": {
-        "example": "xui_bot",
-        "type": "string"
-      }
-    },
-    "required": [
-      "groupPrivacy",
-      "inlineEnabled",
-      "running",
-      "username"
     ],
     "type": "object"
   },

@@ -31,40 +31,6 @@
           "datepicker": {
             "type": "string"
           },
-          "discordAdminIds": {
-            "type": "string"
-          },
-          "discordBotBackup": {
-            "type": "boolean"
-          },
-          "discordBotEnable": {
-            "type": "boolean"
-          },
-          "discordBotToken": {
-            "type": "string"
-          },
-          "discordChannelId": {
-            "type": "string"
-          },
-          "discordCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "discordEnabledEvents": {
-            "type": "string"
-          },
-          "discordLang": {
-            "type": "string"
-          },
-          "discordMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "discordRunTime": {
-            "type": "string"
-          },
           "expireDiff": {
             "minimum": 0,
             "type": "integer"
@@ -83,16 +49,6 @@
           },
           "ipLimitAllowlist": {
             "type": "string"
-          },
-          "nodeDownThreshold": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "outboundDownThreshold": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "integer"
           },
           "pageSize": {
             "maximum": 1000,
@@ -115,48 +71,6 @@
             "maximum": 525600,
             "minimum": 1,
             "type": "integer"
-          },
-          "smtpCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "smtpEnable": {
-            "type": "boolean"
-          },
-          "smtpEnabledEvents": {
-            "type": "string"
-          },
-          "smtpEncryptionType": {
-            "type": "string"
-          },
-          "smtpFrom": {
-            "type": "string"
-          },
-          "smtpFromName": {
-            "type": "string"
-          },
-          "smtpHost": {
-            "type": "string"
-          },
-          "smtpMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "smtpPassword": {
-            "type": "string"
-          },
-          "smtpPort": {
-            "maximum": 65535,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "smtpTo": {
-            "type": "string"
-          },
-          "smtpUsername": {
-            "type": "string"
           },
           "subAnnounce": {
             "type": "string"
@@ -462,43 +376,6 @@
             "minimum": 0,
             "type": "integer"
           },
-          "tgBotAPIServer": {
-            "type": "string"
-          },
-          "tgBotBackup": {
-            "type": "boolean"
-          },
-          "tgBotChatId": {
-            "type": "string"
-          },
-          "tgBotEnable": {
-            "type": "boolean"
-          },
-          "tgBotProxy": {
-            "type": "string"
-          },
-          "tgBotToken": {
-            "type": "string"
-          },
-          "tgCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "tgEnabledEvents": {
-            "type": "string"
-          },
-          "tgLang": {
-            "type": "string"
-          },
-          "tgMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "tgRunTime": {
-            "type": "string"
-          },
           "timeLocation": {
             "type": "string"
           },
@@ -539,42 +416,18 @@
         },
         "required": [
           "datepicker",
-          "discordAdminIds",
-          "discordBotBackup",
-          "discordBotEnable",
-          "discordBotToken",
-          "discordChannelId",
-          "discordCpu",
-          "discordEnabledEvents",
-          "discordLang",
-          "discordMemory",
-          "discordRunTime",
           "expireDiff",
           "externalSubUserAgent",
           "externalTrafficInformEnable",
           "externalTrafficInformURI",
           "happLinkEnable",
           "ipLimitAllowlist",
-          "nodeDownThreshold",
-          "outboundDownThreshold",
           "pageSize",
           "panelOutbound",
           "realityScanCandidates",
           "remarkTemplate",
           "restartXrayOnClientDisable",
           "sessionMaxAge",
-          "smtpCpu",
-          "smtpEnable",
-          "smtpEnabledEvents",
-          "smtpEncryptionType",
-          "smtpFrom",
-          "smtpFromName",
-          "smtpHost",
-          "smtpMemory",
-          "smtpPassword",
-          "smtpPort",
-          "smtpTo",
-          "smtpUsername",
           "subAnnounce",
           "subCalendarExpireInclusive",
           "subCertFile",
@@ -674,17 +527,6 @@
           "subTrafficDepletedTemplate",
           "subURI",
           "subUpdates",
-          "tgBotAPIServer",
-          "tgBotBackup",
-          "tgBotChatId",
-          "tgBotEnable",
-          "tgBotProxy",
-          "tgBotToken",
-          "tgCpu",
-          "tgEnabledEvents",
-          "tgLang",
-          "tgMemory",
-          "tgRunTime",
           "timeLocation",
           "trafficDiff",
           "trustedProxyCIDRs",
@@ -702,40 +544,6 @@
       "AllSettingView": {
         "properties": {
           "datepicker": {
-            "type": "string"
-          },
-          "discordAdminIds": {
-            "type": "string"
-          },
-          "discordBotBackup": {
-            "type": "boolean"
-          },
-          "discordBotEnable": {
-            "type": "boolean"
-          },
-          "discordBotToken": {
-            "type": "string"
-          },
-          "discordChannelId": {
-            "type": "string"
-          },
-          "discordCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "discordEnabledEvents": {
-            "type": "string"
-          },
-          "discordLang": {
-            "type": "string"
-          },
-          "discordMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "discordRunTime": {
             "type": "string"
           },
           "expireDiff": {
@@ -757,30 +565,11 @@
           "hasApiToken": {
             "type": "boolean"
           },
-          "hasDiscordBotToken": {
-            "type": "boolean"
-          },
-          "hasSmtpPassword": {
-            "type": "boolean"
-          },
-          "hasTgBotToken": {
-            "type": "boolean"
-          },
           "hasTwoFactorToken": {
             "type": "boolean"
           },
           "ipLimitAllowlist": {
             "type": "string"
-          },
-          "nodeDownThreshold": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "outboundDownThreshold": {
-            "maximum": 100,
-            "minimum": 1,
-            "type": "integer"
           },
           "pageSize": {
             "maximum": 1000,
@@ -803,48 +592,6 @@
             "maximum": 525600,
             "minimum": 1,
             "type": "integer"
-          },
-          "smtpCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "smtpEnable": {
-            "type": "boolean"
-          },
-          "smtpEnabledEvents": {
-            "type": "string"
-          },
-          "smtpEncryptionType": {
-            "type": "string"
-          },
-          "smtpFrom": {
-            "type": "string"
-          },
-          "smtpFromName": {
-            "type": "string"
-          },
-          "smtpHost": {
-            "type": "string"
-          },
-          "smtpMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "smtpPassword": {
-            "type": "string"
-          },
-          "smtpPort": {
-            "maximum": 65535,
-            "minimum": 1,
-            "type": "integer"
-          },
-          "smtpTo": {
-            "type": "string"
-          },
-          "smtpUsername": {
-            "type": "string"
           },
           "subAnnounce": {
             "type": "string"
@@ -1150,43 +897,6 @@
             "minimum": 0,
             "type": "integer"
           },
-          "tgBotAPIServer": {
-            "type": "string"
-          },
-          "tgBotBackup": {
-            "type": "boolean"
-          },
-          "tgBotChatId": {
-            "type": "string"
-          },
-          "tgBotEnable": {
-            "type": "boolean"
-          },
-          "tgBotProxy": {
-            "type": "string"
-          },
-          "tgBotToken": {
-            "type": "string"
-          },
-          "tgCpu": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "tgEnabledEvents": {
-            "type": "string"
-          },
-          "tgLang": {
-            "type": "string"
-          },
-          "tgMemory": {
-            "maximum": 100,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "tgRunTime": {
-            "type": "string"
-          },
           "timeLocation": {
             "type": "string"
           },
@@ -1227,47 +937,20 @@
         },
         "required": [
           "datepicker",
-          "discordAdminIds",
-          "discordBotBackup",
-          "discordBotEnable",
-          "discordBotToken",
-          "discordChannelId",
-          "discordCpu",
-          "discordEnabledEvents",
-          "discordLang",
-          "discordMemory",
-          "discordRunTime",
           "expireDiff",
           "externalSubUserAgent",
           "externalTrafficInformEnable",
           "externalTrafficInformURI",
           "happLinkEnable",
           "hasApiToken",
-          "hasDiscordBotToken",
-          "hasSmtpPassword",
-          "hasTgBotToken",
           "hasTwoFactorToken",
           "ipLimitAllowlist",
-          "nodeDownThreshold",
-          "outboundDownThreshold",
           "pageSize",
           "panelOutbound",
           "realityScanCandidates",
           "remarkTemplate",
           "restartXrayOnClientDisable",
           "sessionMaxAge",
-          "smtpCpu",
-          "smtpEnable",
-          "smtpEnabledEvents",
-          "smtpEncryptionType",
-          "smtpFrom",
-          "smtpFromName",
-          "smtpHost",
-          "smtpMemory",
-          "smtpPassword",
-          "smtpPort",
-          "smtpTo",
-          "smtpUsername",
           "subAnnounce",
           "subCalendarExpireInclusive",
           "subCertFile",
@@ -1367,17 +1050,6 @@
           "subTrafficDepletedTemplate",
           "subURI",
           "subUpdates",
-          "tgBotAPIServer",
-          "tgBotBackup",
-          "tgBotChatId",
-          "tgBotEnable",
-          "tgBotProxy",
-          "tgBotToken",
-          "tgCpu",
-          "tgEnabledEvents",
-          "tgLang",
-          "tgMemory",
-          "tgRunTime",
           "timeLocation",
           "trafficDiff",
           "trustedProxyCIDRs",
@@ -4380,35 +4052,6 @@
         ],
         "type": "object"
       },
-      "TgBotCapabilities": {
-        "description": "TgBotCapabilities is the browser-safe shape of the bot's own capabilities.",
-        "properties": {
-          "groupPrivacy": {
-            "description": "GroupPrivacy off means the bot reads every group message; when it is on,\na bare /start in a group is invisible to the bot.",
-            "example": false,
-            "type": "boolean"
-          },
-          "inlineEnabled": {
-            "example": true,
-            "type": "boolean"
-          },
-          "running": {
-            "example": true,
-            "type": "boolean"
-          },
-          "username": {
-            "example": "xui_bot",
-            "type": "string"
-          }
-        },
-        "required": [
-          "groupPrivacy",
-          "inlineEnabled",
-          "running",
-          "username"
-        ],
-        "type": "object"
-      },
       "Traffic": {
         "description": "Traffic represents network traffic statistics for Xray connections.\nIt tracks upload and download bytes for inbound or outbound traffic.",
         "properties": {
@@ -4530,10 +4173,6 @@
     {
       "name": "Hosts",
       "description": "Per-inbound override endpoints. Each enabled host renders one extra subscription link/proxy with its own address/port/TLS, superseding the legacy externalProxy array. All endpoints under /panel/api/hosts."
-    },
-    {
-      "name": "Backup",
-      "description": "Operations that interact with the configured Telegram bot."
     },
     {
       "name": "Settings",
@@ -12790,42 +12429,12 @@
         }
       }
     },
-    "/panel/api/backuptotgbot": {
-      "post": {
-        "tags": [
-          "Backup"
-        ],
-        "summary": "Send a fresh DB backup to every Telegram chat configured as an admin recipient. No body, no params.",
-        "operationId": "post_panel_api_backuptotgbot",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/panel/api/setting/all": {
       "post": {
         "tags": [
           "Settings"
         ],
-        "summary": "Return every panel setting: web server, Telegram bot, subscription, security. The full JSON blob that the Settings page edits.",
+        "summary": "Return every panel setting: web server, subscription, security. The full JSON blob that the Settings page edits.",
         "operationId": "post_panel_api_setting_all",
         "responses": {
           "200": {
@@ -13090,150 +12699,6 @@
                     },
                     "obj": {}
                   }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/setting/testSmtp": {
-      "post": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "Test SMTP connection with stage-by-stage reporting (connect, auth, send). Returns structured result with stage and message.",
-        "operationId": "post_panel_api_setting_testSmtp",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "stage": "send",
-                  "msg": "Test email sent successfully"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/setting/testTgBot": {
-      "post": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "Test Telegram bot connection by sending a test message to the configured chat.",
-        "operationId": "post_panel_api_setting_testTgBot",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "msg": "Test message sent to Telegram"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/setting/tgBotCapabilities": {
-      "post": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "Report what the configured bot can do. Inline mode is a BotFather switch, so the panel warns when it is off.",
-        "operationId": "post_panel_api_setting_tgBotCapabilities",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {
-                      "$ref": "#/components/schemas/TgBotCapabilities"
-                    }
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "obj": {
-                    "groupPrivacy": false,
-                    "inlineEnabled": true,
-                    "running": true,
-                    "username": "xui_bot"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/panel/api/setting/testDiscord": {
-      "post": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "Test Discord bot connection by sending a test embed to the configured channel.",
-        "operationId": "post_panel_api_setting_testDiscord",
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean"
-                    },
-                    "msg": {
-                      "type": "string"
-                    },
-                    "obj": {}
-                  }
-                },
-                "example": {
-                  "success": true,
-                  "msg": "Test notification sent successfully"
                 }
               }
             }

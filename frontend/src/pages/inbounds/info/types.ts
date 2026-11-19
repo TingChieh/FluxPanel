@@ -79,7 +79,6 @@ export interface InboundInfoModalProps {
   expireDiff?: number;
   trafficDiff?: number;
   ipLimitEnable?: boolean;
-  tgBotEnable?: boolean;
   nodeAddress?: string;
   subSettings?: SubSettings;
   hosts?: HostRecord[];
