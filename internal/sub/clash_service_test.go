@@ -1266,4 +1266,3 @@ func TestMihomoCertFingerprintUsesFirstValidPin(t *testing.T) {
 		})
 	}
 }
-

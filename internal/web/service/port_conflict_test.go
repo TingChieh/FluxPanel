@@ -730,14 +730,3 @@ func TestCheckPortConflict_ReservedAPIPortUDPCoexists(t *testing.T) {
 		t.Fatalf("udp-only inbound must coexist with the tcp API inbound; got=%v err=%v", got, err)
 	}
 }
-
-// amneziawgRoutedSettings builds a minimal but complete AmneziaWG settings
-// blob with one qualifying, enabled peer -- the shape that makes
-// injectAmneziawgnetSocks (and therefore checkAmneziawgnetSocksConflict)
-// create a relay inbound at all. The routeThroughXray field is kept in the
-// JSON (a stale value from a pre-cutover install) specifically to prove
-// it's now ignored -- see the "RouteThroughXrayOff" test below.
-const amneziawgRoutedSettings = `{"server":{"privateKey":"priv","publicKey":"pub","subnetIp":"10.8.1.0","subnetCidr":24,"routeThroughXray":true},"clients":[{"email":"a@x","enable":true,"publicKey":"pub-a","allowedIPs":["10.8.1.2/32"]}]}`
-
-// A local TCP inbound on EgressBasePort must conflict with the AmneziaWG
-// egress SOCKS server (which is not in the database).

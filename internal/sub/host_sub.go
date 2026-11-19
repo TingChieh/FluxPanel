@@ -172,12 +172,6 @@ func (s *SubService) hostEndpointsForFormat(inbound *model.Inbound, format strin
 	return eps, false
 }
 
-// hostEndpoints loads an inbound's visible hosts for the given subscription format.
-func (s *SubService) hostEndpoints(inbound *model.Inbound, format string) []map[string]any {
-	eps, _ := s.hostEndpointsForFormat(inbound, format)
-	return eps
-}
-
 // hostEndpointMaps is one host's externalProxy entries: a CIDR address expands into RandomCount
 // random addresses from the range, any other address is a single entry.
 func (s *SubService) hostEndpointMaps(h *model.Host, defaultDest string, defaultPort int) []map[string]any {

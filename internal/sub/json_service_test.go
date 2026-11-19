@@ -581,4 +581,3 @@ func TestSubJsonServiceWireguardNoKey(t *testing.T) {
 		t.Fatalf("genWireguard = %s, want nil for a keyless wireguard client", raw)
 	}
 }
-

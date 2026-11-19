@@ -164,4 +164,3 @@ func TestSettingsCacheRendersTheSameSubscription(t *testing.T) {
 		t.Fatalf("cached %d inbounds, want 2: VLESS and Shadowsocks, never the WireGuard peers", n)
 	}
 }
-

@@ -194,10 +194,6 @@ func serializedTxOf(tx *gorm.DB) *serializedTx {
 	return state
 }
 
-func isSerializedTx(tx *gorm.DB) bool {
-	return serializedTxOf(tx) != nil
-}
-
 // safeApply holds twApplyMu so an inline fallback (no writer, or shutdown drain)
 // never runs beside another write: overlapping resets switched a client back off.
 func safeApply(fn func() error) (err error) {

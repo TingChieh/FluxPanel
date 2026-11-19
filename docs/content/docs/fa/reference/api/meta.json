@@ -13,7 +13,6 @@
     "subscription-server",
     "hosts",
     "nodes",
-    "backup",
     "websocket"
   ]
 }
