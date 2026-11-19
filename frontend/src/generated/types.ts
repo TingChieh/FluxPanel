@@ -8,6 +8,21 @@ export type staticEgressResolver = string;
 export type trafficLocalApplyAction = number;
 export type transportBits = number;
 
+export interface AccessAuditAlert {
+  acked: boolean;
+  alertType: string;
+  createdAt: number;
+  date: string;
+  detail: string;
+  email: string;
+  hitCount: number;
+  id: number;
+  ruleName: string;
+  severity: number;
+  srcIp: string;
+  target: string;
+}
+
 export interface AllSetting {
   datepicker: string;
   expireDiff: number;
@@ -164,6 +179,106 @@ export interface ApiTokenView {
   name: string;
   scope: string;
   token?: string;
+}
+
+export interface AuditCategoryStat {
+  category: string;
+  domainCount: number;
+  hitCount: number;
+}
+
+export interface AuditClientDetailResponse {
+  alerts: AccessAuditAlert[];
+  categories: AuditCategoryStat[];
+  date: string;
+  days: number;
+  domains: AuditDomainGroup[];
+  email: string;
+  hideNoise: boolean;
+  maxConcurrentSubnets: number;
+  noiseHits: number;
+  sourceIps: AuditClientIPView[];
+  totalHits: number;
+  uniqueSubnets: number;
+}
+
+export interface AuditClientIPView {
+  activeCount: number;
+  activeHours: number;
+  firstSeen: number;
+  hitCount: number;
+  lastSeen: number;
+  srcIp: string;
+  subnet: string;
+}
+
+export interface AuditClientSummary {
+  email: string;
+  highRiskHits: number;
+  lastSeen: number;
+  maxConcurrentSubnets: number;
+  topDomains: string[];
+  totalHits: number;
+  unackedAlerts: number;
+  uniqueIps: number;
+  uniqueRootDomains: number;
+  uniqueSubnets: number;
+  warnRiskHits: number;
+}
+
+export interface AuditConfig {
+  enabled: boolean;
+  ignoreNoiseDomains: string[];
+  maxConcurrentSubnets: number;
+  maxDailySubnets: number;
+  retentionDays: number;
+  sensitiveDomains: string[];
+  sensitiveKeywords: string[];
+}
+
+export interface AuditConfigUpdateRequest {
+  config: AuditConfig;
+  reevaluate: boolean;
+}
+
+export interface AuditDomainGroup {
+  category: string;
+  firstSeen: number;
+  hitCount: number;
+  lastSeen: number;
+  riskLevel: number;
+  rootDomain: string;
+  ruleHit: string;
+  subdomains: AuditSubdomainItem[];
+}
+
+export interface AuditIngestResult {
+  bytesRead: number;
+  linesProcessed: number;
+}
+
+export interface AuditSubdomainItem {
+  category: string;
+  domain: string;
+  firstSeen: number;
+  hitCount: number;
+  lastSeen: number;
+  outbound: string;
+  port: number;
+  riskLevel: number;
+  ruleHit: string;
+}
+
+export interface AuditSummaryResponse {
+  activeClients: number;
+  clients: AuditClientSummary[];
+  date: string;
+  days: number;
+  highRiskAlerts: number;
+  sharingClients: number;
+  totalHits: number;
+  unackedAlerts: number;
+  warnAlerts: number;
 }
 
 export interface Client {

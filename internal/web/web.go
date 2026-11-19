@@ -295,6 +295,7 @@ const (
 	cadenceReapOrphans   = "@every 5m"
 	cadenceRemoteRouting = "@every 5m"
 	cadenceXrayLogPrune  = "@every 10m"
+	cadenceAccessAudit   = "@every 1m"
 )
 
 // startTask schedules background jobs (Xray checks, traffic jobs, cron
@@ -340,6 +341,8 @@ func (s *Server) startTask(restartXray bool, loc *time.Location) {
 	// check client ips from log file every day
 	_, _ = s.cron.AddJob("@daily", job.NewClearLogsJob())
 	_, _ = s.cron.AddJob(cadenceXrayLogPrune, job.NewPruneXrayLogsJob())
+	_, _ = s.cron.AddJob(cadenceAccessAudit, job.NewAccessAuditIngestJob())
+	_, _ = s.cron.AddJob("@daily", job.NewAccessAuditPruneJob())
 
 	// Inbound traffic reset jobs
 	// Run every hour

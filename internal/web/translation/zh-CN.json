@@ -120,6 +120,7 @@
     "xray": "Xray 配置",
     "routing": "路由",
     "outbounds": "出站",
+    "audit": "访问审计",
     "apiDocs": "API 文档",
     "hosts": "主机",
     "docs": "文档",
@@ -1960,6 +1961,107 @@
         "badVlessRoute": "请输入 0 到 65535 之间的单个数字"
       },
       "dragToReorder": "拖动以重新排列 {name}"
+    },
+    "audit": {
+      "title": "访问审计",
+      "subtitle": "每日用户访问域名聚合、敏感违规内容检测与账号转借共享识别",
+      "today": "今天",
+      "yesterday": "昨天",
+      "last7Days": "近 7 天",
+      "last30Days": "近 30 天",
+      "ingestNow": "立即采集",
+      "ingestedCount": "已增量采集 {count} 条访问记录",
+      "stats": {
+        "activeClients": "活跃用户",
+        "highRiskAlerts": "高危告警",
+        "sharingClients": "疑似转借账号",
+        "unackedAlerts": "未确认告警"
+      },
+      "tabs": {
+        "overview": "每日用户画像",
+        "alerts": "安全告警中心",
+        "rules": "审计规则配置"
+      },
+      "columns": {
+        "client": "用户",
+        "riskStatus": "风险状态",
+        "topDomains": "去噪 Top 主域名",
+        "hitsAndDomains": "请求数 / 域名数",
+        "sourceSubnets": "IP / 网段 / 同小时峰值",
+        "lastSeen": "最后活跃",
+        "actions": "操作",
+        "inspect": "详情",
+        "time": "时间",
+        "type": "告警类型",
+        "severity": "级别",
+        "rule": "命中规则",
+        "targetAndDetail": "目标与详情",
+        "hits": "次数",
+        "ack": "确认",
+        "acked": "已确认",
+        "domain": "域名",
+        "category": "分类",
+        "port": "端口",
+        "outbound": "出站",
+        "srcIp": "来源 IP",
+        "subnet": "所属网段",
+        "hourlyActivity": "24 小时活跃分布 (00-23)"
+      },
+      "risk": {
+        "normal": "正常",
+        "warn": "注意",
+        "high": "高危",
+        "sharing": "疑似转借",
+        "highHits": "{count} 次高危"
+      },
+      "alertTypes": {
+        "sensitive_domain": "敏感违规内容",
+        "account_sharing": "账号转借共享",
+        "high_risk_port": "高危端口/滥用"
+      },
+      "categories": {
+        "sensitive": "敏感/违规",
+        "risk": "高危风险",
+        "ai_dev": "AI / 开发",
+        "video": "视频流媒体",
+        "social": "社交资讯",
+        "gaming": "游戏",
+        "shopping": "购物/金融",
+        "noise": "系统噪声",
+        "general": "其他"
+      },
+      "detail": {
+        "title": "用户审计画像：{email}",
+        "hideNoise": "折叠系统噪声",
+        "noiseFiltered": "已折叠 {count} 次噪声请求",
+        "domainsSection": "访问主域名明细",
+        "ipsSection": "来源 IP 与同小时并发分布"
+      },
+      "alerts": {
+        "onlyUnacked": "仅看未确认",
+        "ackAll": "全部确认"
+      },
+      "rules": {
+        "enabled": "启用访问审计",
+        "retentionDays": "审计数据保留天数",
+        "maxConcurrentSubnets": "同小时并发独立网段阈值",
+        "maxConcurrentSubnetsHelp": "同一小时内出现达到该数量的不同 /24（或 IPv6 /56）网段时触发高危转借告警。",
+        "maxDailySubnets": "单日独立网段阈值",
+        "maxDailySubnetsHelp": "单日累计来源不同网段达到该数量时触发注意级别共享告警。",
+        "sensitiveDomains": "敏感 / 违规域名后缀（每行一个）",
+        "sensitiveDomainsPlaceholder": "example.com\nnews.restricted.org",
+        "sensitiveKeywords": "敏感域名关键词（每行一个）",
+        "sensitiveKeywordsPlaceholder": "keyword1\nkeyword2",
+        "ignoreNoiseDomains": "额外折叠噪声域名（每行一个）",
+        "ignoreNoiseDomainsPlaceholder": "telemetry.example.com",
+        "save": "保存规则",
+        "saveAndReevaluate": "保存并重算历史数据"
+      },
+      "toasts": {
+        "ack": "确认告警",
+        "ackAll": "确认全部告警",
+        "saveConfig": "保存审计配置"
+      }
     }
   },
   "tgbot": {

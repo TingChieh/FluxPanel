@@ -7,6 +7,7 @@ import {
   ExportOutlined,
   GlobalOutlined,
   ImportOutlined,
+  SafetyOutlined,
   SettingOutlined,
   SwapOutlined,
   TagsOutlined,
@@ -22,6 +23,7 @@ const NodesPage = lazy(() => import('@/pages/nodes/NodesPage'));
 const HostsPage = lazy(() => import('@/pages/hosts/HostsPage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 const XrayPage = lazy(() => import('@/pages/xray/XrayPage'));
+const AuditPage = lazy(() => import('@/pages/audit/AuditPage'));
 const ApiDocsPage = lazy(() => import('@/pages/api-docs/ApiDocsPage'));
 
 export interface PanelRoute {
@@ -44,6 +46,7 @@ export const PANEL_ROUTES: PanelRoute[] = [
   { path: '/routing', titleKey: 'menu.routing', icon: SwapOutlined, component: XrayPage },
   { path: '/settings', titleKey: 'menu.settings', icon: SettingOutlined, component: SettingsPage },
   { path: '/xray', titleKey: 'menu.xray', icon: ToolOutlined, component: XrayPage },
+  { path: '/audit', titleKey: 'menu.audit', icon: SafetyOutlined, component: AuditPage },
   { path: '/api-docs', titleKey: 'menu.apiDocs', icon: ApiOutlined, component: ApiDocsPage },
 ];
 

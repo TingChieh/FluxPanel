@@ -121,6 +121,7 @@
     "xray": "Xray Configs",
     "routing": "Routing",
     "outbounds": "Outbounds",
+    "audit": "Access Audit",
     "apiDocs": "API Docs",
     "docs": "Documentation",
     "openMenu": "Open menu",
@@ -1959,6 +1960,107 @@
       "routingScriptActive": "A routing script is set under {section}, so Xray ignores these rules.",
       "warp": {
         "privateKey": "Private key"
+      }
+    },
+    "audit": {
+      "title": "Access Audit",
+      "subtitle": "Daily client destination summaries, sensitive-content alerts, and account-sharing detection",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7Days": "Last 7 Days",
+      "last30Days": "Last 30 Days",
+      "ingestNow": "Ingest Now",
+      "ingestedCount": "Ingested {count} log lines",
+      "stats": {
+        "activeClients": "Active Clients",
+        "highRiskAlerts": "High-Risk Alerts",
+        "sharingClients": "Suspected Sharing",
+        "unackedAlerts": "Unacknowledged Alerts"
+      },
+      "tabs": {
+        "overview": "Daily Overview",
+        "alerts": "Security Alerts",
+        "rules": "Audit Rules"
+      },
+      "columns": {
+        "client": "Client",
+        "riskStatus": "Risk Status",
+        "topDomains": "Top Domains (Denoised)",
+        "hitsAndDomains": "Hits / Domains",
+        "sourceSubnets": "IPs / Subnets / Peak",
+        "lastSeen": "Last Seen",
+        "actions": "Actions",
+        "inspect": "Inspect",
+        "time": "Time",
+        "type": "Type",
+        "severity": "Severity",
+        "rule": "Rule",
+        "targetAndDetail": "Target / Detail",
+        "hits": "Hits",
+        "ack": "Acknowledge",
+        "acked": "Acknowledged",
+        "domain": "Domain",
+        "category": "Category",
+        "port": "Port",
+        "outbound": "Outbound",
+        "srcIp": "Source IP",
+        "subnet": "Subnet",
+        "hourlyActivity": "24h Activity (00-23)"
+      },
+      "risk": {
+        "normal": "Normal",
+        "warn": "Warning",
+        "high": "High Risk",
+        "sharing": "Sharing Risk",
+        "highHits": "{count} high-risk"
+      },
+      "alertTypes": {
+        "sensitive_domain": "Sensitive Content",
+        "account_sharing": "Account Sharing",
+        "high_risk_port": "High-Risk Port"
+      },
+      "categories": {
+        "sensitive": "Sensitive",
+        "risk": "Risk",
+        "ai_dev": "AI / Dev",
+        "video": "Video",
+        "social": "Social",
+        "gaming": "Gaming",
+        "shopping": "Shopping / Finance",
+        "noise": "System Noise",
+        "general": "Other"
+      },
+      "detail": {
+        "title": "Client Audit: {email}",
+        "hideNoise": "Hide system noise",
+        "noiseFiltered": "{count} noise hits",
+        "domainsSection": "Visited Root Domains",
+        "ipsSection": "Source IPs & Hourly Concurrency"
+      },
+      "alerts": {
+        "onlyUnacked": "Unacknowledged only",
+        "ackAll": "Acknowledge All"
+      },
+      "rules": {
+        "enabled": "Enable Access Audit",
+        "retentionDays": "Retention (days)",
+        "maxConcurrentSubnets": "Concurrent Subnets / Hour Threshold",
+        "maxConcurrentSubnetsHelp": "Triggers a high-risk sharing alert when distinct /24 (or IPv6 /56) subnets appear in the same hour.",
+        "maxDailySubnets": "Daily Distinct Subnets Threshold",
+        "maxDailySubnetsHelp": "Triggers a warning alert when a client uses this many distinct subnets in one day.",
+        "sensitiveDomains": "Sensitive / Restricted Domains (one per line)",
+        "sensitiveDomainsPlaceholder": "example.com\nnews.restricted.org",
+        "sensitiveKeywords": "Sensitive Domain Keywords (one per line)",
+        "sensitiveKeywordsPlaceholder": "keyword1\nkeyword2",
+        "ignoreNoiseDomains": "Extra Noise Domains to Hide (one per line)",
+        "ignoreNoiseDomainsPlaceholder": "telemetry.example.com",
+        "save": "Save Rules",
+        "saveAndReevaluate": "Save & Re-evaluate History"
+      },
+      "toasts": {
+        "ack": "Acknowledge alert",
+        "ackAll": "Acknowledge all alerts",
+        "saveConfig": "Save audit config"
       }
     }
   },

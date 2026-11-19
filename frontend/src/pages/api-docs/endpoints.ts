@@ -2631,6 +2631,119 @@ export const sections: readonly Section[] = [
   },
 
   {
+    id: 'audit',
+    title: 'Access Audit',
+    description:
+      'Aggregated daily access-log auditing, sensitive-content rule matching, and account-sharing detection.',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/panel/api/audit/summary',
+        summary: 'Return aggregated daily access-audit overview across all active clients.',
+        params: [
+          {
+            name: 'date',
+            in: 'query',
+            type: 'string',
+            desc: 'End date in YYYY-MM-DD, in the panel time zone (defaults to today there).',
+          },
+          {
+            name: 'days',
+            in: 'query',
+            type: 'number',
+            desc: 'Window length in days (1-90, default 1).',
+          },
+        ],
+        responseSchema: 'AuditSummaryResponse',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/audit/client/:email',
+        summary: 'Return categorized root domains, source IPs, and alerts for one client.',
+        params: [
+          { name: 'email', in: 'path', type: 'string', desc: 'Client email identifier.' },
+          {
+            name: 'date',
+            in: 'query',
+            type: 'string',
+            desc: 'End date in YYYY-MM-DD, in the panel time zone (defaults to today there).',
+          },
+          {
+            name: 'days',
+            in: 'query',
+            type: 'number',
+            desc: 'Window length in days (1-90, default 1).',
+          },
+          {
+            name: 'hideNoise',
+            in: 'query',
+            type: 'boolean',
+            desc: 'Hide system telemetry/CDN noise domains (default true).',
+          },
+        ],
+        responseSchema: 'AuditClientDetailResponse',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/audit/alerts',
+        summary: 'List deduplicated sensitive-content, high-risk port, and account-sharing alerts.',
+        params: [
+          {
+            name: 'date',
+            in: 'query',
+            type: 'string',
+            desc: 'Optional date filter in YYYY-MM-DD.',
+          },
+          { name: 'email', in: 'query', type: 'string', desc: 'Optional client email filter.' },
+          {
+            name: 'onlyUnacked',
+            in: 'query',
+            type: 'boolean',
+            desc: 'Return only unacknowledged alerts.',
+          },
+          {
+            name: 'limit',
+            in: 'query',
+            type: 'number',
+            desc: 'Maximum rows to return (1-1000, default 200).',
+          },
+        ],
+        responseSchema: 'AccessAuditAlert',
+        responseSchemaArray: true,
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/audit/alerts/ack/:id',
+        summary: 'Acknowledge a single audit alert by ID.',
+        params: [{ name: 'id', in: 'path', type: 'number', desc: 'Alert ID.' }],
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/audit/alerts/ackAll',
+        summary: 'Acknowledge all currently unacknowledged audit alerts.',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/audit/config',
+        summary: 'Return current access-audit thresholds and custom domain/keyword rules.',
+        responseSchema: 'AuditConfig',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/audit/config',
+        summary: 'Save access-audit config and optionally re-evaluate stored historical records.',
+        requestSchema: { $ref: '#/components/schemas/AuditConfigUpdateRequest' },
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/audit/ingest',
+        summary: 'Trigger an immediate incremental ingest from the configured Xray access log.',
+        responseSchema: 'AuditIngestResult',
+      },
+    ],
+  },
+
+  {
     id: 'websocket',
     title: 'WebSocket',
     description:

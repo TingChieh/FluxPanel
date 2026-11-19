@@ -24,6 +24,22 @@ export type trafficLocalApplyAction = z.infer<typeof trafficLocalApplyActionSche
 export const transportBitsSchema = z.number().int();
 export type transportBits = z.infer<typeof transportBitsSchema>;
 
+export const AccessAuditAlertSchema = z.object({
+  acked: z.boolean(),
+  alertType: z.string(),
+  createdAt: z.number().int(),
+  date: z.string(),
+  detail: z.string(),
+  email: z.string(),
+  hitCount: z.number().int(),
+  id: z.number().int(),
+  ruleName: z.string(),
+  severity: z.number().int(),
+  srcIp: z.string(),
+  target: z.string(),
+});
+export type AccessAuditAlert = z.infer<typeof AccessAuditAlertSchema>;
+
 export const AllSettingSchema = z.object({
   datepicker: z.string(),
   expireDiff: z.number().int().min(0),
@@ -185,6 +201,116 @@ export const ApiTokenViewSchema = z.object({
   token: z.string().optional(),
 });
 export type ApiTokenView = z.infer<typeof ApiTokenViewSchema>;
+
+export const AuditCategoryStatSchema = z.object({
+  category: z.string(),
+  domainCount: z.number().int(),
+  hitCount: z.number().int(),
+});
+export type AuditCategoryStat = z.infer<typeof AuditCategoryStatSchema>;
+
+export const AuditClientDetailResponseSchema = z.object({
+  alerts: z.array(z.lazy(() => AccessAuditAlertSchema)),
+  categories: z.array(z.lazy(() => AuditCategoryStatSchema)),
+  date: z.string(),
+  days: z.number().int(),
+  domains: z.array(z.lazy(() => AuditDomainGroupSchema)),
+  email: z.string(),
+  hideNoise: z.boolean(),
+  maxConcurrentSubnets: z.number().int(),
+  noiseHits: z.number().int(),
+  sourceIps: z.array(z.lazy(() => AuditClientIPViewSchema)),
+  totalHits: z.number().int(),
+  uniqueSubnets: z.number().int(),
+});
+export type AuditClientDetailResponse = z.infer<typeof AuditClientDetailResponseSchema>;
+
+export const AuditClientIPViewSchema = z.object({
+  activeCount: z.number().int(),
+  activeHours: z.number().int(),
+  firstSeen: z.number().int(),
+  hitCount: z.number().int(),
+  lastSeen: z.number().int(),
+  srcIp: z.string(),
+  subnet: z.string(),
+});
+export type AuditClientIPView = z.infer<typeof AuditClientIPViewSchema>;
+
+export const AuditClientSummarySchema = z.object({
+  email: z.string(),
+  highRiskHits: z.number().int(),
+  lastSeen: z.number().int(),
+  maxConcurrentSubnets: z.number().int(),
+  topDomains: z.array(z.string()),
+  totalHits: z.number().int(),
+  unackedAlerts: z.number().int(),
+  uniqueIps: z.number().int(),
+  uniqueRootDomains: z.number().int(),
+  uniqueSubnets: z.number().int(),
+  warnRiskHits: z.number().int(),
+});
+export type AuditClientSummary = z.infer<typeof AuditClientSummarySchema>;
+
+export const AuditConfigSchema = z.object({
+  enabled: z.boolean(),
+  ignoreNoiseDomains: z.array(z.string()),
+  maxConcurrentSubnets: z.number().int(),
+  maxDailySubnets: z.number().int(),
+  retentionDays: z.number().int(),
+  sensitiveDomains: z.array(z.string()),
+  sensitiveKeywords: z.array(z.string()),
+});
+export type AuditConfig = z.infer<typeof AuditConfigSchema>;
+
+export const AuditConfigUpdateRequestSchema = z.object({
+  config: z.lazy(() => AuditConfigSchema),
+  reevaluate: z.boolean(),
+});
+export type AuditConfigUpdateRequest = z.infer<typeof AuditConfigUpdateRequestSchema>;
+
+export const AuditDomainGroupSchema = z.object({
+  category: z.string(),
+  firstSeen: z.number().int(),
+  hitCount: z.number().int(),
+  lastSeen: z.number().int(),
+  riskLevel: z.number().int(),
+  rootDomain: z.string(),
+  ruleHit: z.string(),
+  subdomains: z.array(z.lazy(() => AuditSubdomainItemSchema)),
+});
+export type AuditDomainGroup = z.infer<typeof AuditDomainGroupSchema>;
+
+export const AuditIngestResultSchema = z.object({
+  bytesRead: z.number().int(),
+  linesProcessed: z.number().int(),
+});
+export type AuditIngestResult = z.infer<typeof AuditIngestResultSchema>;
+
+export const AuditSubdomainItemSchema = z.object({
+  category: z.string(),
+  domain: z.string(),
+  firstSeen: z.number().int(),
+  hitCount: z.number().int(),
+  lastSeen: z.number().int(),
+  outbound: z.string(),
+  port: z.number().int(),
+  riskLevel: z.number().int(),
+  ruleHit: z.string(),
+});
+export type AuditSubdomainItem = z.infer<typeof AuditSubdomainItemSchema>;
+
+export const AuditSummaryResponseSchema = z.object({
+  activeClients: z.number().int(),
+  clients: z.array(z.lazy(() => AuditClientSummarySchema)),
+  date: z.string(),
+  days: z.number().int(),
+  highRiskAlerts: z.number().int(),
+  sharingClients: z.number().int(),
+  totalHits: z.number().int(),
+  unackedAlerts: z.number().int(),
+  warnAlerts: z.number().int(),
+});
+export type AuditSummaryResponse = z.infer<typeof AuditSummaryResponseSchema>;
 
 export const ClientSchema = z.object({
   adTag: z.string().optional(),

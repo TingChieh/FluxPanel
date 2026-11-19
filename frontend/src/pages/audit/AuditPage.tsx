@@ -1,0 +1,948 @@
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import {
+  Button,
+  Card,
+  Col,
+  Drawer,
+  Form,
+  Input,
+  InputNumber,
+  Row,
+  Segmented,
+  Space,
+  Statistic,
+  Switch,
+  Table,
+  Tabs,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import {
+  CheckOutlined,
+  EyeOutlined,
+  ReloadOutlined,
+  SafetyOutlined,
+  SaveOutlined,
+  SyncOutlined,
+} from '@ant-design/icons';
+
+import { HttpUtil } from '@/utils';
+import type {
+  AccessAuditAlert,
+  AuditClientDetailResponse,
+  AuditClientIPView,
+  AuditClientSummary,
+  AuditConfig,
+  AuditDomainGroup,
+  AuditIngestResult,
+  AuditSummaryResponse,
+} from '@/generated/types';
+
+type DatePreset = 'today' | 'yesterday' | '7d' | '30d';
+
+function formatLocalDate(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function previousDay(isoDate: string): string {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatTs(sec?: number): string {
+  if (!sec) return '-';
+  const d = new Date(sec * 1000);
+  if (Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleString();
+}
+
+function splitLines(text: string): string[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function categoryLabel(t: TFunction, cat?: string): string {
+  switch (cat) {
+    case 'sensitive':
+      return t('pages.audit.categories.sensitive');
+    case 'risk':
+      return t('pages.audit.categories.risk');
+    case 'ai_dev':
+      return t('pages.audit.categories.ai_dev');
+    case 'video':
+      return t('pages.audit.categories.video');
+    case 'social':
+      return t('pages.audit.categories.social');
+    case 'gaming':
+      return t('pages.audit.categories.gaming');
+    case 'shopping':
+      return t('pages.audit.categories.shopping');
+    case 'noise':
+      return t('pages.audit.categories.noise');
+    default:
+      return t('pages.audit.categories.general');
+  }
+}
+
+function categoryColor(cat?: string): string {
+  switch (cat) {
+    case 'sensitive':
+      return 'red';
+    case 'risk':
+      return 'volcano';
+    case 'ai_dev':
+      return 'blue';
+    case 'video':
+      return 'purple';
+    case 'social':
+      return 'cyan';
+    case 'gaming':
+      return 'geekblue';
+    case 'shopping':
+      return 'gold';
+    case 'noise':
+      return 'default';
+    default:
+      return 'default';
+  }
+}
+
+function alertTypeLabel(t: TFunction, alertType?: string): string {
+  switch (alertType) {
+    case 'sensitive_domain':
+      return t('pages.audit.alertTypes.sensitive_domain');
+    case 'account_sharing':
+      return t('pages.audit.alertTypes.account_sharing');
+    default:
+      return t('pages.audit.alertTypes.high_risk_port');
+  }
+}
+
+function HourlyHeatmap({ mask }: { mask: number }) {
+  return (
+    <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+      {Array.from({ length: 24 }, (_, hour) => {
+        const active = (mask & (1 << hour)) !== 0;
+        return (
+          <span
+            key={hour}
+            title={`${String(hour).padStart(2, '0')}:00`}
+            style={{
+              width: 10,
+              height: 14,
+              borderRadius: 2,
+              backgroundColor: active
+                ? 'var(--ant-color-primary, #1677ff)'
+                : 'rgba(128,128,128,0.18)',
+              display: 'inline-block',
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+export default function AuditPage() {
+  const { t } = useTranslation();
+  const uid = useId();
+  const [messageApi, messageContextHolder] = message.useMessage();
+  const [preset, setPreset] = useState<DatePreset>('today');
+  const [loading, setLoading] = useState(false);
+  const [ingesting, setIngesting] = useState(false);
+  const [summary, setSummary] = useState<AuditSummaryResponse | null>(null);
+  const [alerts, setAlerts] = useState<AccessAuditAlert[]>([]);
+  const [onlyUnacked, setOnlyUnacked] = useState(true);
+
+  const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
+  const [hideNoise, setHideNoise] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detail, setDetail] = useState<AuditClientDetailResponse | null>(null);
+
+  const [config, setConfig] = useState<AuditConfig>({
+    enabled: true,
+    retentionDays: 30,
+    maxDailySubnets: 4,
+    maxConcurrentSubnets: 3,
+    sensitiveDomains: [],
+    sensitiveKeywords: [],
+    ignoreNoiseDomains: [],
+  });
+  const [domainsText, setDomainsText] = useState('');
+  const [keywordsText, setKeywordsText] = useState('');
+  const [noiseText, setNoiseText] = useState('');
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  // The server buckets days in the panel's timeLocation, so "today" is whatever date it reports.
+  const serverTodayRef = useRef<string | null>(null);
+
+  const queryWindow = useCallback(() => {
+    const days = preset === '7d' ? 7 : preset === '30d' ? 30 : 1;
+    const query = new URLSearchParams({ days: String(days) });
+    if (preset === 'yesterday') {
+      query.set('date', previousDay(serverTodayRef.current ?? formatLocalDate()));
+    }
+    return query;
+  }, [preset]);
+
+  const acceptSummary = useCallback(
+    (next: AuditSummaryResponse) => {
+      if (preset !== 'yesterday') serverTodayRef.current = next.date;
+      setSummary(next);
+    },
+    [preset],
+  );
+
+  const fetchData = useCallback(async () => {
+    const [sumRes, alertRes] = await Promise.all([
+      HttpUtil.get<AuditSummaryResponse>(`/panel/api/audit/summary?${queryWindow()}`),
+      HttpUtil.get<AccessAuditAlert[]>(
+        `/panel/api/audit/alerts?onlyUnacked=${onlyUnacked ? 'true' : 'false'}&limit=200`,
+      ),
+    ]);
+    return { sumRes, alertRes };
+  }, [queryWindow, onlyUnacked]);
+
+  const refreshData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { sumRes, alertRes } = await fetchData();
+      if (sumRes?.success && sumRes.obj) acceptSummary(sumRes.obj);
+      if (alertRes?.success && Array.isArray(alertRes.obj)) setAlerts(alertRes.obj);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchData, acceptSummary]);
+
+  const refreshDetail = useCallback(
+    async (email: string, hide: boolean) => {
+      setDetailLoading(true);
+      try {
+        const query = queryWindow();
+        query.set('hideNoise', hide ? 'true' : 'false');
+        const res = await HttpUtil.get<AuditClientDetailResponse>(
+          `/panel/api/audit/client/${encodeURIComponent(email)}?${query}`,
+        );
+        if (res?.success && res.obj) setDetail(res.obj);
+      } finally {
+        setDetailLoading(false);
+      }
+    },
+    [queryWindow],
+  );
+
+  useEffect(() => {
+    let active = true;
+    void fetchData().then(({ sumRes, alertRes }) => {
+      if (!active) return;
+      if (sumRes?.success && sumRes.obj) acceptSummary(sumRes.obj);
+      if (alertRes?.success && Array.isArray(alertRes.obj)) setAlerts(alertRes.obj);
+    });
+    return () => {
+      active = false;
+    };
+  }, [fetchData, acceptSummary]);
+
+  useEffect(() => {
+    let active = true;
+    void HttpUtil.get<AuditConfig>('/panel/api/audit/config').then((res) => {
+      if (!active || !res?.success || !res.obj) return;
+      setConfig(res.obj);
+      setDomainsText((res.obj.sensitiveDomains || []).join('\n'));
+      setKeywordsText((res.obj.sensitiveKeywords || []).join('\n'));
+      setNoiseText((res.obj.ignoreNoiseDomains || []).join('\n'));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedEmail) return;
+    let active = true;
+    const query = queryWindow();
+    query.set('hideNoise', hideNoise ? 'true' : 'false');
+    void HttpUtil.get<AuditClientDetailResponse>(
+      `/panel/api/audit/client/${encodeURIComponent(selectedEmail)}?${query}`,
+    ).then((res) => {
+      if (active && res?.success && res.obj) setDetail(res.obj);
+    });
+    return () => {
+      active = false;
+    };
+  }, [selectedEmail, hideNoise, queryWindow]);
+
+  const handleIngestNow = async () => {
+    setIngesting(true);
+    try {
+      const res = await HttpUtil.post<AuditIngestResult>('/panel/api/audit/ingest');
+      if (res?.success) {
+        const count = res.obj?.linesProcessed ?? 0;
+        messageApi.success(t('pages.audit.ingestedCount', { count }));
+        await refreshData();
+        if (selectedEmail) await refreshDetail(selectedEmail, hideNoise);
+      }
+    } finally {
+      setIngesting(false);
+    }
+  };
+
+  const handleAckAlert = async (id: number) => {
+    const res = await HttpUtil.post(`/panel/api/audit/alerts/ack/${id}`);
+    if (res?.success) {
+      await refreshData();
+      if (selectedEmail) await refreshDetail(selectedEmail, hideNoise);
+    }
+  };
+
+  const handleAckAll = async () => {
+    const res = await HttpUtil.post('/panel/api/audit/alerts/ackAll');
+    if (res?.success) {
+      await refreshData();
+    }
+  };
+
+  const handleSaveConfig = async (reevaluate: boolean) => {
+    setSavingConfig(true);
+    try {
+      const nextCfg: AuditConfig = {
+        ...config,
+        sensitiveDomains: splitLines(domainsText),
+        sensitiveKeywords: splitLines(keywordsText),
+        ignoreNoiseDomains: splitLines(noiseText),
+      };
+      const res = await HttpUtil.post(
+        '/panel/api/audit/config',
+        { config: nextCfg, reevaluate },
+        { headers: { 'Content-Type': 'application/json' } },
+      );
+      if (res?.success) {
+        setConfig(nextCfg);
+        await refreshData();
+        if (selectedEmail) await refreshDetail(selectedEmail, hideNoise);
+      }
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const clientColumns: ColumnsType<AuditClientSummary> = [
+    {
+      title: t('pages.audit.columns.client'),
+      dataIndex: 'email',
+      key: 'email',
+      render: (email: string) => <Typography.Text strong>{email}</Typography.Text>,
+    },
+    {
+      title: t('pages.audit.columns.riskStatus'),
+      key: 'risk',
+      render: (_, row) => (
+        <Space wrap size={[4, 4]}>
+          {row.highRiskHits > 0 && (
+            <Tag color="red">{t('pages.audit.risk.highHits', { count: row.highRiskHits })}</Tag>
+          )}
+          {row.maxConcurrentSubnets >= config.maxConcurrentSubnets && (
+            <Tag color="volcano">{t('pages.audit.risk.sharing')}</Tag>
+          )}
+          {row.highRiskHits === 0 &&
+            row.warnRiskHits === 0 &&
+            row.maxConcurrentSubnets < config.maxConcurrentSubnets && (
+              <Tag color="green">{t('pages.audit.risk.normal')}</Tag>
+            )}
+        </Space>
+      ),
+    },
+    {
+      title: t('pages.audit.columns.topDomains'),
+      dataIndex: 'topDomains',
+      key: 'topDomains',
+      render: (domains: string[]) => (
+        <Space wrap size={[4, 4]}>
+          {(domains || []).map((d) => (
+            <Tag key={d}>{d}</Tag>
+          ))}
+        </Space>
+      ),
+    },
+    {
+      title: t('pages.audit.columns.hitsAndDomains'),
+      key: 'hits',
+      render: (_, row) => `${row.totalHits} / ${row.uniqueRootDomains}`,
+    },
+    {
+      title: t('pages.audit.columns.sourceSubnets'),
+      key: 'subnets',
+      render: (_, row) => (
+        <Space size={4}>
+          <span>{row.uniqueIps}</span>
+          <span>/</span>
+          <span>{row.uniqueSubnets}</span>
+          <span>/</span>
+          <Tag color={row.maxConcurrentSubnets >= config.maxConcurrentSubnets ? 'red' : 'default'}>
+            {row.maxConcurrentSubnets}
+          </Tag>
+        </Space>
+      ),
+    },
+    {
+      title: t('pages.audit.columns.lastSeen'),
+      dataIndex: 'lastSeen',
+      key: 'lastSeen',
+      render: (ts: number) => formatTs(ts),
+    },
+    {
+      title: t('pages.audit.columns.actions'),
+      key: 'actions',
+      render: (_, row) => (
+        <Button
+          size="small"
+          icon={<EyeOutlined aria-hidden />}
+          onClick={() => setSelectedEmail(row.email)}
+        >
+          {t('pages.audit.columns.inspect')}
+        </Button>
+      ),
+    },
+  ];
+
+  const alertColumns: ColumnsType<AccessAuditAlert> = [
+    {
+      title: t('pages.audit.columns.time'),
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 170,
+      render: (ts: number) => formatTs(ts),
+    },
+    {
+      title: t('pages.audit.columns.client'),
+      dataIndex: 'email',
+      key: 'email',
+      width: 130,
+      render: (email: string) => (
+        <Button
+          type="link"
+          size="small"
+          style={{ padding: 0 }}
+          onClick={() => setSelectedEmail(email)}
+        >
+          {email}
+        </Button>
+      ),
+    },
+    {
+      title: t('pages.audit.columns.type'),
+      dataIndex: 'alertType',
+      key: 'alertType',
+      width: 140,
+      render: (type: string) => (
+        <Tag
+          color={
+            type === 'sensitive_domain' ? 'red' : type === 'account_sharing' ? 'volcano' : 'orange'
+          }
+        >
+          {alertTypeLabel(t, type)}
+        </Tag>
+      ),
+    },
+    {
+      title: t('pages.audit.columns.severity'),
+      dataIndex: 'severity',
+      key: 'severity',
+      width: 100,
+      render: (sev: number) => (
+        <Tag color={sev >= 2 ? 'red' : 'gold'}>
+          {sev >= 2 ? t('pages.audit.risk.high') : t('pages.audit.risk.warn')}
+        </Tag>
+      ),
+    },
+    {
+      title: t('pages.audit.columns.rule'),
+      dataIndex: 'ruleName',
+      key: 'ruleName',
+      width: 160,
+      render: (rule: string) => <Typography.Text code>{rule}</Typography.Text>,
+    },
+    {
+      title: t('pages.audit.columns.targetAndDetail'),
+      key: 'detail',
+      render: (_, row) => (
+        <div>
+          <Typography.Text strong>{row.target}</Typography.Text>
+          {row.detail && (
+            <div>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {row.detail}
+              </Typography.Text>
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: t('pages.audit.columns.hits'),
+      dataIndex: 'hitCount',
+      key: 'hitCount',
+      width: 80,
+    },
+    {
+      title: t('pages.audit.columns.actions'),
+      key: 'ack',
+      width: 110,
+      render: (_, row) =>
+        row.acked ? (
+          <Tag>{t('pages.audit.columns.acked')}</Tag>
+        ) : (
+          <Button
+            size="small"
+            icon={<CheckOutlined aria-hidden />}
+            onClick={() => void handleAckAlert(row.id)}
+          >
+            {t('pages.audit.columns.ack')}
+          </Button>
+        ),
+    },
+  ];
+
+  const domainColumns: ColumnsType<AuditDomainGroup> = [
+    {
+      title: t('pages.audit.columns.domain'),
+      dataIndex: 'rootDomain',
+      key: 'rootDomain',
+      render: (domain: string, row) => (
+        <Space>
+          <Typography.Text
+            strong={row.riskLevel > 0}
+            type={row.riskLevel >= 2 ? 'danger' : undefined}
+          >
+            {domain}
+          </Typography.Text>
+          {row.ruleHit && <Tag color="red">{row.ruleHit}</Tag>}
+        </Space>
+      ),
+    },
+    {
+      title: t('pages.audit.columns.category'),
+      dataIndex: 'category',
+      key: 'category',
+      width: 130,
+      render: (cat: string) => <Tag color={categoryColor(cat)}>{categoryLabel(t, cat)}</Tag>,
+    },
+    {
+      title: t('pages.audit.columns.hits'),
+      dataIndex: 'hitCount',
+      key: 'hitCount',
+      width: 90,
+    },
+    {
+      title: t('pages.audit.columns.lastSeen'),
+      dataIndex: 'lastSeen',
+      key: 'lastSeen',
+      width: 170,
+      render: (ts: number) => formatTs(ts),
+    },
+  ];
+
+  const ipColumns: ColumnsType<AuditClientIPView> = [
+    {
+      title: t('pages.audit.columns.srcIp'),
+      dataIndex: 'srcIp',
+      key: 'srcIp',
+      width: 150,
+    },
+    {
+      title: t('pages.audit.columns.subnet'),
+      dataIndex: 'subnet',
+      key: 'subnet',
+      width: 150,
+      render: (subnet: string) => <Tag>{subnet}</Tag>,
+    },
+    {
+      title: t('pages.audit.columns.hits'),
+      dataIndex: 'hitCount',
+      key: 'hitCount',
+      width: 80,
+    },
+    {
+      title: t('pages.audit.columns.hourlyActivity'),
+      dataIndex: 'activeHours',
+      key: 'activeHours',
+      render: (mask: number) => <HourlyHeatmap mask={mask} />,
+    },
+  ];
+
+  return (
+    <div style={{ padding: 16 }}>
+      {messageContextHolder}
+      <Row justify="space-between" align="middle" gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col>
+          <Space orientation="vertical" size={0}>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              <SafetyOutlined aria-hidden style={{ marginRight: 8 }} />
+              {t('pages.audit.title')}
+            </Typography.Title>
+            <Typography.Text type="secondary">{t('pages.audit.subtitle')}</Typography.Text>
+          </Space>
+        </Col>
+        <Col>
+          <Space wrap>
+            <Segmented<DatePreset>
+              value={preset}
+              onChange={(val) => setPreset(val)}
+              options={[
+                { label: t('pages.audit.today'), value: 'today' },
+                { label: t('pages.audit.yesterday'), value: 'yesterday' },
+                { label: t('pages.audit.last7Days'), value: '7d' },
+                { label: t('pages.audit.last30Days'), value: '30d' },
+              ]}
+            />
+            <Button
+              icon={<SyncOutlined aria-hidden spin={ingesting} />}
+              loading={ingesting}
+              onClick={() => void handleIngestNow()}
+            >
+              {t('pages.audit.ingestNow')}
+            </Button>
+            <Button
+              aria-label={t('refresh')}
+              icon={<ReloadOutlined aria-hidden />}
+              loading={loading}
+              onClick={() => void refreshData()}
+            />
+          </Space>
+        </Col>
+      </Row>
+
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic
+              title={t('pages.audit.stats.activeClients')}
+              value={summary?.activeClients ?? 0}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic
+              title={t('pages.audit.stats.highRiskAlerts')}
+              value={summary?.highRiskAlerts ?? 0}
+              styles={{
+                content: { color: (summary?.highRiskAlerts ?? 0) > 0 ? '#cf1322' : undefined },
+              }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic
+              title={t('pages.audit.stats.sharingClients')}
+              value={summary?.sharingClients ?? 0}
+              styles={{
+                content: { color: (summary?.sharingClients ?? 0) > 0 ? '#d4380d' : undefined },
+              }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic
+              title={t('pages.audit.stats.unackedAlerts')}
+              value={summary?.unackedAlerts ?? 0}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Card size="small">
+        <Tabs
+          items={[
+            {
+              key: 'overview',
+              label: t('pages.audit.tabs.overview'),
+              children: (
+                <Table<AuditClientSummary>
+                  rowKey="email"
+                  size="small"
+                  loading={loading}
+                  columns={clientColumns}
+                  dataSource={summary?.clients ?? []}
+                  pagination={{ pageSize: 20 }}
+                  scroll={{ x: 860 }}
+                />
+              ),
+            },
+            {
+              key: 'alerts',
+              label: `${t('pages.audit.tabs.alerts')} (${summary?.unackedAlerts ?? 0})`,
+              children: (
+                <div>
+                  <Space style={{ marginBottom: 12 }}>
+                    <Switch
+                      aria-label={t('pages.audit.alerts.onlyUnacked')}
+                      checked={onlyUnacked}
+                      onChange={setOnlyUnacked}
+                    />
+                    <span>{t('pages.audit.alerts.onlyUnacked')}</span>
+                    <Button
+                      size="small"
+                      icon={<CheckOutlined aria-hidden />}
+                      onClick={() => void handleAckAll()}
+                    >
+                      {t('pages.audit.alerts.ackAll')}
+                    </Button>
+                  </Space>
+                  <Table<AccessAuditAlert>
+                    rowKey="id"
+                    size="small"
+                    loading={loading}
+                    columns={alertColumns}
+                    dataSource={alerts}
+                    pagination={{ pageSize: 20 }}
+                    scroll={{ x: 960 }}
+                  />
+                </div>
+              ),
+            },
+            {
+              key: 'rules',
+              label: t('pages.audit.tabs.rules'),
+              children: (
+                <Form layout="vertical" style={{ maxWidth: 720 }}>
+                  <Row gutter={16}>
+                    <Col xs={24} sm={8}>
+                      <Form.Item htmlFor={`${uid}-enabled`} label={t('pages.audit.rules.enabled')}>
+                        <Switch
+                          id={`${uid}-enabled`}
+                          checked={config.enabled}
+                          onChange={(checked) =>
+                            setConfig((prev) => ({ ...prev, enabled: checked }))
+                          }
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={8}>
+                      <Form.Item
+                        htmlFor={`${uid}-retention`}
+                        label={t('pages.audit.rules.retentionDays')}
+                      >
+                        <InputNumber
+                          id={`${uid}-retention`}
+                          min={1}
+                          max={365}
+                          value={config.retentionDays}
+                          onChange={(v) =>
+                            setConfig((prev) => ({ ...prev, retentionDays: Number(v || 30) }))
+                          }
+                          style={{ width: '100%' }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        htmlFor={`${uid}-concurrent`}
+                        label={t('pages.audit.rules.maxConcurrentSubnets')}
+                        help={t('pages.audit.rules.maxConcurrentSubnetsHelp')}
+                      >
+                        <InputNumber
+                          id={`${uid}-concurrent`}
+                          min={2}
+                          max={50}
+                          value={config.maxConcurrentSubnets}
+                          onChange={(v) =>
+                            setConfig((prev) => ({ ...prev, maxConcurrentSubnets: Number(v || 3) }))
+                          }
+                          style={{ width: '100%' }}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        htmlFor={`${uid}-daily`}
+                        label={t('pages.audit.rules.maxDailySubnets')}
+                        help={t('pages.audit.rules.maxDailySubnetsHelp')}
+                      >
+                        <InputNumber
+                          id={`${uid}-daily`}
+                          min={2}
+                          max={100}
+                          value={config.maxDailySubnets}
+                          onChange={(v) =>
+                            setConfig((prev) => ({ ...prev, maxDailySubnets: Number(v || 4) }))
+                          }
+                          style={{ width: '100%' }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Form.Item
+                    htmlFor={`${uid}-domains`}
+                    label={t('pages.audit.rules.sensitiveDomains')}
+                  >
+                    <Input.TextArea
+                      id={`${uid}-domains`}
+                      rows={5}
+                      value={domainsText}
+                      onChange={(e) => setDomainsText(e.target.value)}
+                      placeholder={t('pages.audit.rules.sensitiveDomainsPlaceholder')}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    htmlFor={`${uid}-keywords`}
+                    label={t('pages.audit.rules.sensitiveKeywords')}
+                  >
+                    <Input.TextArea
+                      id={`${uid}-keywords`}
+                      rows={4}
+                      value={keywordsText}
+                      onChange={(e) => setKeywordsText(e.target.value)}
+                      placeholder={t('pages.audit.rules.sensitiveKeywordsPlaceholder')}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    htmlFor={`${uid}-noise`}
+                    label={t('pages.audit.rules.ignoreNoiseDomains')}
+                  >
+                    <Input.TextArea
+                      id={`${uid}-noise`}
+                      rows={3}
+                      value={noiseText}
+                      onChange={(e) => setNoiseText(e.target.value)}
+                      placeholder={t('pages.audit.rules.ignoreNoiseDomainsPlaceholder')}
+                    />
+                  </Form.Item>
+                  <Space wrap>
+                    <Button
+                      type="primary"
+                      icon={<SaveOutlined aria-hidden />}
+                      loading={savingConfig}
+                      onClick={() => void handleSaveConfig(false)}
+                    >
+                      {t('pages.audit.rules.save')}
+                    </Button>
+                    <Button
+                      icon={<SyncOutlined aria-hidden />}
+                      loading={savingConfig}
+                      onClick={() => void handleSaveConfig(true)}
+                    >
+                      {t('pages.audit.rules.saveAndReevaluate')}
+                    </Button>
+                  </Space>
+                </Form>
+              ),
+            },
+          ]}
+        />
+      </Card>
+
+      <Drawer
+        open={!!selectedEmail}
+        onClose={() => setSelectedEmail(null)}
+        size={880}
+        title={t('pages.audit.detail.title', { email: selectedEmail || '' })}
+        extra={
+          <Space>
+            <Switch
+              aria-label={t('pages.audit.detail.hideNoise')}
+              checked={hideNoise}
+              onChange={setHideNoise}
+            />
+            <span>{t('pages.audit.detail.hideNoise')}</span>
+            {detail && detail.noiseHits > 0 && (
+              <Tag>{t('pages.audit.detail.noiseFiltered', { count: detail.noiseHits })}</Tag>
+            )}
+          </Space>
+        }
+      >
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+          <Space wrap>
+            {(detail?.categories || []).map((c) => (
+              <Tag key={c.category} color={categoryColor(c.category)}>
+                {categoryLabel(t, c.category)}: {c.hitCount} ({c.domainCount})
+              </Tag>
+            ))}
+          </Space>
+
+          <div>
+            <Typography.Title level={5}>{t('pages.audit.detail.domainsSection')}</Typography.Title>
+            <Table<AuditDomainGroup>
+              rowKey="rootDomain"
+              size="small"
+              loading={detailLoading}
+              columns={domainColumns}
+              dataSource={detail?.domains ?? []}
+              pagination={{ pageSize: 15 }}
+              expandable={{
+                expandedRowRender: (group) => (
+                  <Table
+                    rowKey={(r) => `${r.domain}:${r.port}`}
+                    size="small"
+                    pagination={false}
+                    dataSource={group.subdomains}
+                    columns={[
+                      {
+                        title: t('pages.audit.columns.domain'),
+                        dataIndex: 'domain',
+                        key: 'domain',
+                      },
+                      {
+                        title: t('pages.audit.columns.port'),
+                        dataIndex: 'port',
+                        key: 'port',
+                        width: 80,
+                      },
+                      {
+                        title: t('pages.audit.columns.outbound'),
+                        dataIndex: 'outbound',
+                        key: 'outbound',
+                        width: 120,
+                      },
+                      {
+                        title: t('pages.audit.columns.hits'),
+                        dataIndex: 'hitCount',
+                        key: 'hitCount',
+                        width: 80,
+                      },
+                      {
+                        title: t('pages.audit.columns.lastSeen'),
+                        dataIndex: 'lastSeen',
+                        key: 'lastSeen',
+                        width: 170,
+                        render: (ts: number) => formatTs(ts),
+                      },
+                    ]}
+                  />
+                ),
+              }}
+            />
+          </div>
+
+          <div>
+            <Typography.Title level={5}>{t('pages.audit.detail.ipsSection')}</Typography.Title>
+            <Table<AuditClientIPView>
+              rowKey="srcIp"
+              size="small"
+              loading={detailLoading}
+              columns={ipColumns}
+              dataSource={detail?.sourceIps ?? []}
+              pagination={false}
+              scroll={{ x: 640 }}
+            />
+          </div>
+        </Space>
+      </Drawer>
+    </div>
+  );
+}

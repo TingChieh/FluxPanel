@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/logger"
+	"github.com/TingChieh/FluxPanel/internal/web/service"
 	"github.com/TingChieh/FluxPanel/internal/xray"
 )
 
@@ -92,12 +94,23 @@ func (j *ClearLogsJob) Run() {
 	wipeXrayLogs()
 }
 
+func flushAccessAuditBeforeTruncate() {
+	if database.GetDB() == nil {
+		return
+	}
+	if _, err := (&service.AccessAuditService{}).IngestNow(); err != nil {
+		logger.Warning("access audit flush before log truncate failed:", err)
+	}
+}
+
 func (j *PruneXrayLogsJob) Run() {
+	flushAccessAuditBeforeTruncate()
 	truncateXrayLog(xray.GetAccessLogPath, maxXrayLogBytes)
 	truncateXrayLog(xray.GetErrorLogPath, maxXrayLogBytes)
 }
 
 func wipeXrayLogs() {
+	flushAccessAuditBeforeTruncate()
 	truncateXrayLog(xray.GetAccessLogPath, 0)
 	truncateXrayLog(xray.GetErrorLogPath, 0)
 }

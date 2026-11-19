@@ -74,6 +74,9 @@ func allModels() []any {
 		&model.NodePendingReset{},
 		&model.OutboundSubscription{},
 		&model.SubBalancer{},
+		&model.AccessAuditDaily{},
+		&model.AccessAuditClientIP{},
+		&model.AccessAuditAlert{},
 	}
 }
 
