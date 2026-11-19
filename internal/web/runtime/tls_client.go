@@ -324,7 +324,10 @@ func tlsConfigForNode(n *model.Node) (*tls.Config, error) {
 			MinVersion:   tls.VersionTLS12,
 		}, nil
 	}
-	tlsCfg := &tls.Config{InsecureSkipVerify: true} // lgtm[go/disabled-certificate-check]
+	tlsCfg := &tls.Config{
+		InsecureSkipVerify: true, // lgtm[go/disabled-certificate-check]
+		MinVersion:         tls.VersionTLS12,
+	}
 	if n.TlsVerifyMode == "pin" {
 		want, err := DecodeCertPin(n.PinnedCertSha256)
 		if err != nil {

@@ -730,3 +730,21 @@ func TestNodeTransportGivesUpOnAStalledTLSHandshake(t *testing.T) {
 		t.Fatal("the stalled handshake's connection is still open")
 	}
 }
+
+func TestTlsConfigForNode_EnforcesMinTLS12(t *testing.T) {
+	pin := strings.Repeat("ab", 32)
+	for _, mode := range []string{"pin", "skip"} {
+		t.Run(mode, func(t *testing.T) {
+			cfg, err := tlsConfigForNode(&model.Node{
+				TlsVerifyMode:    mode,
+				PinnedCertSha256: pin,
+			})
+			if err != nil {
+				t.Fatalf("tlsConfigForNode(%s): %v", mode, err)
+			}
+			if cfg.MinVersion != tls.VersionTLS12 {
+				t.Fatalf("MinVersion = %#x, want TLS 1.2 (%#x)", cfg.MinVersion, tls.VersionTLS12)
+			}
+		})
+	}
+}
