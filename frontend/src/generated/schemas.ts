@@ -58,74 +58,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "ipLimitAllowlist": {
         "type": "string"
       },
-      "ldapAutoCreate": {
-        "type": "boolean"
-      },
-      "ldapAutoDelete": {
-        "type": "boolean"
-      },
-      "ldapBaseDN": {
-        "type": "string"
-      },
-      "ldapBindDN": {
-        "type": "string"
-      },
-      "ldapDefaultExpiryDays": {
-        "minimum": 0,
-        "type": "integer"
-      },
-      "ldapDefaultLimitIP": {
-        "minimum": 0,
-        "type": "integer"
-      },
-      "ldapDefaultTotalGB": {
-        "minimum": 0,
-        "type": "integer"
-      },
-      "ldapEnable": {
-        "type": "boolean"
-      },
-      "ldapFlagField": {
-        "type": "string"
-      },
-      "ldapHost": {
-        "type": "string"
-      },
-      "ldapInboundTags": {
-        "type": "string"
-      },
-      "ldapInsecureSkipVerify": {
-        "type": "boolean"
-      },
-      "ldapInvertFlag": {
-        "type": "boolean"
-      },
-      "ldapPassword": {
-        "type": "string"
-      },
-      "ldapPort": {
-        "maximum": 65535,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "ldapSyncCron": {
-        "type": "string"
-      },
-      "ldapTruthyValues": {
-        "type": "string"
-      },
-      "ldapUseTLS": {
-        "type": "boolean"
-      },
-      "ldapUserAttr": {
-        "type": "string"
-      },
-      "ldapUserFilter": {
-        "type": "string"
-      },
-      "ldapVlessField": {
-        "type": "string"
-      },
       "nodeDownThreshold": {
         "maximum": 100,
         "minimum": 1,
@@ -558,10 +490,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "twoFactorToken": {
         "type": "string"
       },
-      "warpUpdateInterval": {
-        "minimum": 0,
-        "type": "integer"
-      },
       "webBasePath": {
         "type": "string"
       },
@@ -601,27 +529,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "externalTrafficInformURI",
       "happLinkEnable",
       "ipLimitAllowlist",
-      "ldapAutoCreate",
-      "ldapAutoDelete",
-      "ldapBaseDN",
-      "ldapBindDN",
-      "ldapDefaultExpiryDays",
-      "ldapDefaultLimitIP",
-      "ldapDefaultTotalGB",
-      "ldapEnable",
-      "ldapFlagField",
-      "ldapHost",
-      "ldapInboundTags",
-      "ldapInsecureSkipVerify",
-      "ldapInvertFlag",
-      "ldapPassword",
-      "ldapPort",
-      "ldapSyncCron",
-      "ldapTruthyValues",
-      "ldapUseTLS",
-      "ldapUserAttr",
-      "ldapUserFilter",
-      "ldapVlessField",
       "nodeDownThreshold",
       "outboundDownThreshold",
       "pageSize",
@@ -757,7 +664,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "trustedProxyCIDRs",
       "twoFactorEnable",
       "twoFactorToken",
-      "warpUpdateInterval",
       "webBasePath",
       "webCertFile",
       "webDomain",
@@ -828,12 +734,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "hasDiscordBotToken": {
         "type": "boolean"
       },
-      "hasLdapPassword": {
-        "type": "boolean"
-      },
-      "hasNordSecret": {
-        "type": "boolean"
-      },
       "hasSmtpPassword": {
         "type": "boolean"
       },
@@ -843,78 +743,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "hasTwoFactorToken": {
         "type": "boolean"
       },
-      "hasWarpSecret": {
-        "type": "boolean"
-      },
       "ipLimitAllowlist": {
-        "type": "string"
-      },
-      "ldapAutoCreate": {
-        "type": "boolean"
-      },
-      "ldapAutoDelete": {
-        "type": "boolean"
-      },
-      "ldapBaseDN": {
-        "type": "string"
-      },
-      "ldapBindDN": {
-        "type": "string"
-      },
-      "ldapDefaultExpiryDays": {
-        "minimum": 0,
-        "type": "integer"
-      },
-      "ldapDefaultLimitIP": {
-        "minimum": 0,
-        "type": "integer"
-      },
-      "ldapDefaultTotalGB": {
-        "minimum": 0,
-        "type": "integer"
-      },
-      "ldapEnable": {
-        "type": "boolean"
-      },
-      "ldapFlagField": {
-        "type": "string"
-      },
-      "ldapHost": {
-        "type": "string"
-      },
-      "ldapInboundTags": {
-        "type": "string"
-      },
-      "ldapInsecureSkipVerify": {
-        "type": "boolean"
-      },
-      "ldapInvertFlag": {
-        "type": "boolean"
-      },
-      "ldapPassword": {
-        "type": "string"
-      },
-      "ldapPort": {
-        "maximum": 65535,
-        "minimum": 0,
-        "type": "integer"
-      },
-      "ldapSyncCron": {
-        "type": "string"
-      },
-      "ldapTruthyValues": {
-        "type": "string"
-      },
-      "ldapUseTLS": {
-        "type": "boolean"
-      },
-      "ldapUserAttr": {
-        "type": "string"
-      },
-      "ldapUserFilter": {
-        "type": "string"
-      },
-      "ldapVlessField": {
         "type": "string"
       },
       "nodeDownThreshold": {
@@ -1349,10 +1178,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "twoFactorToken": {
         "type": "string"
       },
-      "warpUpdateInterval": {
-        "minimum": 0,
-        "type": "integer"
-      },
       "webBasePath": {
         "type": "string"
       },
@@ -1393,34 +1218,10 @@ export const SCHEMAS: Record<string, unknown> = {
       "happLinkEnable",
       "hasApiToken",
       "hasDiscordBotToken",
-      "hasLdapPassword",
-      "hasNordSecret",
       "hasSmtpPassword",
       "hasTgBotToken",
       "hasTwoFactorToken",
-      "hasWarpSecret",
       "ipLimitAllowlist",
-      "ldapAutoCreate",
-      "ldapAutoDelete",
-      "ldapBaseDN",
-      "ldapBindDN",
-      "ldapDefaultExpiryDays",
-      "ldapDefaultLimitIP",
-      "ldapDefaultTotalGB",
-      "ldapEnable",
-      "ldapFlagField",
-      "ldapHost",
-      "ldapInboundTags",
-      "ldapInsecureSkipVerify",
-      "ldapInvertFlag",
-      "ldapPassword",
-      "ldapPort",
-      "ldapSyncCron",
-      "ldapTruthyValues",
-      "ldapUseTLS",
-      "ldapUserAttr",
-      "ldapUserFilter",
-      "ldapVlessField",
       "nodeDownThreshold",
       "outboundDownThreshold",
       "pageSize",
@@ -1556,7 +1357,6 @@ export const SCHEMAS: Record<string, unknown> = {
       "trustedProxyCIDRs",
       "twoFactorEnable",
       "twoFactorToken",
-      "warpUpdateInterval",
       "webBasePath",
       "webCertFile",
       "webDomain",

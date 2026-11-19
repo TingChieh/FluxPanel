@@ -356,7 +356,6 @@ func (s *Server) startTask(restartXray bool, loc *time.Location) {
 	// check client ips from log file every day
 	_, _ = s.cron.AddJob("@daily", job.NewClearLogsJob())
 	_, _ = s.cron.AddJob(cadenceXrayLogPrune, job.NewPruneXrayLogsJob())
-	_, _ = s.cron.AddJob("@hourly", job.NewWarpIpJob())
 
 	// Inbound traffic reset jobs
 	// Run every hour
@@ -367,13 +366,6 @@ func (s *Server) startTask(restartXray bool, loc *time.Location) {
 	_, _ = s.cron.AddJob("@weekly", job.NewPeriodicTrafficResetJob("weekly", loc))
 	// Check monthly reset days at midnight
 	_, _ = s.cron.AddJob("@daily", job.NewPeriodicTrafficResetJob("monthly", loc))
-
-	// LDAP sync scheduling
-	if ldapEnabled, _ := s.settingService.GetLdapEnable(); ldapEnabled {
-		runtime, _ := s.settingService.GetLdapSyncCron()
-		// job has zero-value services with method receivers that read settings on demand
-		scheduleSettingJob(s.cron, "LDAP sync", runtime, "@every 1m", job.NewLdapSyncJob())
-	}
 
 	// Telegram-bot–dependent jobs: periodic stats report + callback-hash cleanup.
 	isTgbotenabled, err := s.settingService.GetTgbotEnabled()

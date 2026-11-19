@@ -196,39 +196,12 @@ var defaultValueMap = map[string]string{
 	"subJsonObservatory":          "",
 	"subThemeDir":                 "",
 	"datepicker":                  "gregorian",
-	"warp":                        "",
-	"warpUpdateInterval":          "0",
-	"nord":                        "",
-	"pia":                         "",
 	"externalTrafficInformEnable": "false",
 	"externalTrafficInformURI":    "",
 	"restartXrayOnClientDisable":  "true",
 	"xrayOutboundTestUrl":         "https://www.google.com/generate_204",
 	"panelOutbound":               "",
 	"devChannelEnable":            "false",
-
-	// LDAP defaults
-	"ldapEnable":             "false",
-	"ldapHost":               "",
-	"ldapPort":               "389",
-	"ldapUseTLS":             "false",
-	"ldapInsecureSkipVerify": "false",
-	"ldapBindDN":             "",
-	"ldapPassword":           "",
-	"ldapBaseDN":             "",
-	"ldapUserFilter":         "(objectClass=person)",
-	"ldapUserAttr":           "mail",
-	"ldapVlessField":         "vless_enabled",
-	"ldapSyncCron":           "@every 1m",
-	"ldapFlagField":          "",
-	"ldapTruthyValues":       "true,1,yes,on",
-	"ldapInvertFlag":         "false",
-	"ldapInboundTags":        "",
-	"ldapAutoCreate":         "false",
-	"ldapAutoDelete":         "false",
-	"ldapDefaultTotalGB":     "0",
-	"ldapDefaultExpiryDays":  "0",
-	"ldapDefaultLimitIP":     "0",
 
 	// Event bus — per-subscriber event filtering (empty = all disabled)
 	"tgEnabledEvents":   "login.attempt,cpu.high",
@@ -357,9 +330,6 @@ func (s *SettingService) GetAllSettingView() (*entity.AllSettingView, error) {
 	view := &entity.AllSettingView{AllSetting: *allSetting}
 	view.HasTgBotToken = secretConfigured(allSetting.TgBotToken)
 	view.HasTwoFactorToken = secretConfigured(allSetting.TwoFactorToken)
-	view.HasLdapPassword = secretConfigured(allSetting.LdapPassword)
-	view.HasWarpSecret = secretConfigured(mustString(s.GetWarp()))
-	view.HasNordSecret = secretConfigured(mustString(s.GetNord()))
 	view.HasSmtpPassword = secretConfigured(allSetting.SmtpPassword)
 	view.HasDiscordBotToken = secretConfigured(allSetting.DiscordBotToken)
 	var apiTokenCount int64
@@ -368,7 +338,6 @@ func (s *SettingService) GetAllSettingView() (*entity.AllSettingView, error) {
 	}
 	view.TgBotToken = ""
 	view.TwoFactorToken = ""
-	view.LdapPassword = ""
 	view.SmtpPassword = ""
 	view.DiscordBotToken = ""
 	return view, nil
@@ -484,28 +453,6 @@ func (s *SettingService) getInt(key string) (int, error) {
 
 func (s *SettingService) setInt(key string, value int) error {
 	return s.setString(key, strconv.Itoa(value))
-}
-
-func (s *SettingService) GetWarpLastUpdate() (int64, error) {
-	setting, err := s.getSetting("warpLastUpdate")
-	if database.IsNotFound(err) {
-		return 0, nil
-	}
-	if err != nil {
-		return 0, err
-	}
-	if setting.Value == "" {
-		return 0, nil
-	}
-	return strconv.ParseInt(setting.Value, 10, 64)
-}
-
-func (s *SettingService) SetWarpLastUpdate(val int64) error {
-	return s.saveSetting("warpLastUpdate", strconv.FormatInt(val, 10))
-}
-
-func (s *SettingService) SetWarpUpdateInterval(val int) error {
-	return s.setInt("warpUpdateInterval", val)
 }
 
 func (s *SettingService) GetXrayConfigTemplate() (string, error) {
@@ -1285,30 +1232,6 @@ func (s *SettingService) GetDatepicker() (string, error) {
 	return s.getString("datepicker")
 }
 
-func (s *SettingService) GetWarp() (string, error) {
-	return s.getString("warp")
-}
-
-func (s *SettingService) SetWarp(data string) error {
-	return s.setString("warp", data)
-}
-
-func (s *SettingService) GetNord() (string, error) {
-	return s.getString("nord")
-}
-
-func (s *SettingService) SetNord(data string) error {
-	return s.setString("nord", data)
-}
-
-func (s *SettingService) GetPia() (string, error) {
-	return s.getString("pia")
-}
-
-func (s *SettingService) SetPia(data string) error {
-	return s.setString("pia", data)
-}
-
 func (s *SettingService) GetExternalTrafficInformEnable() (bool, error) {
 	return s.getBool("externalTrafficInformEnable")
 }
@@ -1360,91 +1283,6 @@ func (s *SettingService) GetAccessLogEnable() (bool, error) {
 		return false, err
 	}
 	return (accessLogPath != "none" && accessLogPath != ""), nil
-}
-
-// GetLdapEnable returns whether LDAP is enabled.
-func (s *SettingService) GetLdapEnable() (bool, error) {
-	return s.getBool("ldapEnable")
-}
-
-func (s *SettingService) GetLdapHost() (string, error) {
-	return s.getString("ldapHost")
-}
-
-func (s *SettingService) GetLdapPort() (int, error) {
-	return s.getInt("ldapPort")
-}
-
-func (s *SettingService) GetLdapUseTLS() (bool, error) {
-	return s.getBool("ldapUseTLS")
-}
-
-func (s *SettingService) GetLdapInsecureSkipVerify() (bool, error) {
-	return s.getBool("ldapInsecureSkipVerify")
-}
-
-func (s *SettingService) GetLdapBindDN() (string, error) {
-	return s.getString("ldapBindDN")
-}
-
-func (s *SettingService) GetLdapPassword() (string, error) {
-	return s.getString("ldapPassword")
-}
-
-func (s *SettingService) GetLdapBaseDN() (string, error) {
-	return s.getString("ldapBaseDN")
-}
-
-func (s *SettingService) GetLdapUserFilter() (string, error) {
-	return s.getString("ldapUserFilter")
-}
-
-func (s *SettingService) GetLdapUserAttr() (string, error) {
-	return s.getString("ldapUserAttr")
-}
-
-func (s *SettingService) GetLdapVlessField() (string, error) {
-	return s.getString("ldapVlessField")
-}
-
-func (s *SettingService) GetLdapSyncCron() (string, error) {
-	return s.getString("ldapSyncCron")
-}
-
-func (s *SettingService) GetLdapFlagField() (string, error) {
-	return s.getString("ldapFlagField")
-}
-
-func (s *SettingService) GetLdapTruthyValues() (string, error) {
-	return s.getString("ldapTruthyValues")
-}
-
-func (s *SettingService) GetLdapInvertFlag() (bool, error) {
-	return s.getBool("ldapInvertFlag")
-}
-
-func (s *SettingService) GetLdapInboundTags() (string, error) {
-	return s.getString("ldapInboundTags")
-}
-
-func (s *SettingService) GetLdapAutoCreate() (bool, error) {
-	return s.getBool("ldapAutoCreate")
-}
-
-func (s *SettingService) GetLdapAutoDelete() (bool, error) {
-	return s.getBool("ldapAutoDelete")
-}
-
-func (s *SettingService) GetLdapDefaultTotalGB() (int, error) {
-	return s.getInt("ldapDefaultTotalGB")
-}
-
-func (s *SettingService) GetLdapDefaultExpiryDays() (int, error) {
-	return s.getInt("ldapDefaultExpiryDays")
-}
-
-func (s *SettingService) GetLdapDefaultLimitIP() (int, error) {
-	return s.getInt("ldapDefaultLimitIP")
 }
 
 // Event bus — per-subscriber event filtering
@@ -1661,7 +1499,6 @@ func (s *SettingService) SetNodeDownThreshold(value int) error {
 // blank to the browser) and the stored value is preserved.
 type SecretClears struct {
 	TgBotToken      bool
-	LdapPassword    bool
 	SmtpPassword    bool
 	DiscordBotToken bool
 }
@@ -1791,13 +1628,6 @@ func (s *SettingService) preserveRedactedSecrets(allSetting *entity.AllSetting, 
 		}
 		allSetting.TgBotToken = value
 	}
-	if !clears.LdapPassword && strings.TrimSpace(allSetting.LdapPassword) == "" {
-		value, err := s.GetLdapPassword()
-		if err != nil {
-			return err
-		}
-		allSetting.LdapPassword = value
-	}
 	if allSetting.TwoFactorEnable && strings.TrimSpace(allSetting.TwoFactorToken) == "" {
 		value, err := s.GetTwoFactorToken()
 		if err != nil {
@@ -1896,7 +1726,7 @@ func validateSubJsonDnsSetting(allSetting *entity.AllSetting) error {
 
 func (s *SettingService) UpdateSecret(key string, value string) error {
 	switch key {
-	case "tgBotToken", "ldapPassword", "twoFactorToken":
+	case "tgBotToken", "twoFactorToken":
 		return s.saveSetting(key, strings.TrimSpace(value))
 	default:
 		return common.NewError("secret key is not replaceable:", key)
@@ -2032,7 +1862,6 @@ func (s *SettingService) GetDefaultSettings(host string) (any, error) {
 var factoryDefaultSecretKeys = map[string]bool{
 	"tgBotToken":      true,
 	"twoFactorToken":  true,
-	"ldapPassword":    true,
 	"smtpPassword":    true,
 	"discordBotToken": true,
 }

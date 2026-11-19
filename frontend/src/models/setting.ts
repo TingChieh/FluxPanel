@@ -140,27 +140,6 @@ export class AllSetting {
 
   timeLocation = 'Local';
 
-  ldapEnable = false;
-  ldapHost = '';
-  ldapPort = 389;
-  ldapUseTLS = false;
-  ldapInsecureSkipVerify = false;
-  ldapBindDN = '';
-  ldapPassword = '';
-  ldapBaseDN = '';
-  ldapUserFilter = '(objectClass=person)';
-  ldapUserAttr = 'mail';
-  ldapVlessField = 'vless_enabled';
-  ldapSyncCron = '@every 1m';
-  ldapFlagField = '';
-  ldapTruthyValues = 'true,1,yes,on';
-  ldapInvertFlag = false;
-  ldapInboundTags = '';
-  ldapAutoCreate = false;
-  ldapAutoDelete = false;
-  ldapDefaultTotalGB = 0;
-  ldapDefaultExpiryDays = 0;
-  ldapDefaultLimitIP = 0;
   tgEnabledEvents = 'login.attempt,cpu.high';
   smtpEnable = false;
   smtpHost = '';
@@ -178,13 +157,9 @@ export class AllSetting {
   nodeDownThreshold = 1;
   hasTgBotToken = false;
   hasTwoFactorToken = false;
-  hasLdapPassword = false;
   hasApiToken = false;
-  hasWarpSecret = false;
-  hasNordSecret = false;
   hasSmtpPassword = false;
   clearTgBotToken = false;
-  clearLdapPassword = false;
   clearSmtpPassword = false;
   discordBotEnable = false;
   discordBotToken = '';

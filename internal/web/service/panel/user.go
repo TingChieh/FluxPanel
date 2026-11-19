@@ -11,7 +11,6 @@ import (
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 	"github.com/TingChieh/FluxPanel/internal/logger"
 	"github.com/TingChieh/FluxPanel/internal/util/crypto"
-	ldaputil "github.com/TingChieh/FluxPanel/internal/util/ldap"
 	"github.com/TingChieh/FluxPanel/internal/util/totp"
 	"github.com/TingChieh/FluxPanel/internal/web/service"
 )
@@ -67,36 +66,7 @@ func (s *UserService) CheckUser(username string, password string, twoFactorCode 
 	}
 
 	if !crypto.CheckPasswordHash(user.Password, password) {
-		ldapEnabled, _ := s.settingService.GetLdapEnable()
-		if !ldapEnabled {
-			return nil, errors.New("invalid credentials")
-		}
-
-		host, _ := s.settingService.GetLdapHost()
-		port, _ := s.settingService.GetLdapPort()
-		useTLS, _ := s.settingService.GetLdapUseTLS()
-		skipVerify, _ := s.settingService.GetLdapInsecureSkipVerify()
-		bindDN, _ := s.settingService.GetLdapBindDN()
-		ldapPass, _ := s.settingService.GetLdapPassword()
-		baseDN, _ := s.settingService.GetLdapBaseDN()
-		userFilter, _ := s.settingService.GetLdapUserFilter()
-		userAttr, _ := s.settingService.GetLdapUserAttr()
-
-		cfg := ldaputil.Config{
-			Host:               host,
-			Port:               port,
-			UseTLS:             useTLS,
-			InsecureSkipVerify: skipVerify,
-			BindDN:             bindDN,
-			Password:           ldapPass,
-			BaseDN:             baseDN,
-			UserFilter:         userFilter,
-			UserAttr:           userAttr,
-		}
-		ok, err := ldaputil.AuthenticateUser(cfg, username, password)
-		if err != nil || !ok {
-			return nil, errors.New("invalid credentials")
-		}
+		return nil, errors.New("invalid credentials")
 	}
 
 	twoFactorEnable, err := s.settingService.GetTwoFactorEnable()

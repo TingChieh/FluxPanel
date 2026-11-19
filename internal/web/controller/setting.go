@@ -37,7 +37,6 @@ type updateSettingForm struct {
 	entity.AllSetting
 	TwoFactorCode        string `json:"twoFactorCode" form:"twoFactorCode"`
 	ClearTgBotToken      bool   `json:"clearTgBotToken" form:"clearTgBotToken"`
-	ClearLdapPassword    bool   `json:"clearLdapPassword" form:"clearLdapPassword"`
 	ClearSmtpPassword    bool   `json:"clearSmtpPassword" form:"clearSmtpPassword"`
 	ClearDiscordBotToken bool   `json:"clearDiscordBotToken" form:"clearDiscordBotToken"`
 }
@@ -153,7 +152,6 @@ func (a *SettingController) updateSetting(c *gin.Context) {
 	}
 	err := a.settingService.UpdateAllSetting(allSetting, service.SecretClears{
 		TgBotToken:      form.ClearTgBotToken,
-		LdapPassword:    form.ClearLdapPassword,
 		SmtpPassword:    form.ClearSmtpPassword,
 		DiscordBotToken: form.ClearDiscordBotToken,
 	})

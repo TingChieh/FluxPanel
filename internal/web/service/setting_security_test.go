@@ -65,9 +65,6 @@ func TestGetAllSettingViewRedactsSecrets(t *testing.T) {
 	if err := s.saveSetting("twoFactorToken", "totp-secret"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.saveSetting("ldapPassword", "ldap-secret"); err != nil {
-		t.Fatal(err)
-	}
 	if err := s.saveSetting("smtpPassword", "smtp-secret"); err != nil {
 		t.Fatal(err)
 	}
@@ -82,10 +79,10 @@ func TestGetAllSettingViewRedactsSecrets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if view.TgBotToken != "" || view.TwoFactorToken != "" || view.LdapPassword != "" || view.SmtpPassword != "" || view.DiscordBotToken != "" {
+	if view.TgBotToken != "" || view.TwoFactorToken != "" || view.SmtpPassword != "" || view.DiscordBotToken != "" {
 		t.Fatalf("settings view leaked secrets: %#v", view)
 	}
-	if !view.HasTgBotToken || !view.HasTwoFactorToken || !view.HasLdapPassword || !view.HasApiToken || !view.HasSmtpPassword || !view.HasDiscordBotToken {
+	if !view.HasTgBotToken || !view.HasTwoFactorToken || !view.HasApiToken || !view.HasSmtpPassword || !view.HasDiscordBotToken {
 		t.Fatalf("settings view did not report configured secret flags: %#v", view)
 	}
 }
@@ -94,9 +91,6 @@ func TestUpdateAllSettingPreservesRedactedSecrets(t *testing.T) {
 	setupSettingTestDB(t)
 	s := &SettingService{}
 	if err := s.saveSetting("tgBotToken", "telegram-secret"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.saveSetting("ldapPassword", "ldap-secret"); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.saveSetting("twoFactorEnable", "true"); err != nil {
@@ -122,9 +116,6 @@ func TestUpdateAllSettingPreservesRedactedSecrets(t *testing.T) {
 	}
 	if got, _ := s.GetTgBotToken(); got != "telegram-secret" {
 		t.Fatalf("tg token = %q, want preserved secret", got)
-	}
-	if got, _ := s.GetLdapPassword(); got != "ldap-secret" {
-		t.Fatalf("ldap password = %q, want preserved secret", got)
 	}
 	if got, _ := s.GetTwoFactorToken(); got != "JBSWY3DPEHPK3PXP" {
 		t.Fatalf("2fa token = %q, want preserved secret", got)
@@ -181,9 +172,6 @@ func TestUpdateAllSettingClearsFlaggedSecrets(t *testing.T) {
 	if err := s.saveSetting("tgBotToken", "telegram-secret"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.saveSetting("ldapPassword", "ldap-secret"); err != nil {
-		t.Fatal(err)
-	}
 	if err := s.saveSetting("smtpPassword", "smtp-secret"); err != nil {
 		t.Fatal(err)
 	}
@@ -204,9 +192,6 @@ func TestUpdateAllSettingClearsFlaggedSecrets(t *testing.T) {
 	if got, _ := s.GetTgBotToken(); got != "telegram-secret" {
 		t.Fatalf("tg token = %q, unflagged secret must stay preserved", got)
 	}
-	if got, _ := s.GetLdapPassword(); got != "ldap-secret" {
-		t.Fatalf("ldap password = %q, unflagged secret must stay preserved", got)
-	}
 	if got, _ := s.GetDiscordBotToken(); got != "discord-secret" {
 		t.Fatalf("discord token = %q, unflagged secret must stay preserved", got)
 	}
@@ -218,14 +203,11 @@ func TestUpdateAllSettingClearsFlaggedSecrets(t *testing.T) {
 	if view.HasSmtpPassword {
 		t.Fatal("hasSmtpPassword must report false after clearing")
 	}
-	if err := s.UpdateAllSetting(&view.AllSetting, SecretClears{TgBotToken: true, LdapPassword: true, DiscordBotToken: true}); err != nil {
+	if err := s.UpdateAllSetting(&view.AllSetting, SecretClears{TgBotToken: true, DiscordBotToken: true}); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := s.GetTgBotToken(); got != "" {
 		t.Fatalf("tg token = %q, want cleared", got)
-	}
-	if got, _ := s.GetLdapPassword(); got != "" {
-		t.Fatalf("ldap password = %q, want cleared", got)
 	}
 	if got, _ := s.GetDiscordBotToken(); got != "" {
 		t.Fatalf("discord token = %q, want cleared", got)

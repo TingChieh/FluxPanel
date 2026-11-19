@@ -1495,38 +1495,6 @@
       "trustedProxyCidrsDesc": "Comma-separated IPs/CIDRs allowed to set forwarded host, proto, and client IP headers.",
       "realityScanCandidates": "Reality scan candidates",
       "realityScanCandidatesDesc": "Comma-separated host:port targets (or CIDRs) used as the default list when Find Targets runs with an empty search. Customize this with destinations you reuse often.",
-      "ldap": {
-        "enable": "Enable LDAP sync",
-        "host": "LDAP host",
-        "port": "LDAP port",
-        "useTls": "Use TLS (LDAPS)",
-        "skipTlsVerify": "Skip TLS certificate verification",
-        "skipTlsVerifyDesc": "Insecure — disables server certificate validation. Use only with internal/untrusted CAs.",
-        "bindDn": "Bind DN",
-        "passwordConfigured": "Configured; leave blank to keep current password.",
-        "passwordUnconfigured": "Not configured.",
-        "passwordPlaceholder": "Configured - enter a new value to replace",
-        "baseDn": "Base DN",
-        "userFilter": "User filter",
-        "userAttr": "User attribute (username/email)",
-        "vlessField": "VLESS flag attribute",
-        "flagField": "Generic flag attribute (optional)",
-        "flagFieldDesc": "If set, overrides VLESS flag — e.g. shadowInactive.",
-        "truthyValues": "Truthy values",
-        "truthyValuesDesc": "Comma-separated; default: true,1,yes,on",
-        "invertFlag": "Invert flag",
-        "invertFlagDesc": "Enable when the attribute means disabled (e.g. shadowInactive).",
-        "syncSchedule": "Sync schedule",
-        "syncScheduleDesc": "Cron-like string, e.g. @every 1m",
-        "inboundTags": "Inbound tags",
-        "inboundTagsDesc": "Inbounds that LDAP sync may auto-create or auto-delete clients on.",
-        "noInbounds": "No inbounds found. Create one in Inbounds first.",
-        "autoCreate": "Auto create clients",
-        "autoDelete": "Auto delete clients",
-        "defaultTotalGb": "Default total (GB)",
-        "defaultExpiryDays": "Default expiry (days)",
-        "defaultIpLimit": "Default IP limit"
-      },
       "subFormats": {
         "finalMask": "Final Mask",
         "finalMaskDesc": "Inject Xray finalmask TCP/UDP masks and QUIC parameters into every generated Xray JSON profile. Requires a client app that supports Xray JSON subscriptions and a recent Xray core.",
@@ -2157,7 +2125,6 @@
         "tag": "Tag",
         "egress": "Egress",
         "egressHint": "Run an HTTP test to show egress IP and country.",
-        "outboundStatus": "Outbound Status",
         "sendThrough": "Send Through",
         "targetStrategy": "Target Strategy",
         "modeRealDelay": "Real delay",
@@ -2168,9 +2135,6 @@
         "breakdownTls": "TLS via outbound",
         "breakdownTtfb": "First byte",
         "country": "Country",
-        "server": "Server",
-        "city": "City",
-        "allCities": "All Cities",
         "moveToTop": "Move to top"
       },
       "outboundSub": {
@@ -2218,20 +2182,6 @@
         "toastRefreshFailed": "Refresh failed",
         "toastDeleted": "Deleted",
         "toastDeleteFailed": "Delete failed"
-      },
-      "pia": {
-        "menu": "PIA",
-        "username": "PIA username",
-        "password": "PIA password",
-        "account": "Account",
-        "region": "Region",
-        "allRegions": "All regions",
-        "noServers": "No servers found for the selected country",
-        "outboundAdded": "PIA outbound added",
-        "outboundUpdated": "PIA outbound updated",
-        "addedServers": "Added servers",
-        "alreadyAdded": "This server is already in the outbound list. Use {reset} to renew its key.",
-        "provisionFailed": "Could not build the PIA outbound. Try again."
       },
       "tabBalancerSettings": "Balancer Settings",
       "tabObservatory": "Observatory",
@@ -2303,48 +2253,6 @@
       "tun": {
         "userLevel": "User Level"
       },
-      "nord": {
-        "accessToken": "Access token",
-        "privateKey": "Private key",
-        "noServers": "No servers found for the selected country",
-        "noPublicKey": "Selected server does not advertise a NordLynx public key.",
-        "outboundAdded": "NordVPN outbound added",
-        "outboundUpdated": "NordVPN outbound updated",
-        "serverLoad": "Server load",
-        "addedServers": "Added servers",
-        "alreadyAdded": "This server is already in the outbound list. Use {reset} to refresh its key."
-      },
-      "warp": {
-        "changeIp": "Change IP",
-        "changeIpSuccess": "WARP IP changed successfully!",
-        "autoUpdateIp": "Auto Update IP Address",
-        "intervalDays": "Interval (Days)",
-        "intervalDesc": "0 to disable. Changes IP address automatically.",
-        "licenseError": "Failed to set WARP license.",
-        "fetchFirst": "Fetch the WARP config first.",
-        "createAccount": "Create WARP account",
-        "accessToken": "Access token",
-        "deviceId": "Device ID",
-        "licenseKey": "License key",
-        "privateKey": "Private key",
-        "deleteAccount": "Delete account",
-        "settings": "Settings",
-        "licenseKeyLabel": "WARP / WARP+ license key",
-        "key": "Key",
-        "keyPlaceholder": "26-char WARP+ key",
-        "accountInfo": "Account info",
-        "deviceName": "Device name",
-        "deviceModel": "Device model",
-        "deviceEnabled": "Device enabled",
-        "accountType": "Account type",
-        "role": "Role",
-        "warpPlusData": "WARP+ data",
-        "quota": "Quota",
-        "usage": "Usage",
-        "addOutbound": "Add outbound",
-        "masqueDesc": "Registers a separate WARP device enrolled for MASQUE; the WireGuard registration above is not affected.",
-        "addMasqueOutbound": "Add WARP over MASQUE outbound"
-      },
       "dns": {
         "enable": "Enable DNS",
         "enableDesc": "Enable built-in DNS server",
@@ -2402,7 +2310,10 @@
       "defaultOutboundDesc": "Traffic that does not match any routing rule uses this outbound (Xray uses the first outbound in the list).",
       "routingScript": "Routing Script",
       "routingScriptDesc": "Path to a .lua file defining HandleRoute, absolute or relative to the Xray bin folder. The script then picks every route and Xray ignores all routing rules, the panel's api rule included: send the api inbound to the api outbound or traffic stats and live client changes stop. Xray will not start if the file is missing or invalid.",
-      "routingScriptActive": "A routing script is set under {section}, so Xray ignores these rules."
+      "routingScriptActive": "A routing script is set under {section}, so Xray ignores these rules.",
+      "warp": {
+        "privateKey": "Private key"
+      }
     }
   },
   "tgbot": {

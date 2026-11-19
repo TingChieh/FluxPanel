@@ -2,16 +2,12 @@ package controller
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
-	piaprotocol "github.com/TingChieh/FluxPanel/internal/pia"
 	"github.com/TingChieh/FluxPanel/internal/util/common"
 	"github.com/TingChieh/FluxPanel/internal/web/service"
-	"github.com/TingChieh/FluxPanel/internal/web/service/integration"
 	"github.com/TingChieh/FluxPanel/internal/web/service/outbound"
 	"github.com/TingChieh/FluxPanel/internal/xray"
 
@@ -25,16 +21,13 @@ type XraySettingController struct {
 	InboundService              service.InboundService
 	OutboundService             outbound.OutboundService
 	XrayService                 service.XrayService
-	WarpService                 integration.WarpService
-	NordService                 integration.NordService
-	PiaService                  integration.PiaService
 	OutboundSubscriptionService service.OutboundSubscriptionService
 	GeodataService              service.GeodataService
 }
 
 // NewXraySettingController creates a new XraySettingController and initializes its routes.
 func NewXraySettingController(g *gin.RouterGroup) *XraySettingController {
-	a := &XraySettingController{PiaService: *integration.NewPiaService()}
+	a := &XraySettingController{}
 	a.initRouter(g)
 	return a
 }
@@ -47,9 +40,6 @@ func (a *XraySettingController) initRouter(g *gin.RouterGroup) {
 	g.GET("/getXrayResult", a.getXrayResult)
 
 	g.POST("/", a.getXraySetting)
-	g.POST("/warp/:action", a.warp)
-	g.POST("/nord/:action", a.nord)
-	g.POST("/pia/:action", a.pia)
 	g.POST("/update", a.updateSetting)
 	g.POST("/resetOutboundsTraffic", a.resetOutboundsTraffic)
 	g.POST("/testOutbound", a.testOutbound)
@@ -177,108 +167,6 @@ func (a *XraySettingController) getDefaultXrayConfig(c *gin.Context) {
 // getXrayResult retrieves the current Xray service result.
 func (a *XraySettingController) getXrayResult(c *gin.Context) {
 	jsonObj(c, a.XrayService.GetXrayResult(), nil)
-}
-
-// warp handles Warp-related operations based on the action parameter.
-func (a *XraySettingController) warp(c *gin.Context) {
-	action := c.Param("action")
-	var resp string
-	var err error
-	switch action {
-	case "data":
-		resp, err = a.WarpService.GetWarpData()
-	case "del":
-		err = a.WarpService.DelWarpData()
-	case "config":
-		resp, err = a.WarpService.GetWarpConfig()
-	case "reg":
-		skey := c.PostForm("privateKey")
-		pkey := c.PostForm("publicKey")
-		resp, err = a.WarpService.RegWarp(skey, pkey)
-	case "regMasque":
-		resp, err = a.WarpService.RegWarpMasque()
-	case "changeIp":
-		resp, err = a.WarpService.ChangeWarpIP()
-		if err == nil {
-			a.XrayService.SetToNeedRestart()
-			// Restart the auto-update clock so a scheduled rotation
-			// doesn't fire right after this manual one.
-			err = a.SettingService.SetWarpLastUpdate(time.Now().Unix())
-		}
-	case "license":
-		license := c.PostForm("license")
-		resp, err = a.WarpService.SetWarpLicense(license)
-	case "interval":
-		interval, convErr := strconv.Atoi(c.PostForm("interval"))
-		if convErr != nil || interval < 0 {
-			err = common.NewError("invalid warp update interval")
-		} else if err = a.SettingService.SetWarpUpdateInterval(interval); err == nil && interval > 0 {
-			// Count the interval from now rather than from epoch 0,
-			// otherwise the job would rotate on its next tick.
-			err = a.SettingService.SetWarpLastUpdate(time.Now().Unix())
-		}
-	}
-
-	jsonObj(c, resp, err)
-}
-
-// nord handles NordVPN-related operations based on the action parameter.
-func (a *XraySettingController) nord(c *gin.Context) {
-	action := c.Param("action")
-	var resp string
-	var err error
-	switch action {
-	case "countries":
-		resp, err = a.NordService.GetCountries()
-	case "servers":
-		countryId := c.PostForm("countryId")
-		resp, err = a.NordService.GetServers(countryId)
-	case "reg":
-		token := c.PostForm("token")
-		resp, err = a.NordService.GetCredentials(token)
-	case "setKey":
-		key := c.PostForm("key")
-		resp, err = a.NordService.SetKey(key)
-	case "data":
-		resp, err = a.NordService.GetNordData()
-	case "del":
-		err = a.NordService.DelNordData()
-	}
-
-	jsonObj(c, resp, err)
-}
-
-func (a *XraySettingController) pia(c *gin.Context) {
-	action := c.Param("action")
-	var resp any
-	var err error
-	switch action {
-	case "countries":
-		resp, err = a.PiaService.GetCountries()
-	case "servers":
-		resp, err = a.PiaService.GetServers(c.PostForm("countryCode"))
-	case "reg":
-		resp, err = a.PiaService.Login(c.PostForm("username"), c.PostForm("password"))
-	case "data":
-		resp, err = a.PiaService.GetPiaData()
-	case "del":
-		err = a.PiaService.DelPiaData()
-	case "addKey":
-		resp, err = a.PiaService.AddKey(c.PostForm("hostname"))
-	default:
-		jsonMsg(c, "unknown action", common.NewError("unknown action"))
-		return
-	}
-	if err != nil {
-		var pe *piaprotocol.Error
-		if errors.As(err, &pe) && pe != nil {
-			jsonObj(c, nil, common.NewError(pe.Message))
-			return
-		}
-		jsonObj(c, nil, err)
-		return
-	}
-	jsonObj(c, resp, nil)
 }
 
 // getOutboundsTraffic retrieves the traffic statistics for outbounds.

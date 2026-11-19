@@ -1993,7 +1993,7 @@ export const sections: readonly Section[] = [
         method: 'POST',
         path: '/panel/api/setting/all',
         summary:
-          'Return every panel setting: web server, Telegram bot, subscription, security, LDAP. The full JSON blob that the Settings page edits.',
+          'Return every panel setting: web server, Telegram bot, subscription, security. The full JSON blob that the Settings page edits.',
         response:
           '{\n  "success": true,\n  "obj": {\n    "webPort": 2053,\n    "webCertFile": "",\n    "webKeyFile": "",\n    "webBasePath": "/",\n    "subPort": 10882,\n    "subPath": "/sub/",\n    "subClashAutoDetect": false,\n    "subClashUserAgentRegex": "",\n    "subJsonEnable": false,\n    "subJsonAutoDetect": false,\n    "subJsonAlwaysArray": false,\n    "subJsonUserAgentRegex": "",\n    "subJsonPath": "/json/",\n    "subJsonURI": "https://sub.example.com/json/",\n    "subClashEnable": true,\n    "subClashPath": "/clash/",\n    "subClashURI": "https://sub.example.com/clash/",\n    "tgBotEnable": false,\n    "tgBotToken": "",\n    ...\n  }\n}',
       },
@@ -2168,7 +2168,7 @@ export const sections: readonly Section[] = [
     id: 'xray-settings',
     title: 'Xray Settings',
     description:
-      'Xray configuration template, outbound management, Warp/Nord/PIA integration, and config testing. All endpoints under /panel/api/xray.',
+      'Xray configuration template, outbound management, and config testing. All endpoints under /panel/api/xray.',
     endpoints: [
       {
         method: 'POST',
@@ -2213,122 +2213,6 @@ export const sections: readonly Section[] = [
             in: 'body (form)',
             type: 'string',
             desc: 'URL used for outbound reachability tests. Defaults to https://www.google.com/generate_204.',
-            optional: true,
-          },
-        ],
-      },
-      {
-        method: 'POST',
-        path: '/panel/api/xray/warp/:action',
-        summary: 'Manage Cloudflare Warp integration. The action parameter selects the operation.',
-        params: [
-          {
-            name: 'action',
-            in: 'path',
-            type: 'string',
-            desc: 'data — return Warp stats. del — delete Warp data. config — return current config. reg — register (sends keys). regMasque — register a separate device enrolled for MASQUE and return its warp key pair, addresses and endpoint. changeIp — rotate the endpoint. license — set a Warp+ key. interval — set automatic rotation in hours.',
-          },
-          {
-            name: 'privateKey',
-            in: 'body (form)',
-            type: 'string',
-            desc: 'Required when action=reg.',
-            optional: true,
-          },
-          {
-            name: 'publicKey',
-            in: 'body (form)',
-            type: 'string',
-            desc: 'Required when action=reg.',
-            optional: true,
-          },
-          {
-            name: 'license',
-            in: 'body (form)',
-            type: 'string',
-            desc: 'Required when action=license.',
-            optional: true,
-          },
-          {
-            name: 'interval',
-            in: 'body (form)',
-            type: 'integer',
-            desc: 'Non-negative hours between automatic rotations. Required when action=interval; 0 disables rotation.',
-            optional: true,
-          },
-        ],
-      },
-      {
-        method: 'POST',
-        path: '/panel/api/xray/nord/:action',
-        summary: 'Manage NordVPN integration. The action parameter selects the operation.',
-        params: [
-          {
-            name: 'action',
-            in: 'path',
-            type: 'string',
-            desc: 'countries — list available countries. servers — list servers in a country (sends countryId). reg — get NordVPN credentials (sends token). setKey — store NordVPN API key (sends key). data — return current NordVPN connection data. del — delete NordVPN data.',
-          },
-          {
-            name: 'countryId',
-            in: 'body (form)',
-            type: 'string',
-            desc: 'Required when action=servers.',
-            optional: true,
-          },
-          {
-            name: 'token',
-            in: 'body (form)',
-            type: 'string',
-            desc: 'Required when action=reg.',
-            optional: true,
-          },
-          {
-            name: 'key',
-            in: 'body (form)',
-            type: 'string',
-            desc: 'Required when action=setKey.',
-            optional: true,
-          },
-        ],
-      },
-      {
-        method: 'POST',
-        path: '/panel/api/xray/pia/:action',
-        summary: 'Manage PIA WireGuard integration. The action parameter selects the operation.',
-        params: [
-          {
-            name: 'action',
-            in: 'path',
-            type: 'string',
-            desc: 'countries — list available countries from the signed PIA server list. servers — list regions and WireGuard servers in a country (sends countryCode). reg — sign in with a PIA username and password (sends username, password). data — return the signed-in account hint. del — delete stored PIA credentials. addKey — register a WireGuard key with the selected server (sends hostname) and return fields to build the outbound.',
-          },
-          {
-            name: 'username',
-            in: 'body (form)',
-            type: 'string',
-            desc: 'Required when action=reg.',
-            optional: true,
-          },
-          {
-            name: 'password',
-            in: 'body (form)',
-            type: 'string',
-            desc: 'Required when action=reg.',
-            optional: true,
-          },
-          {
-            name: 'countryCode',
-            in: 'body (form)',
-            type: 'string',
-            desc: 'Required when action=servers.',
-            optional: true,
-          },
-          {
-            name: 'hostname',
-            in: 'body (form)',
-            type: 'string',
-            desc: 'Required when action=addKey.',
             optional: true,
           },
         ],
