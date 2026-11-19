@@ -722,6 +722,7 @@ export interface Node {
   port: number;
   remark: string;
   scheme: string;
+  skipClientIpSync: boolean;
   status: string;
   tlsVerifyMode: string;
   totalDown: number;
@@ -759,6 +760,7 @@ export interface NodeMutationRequest {
   port: number;
   remark: string;
   scheme: string;
+  skipClientIpSync: boolean;
   tlsVerifyMode: string;
 }
 

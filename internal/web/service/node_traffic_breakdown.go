@@ -89,11 +89,14 @@ func (s *NodeService) GetNodeTrafficBreakdown(nodeID int) (*NodeTrafficBreakdown
 	}
 	byEmail := make(map[string]NodeClientTrafficItem, len(rows))
 	for _, r := range rows {
+		if r.Detached && r.AccUp == 0 && r.AccDown == 0 {
+			continue
+		}
 		byEmail[r.Email] = NodeClientTrafficItem{
 			Email: r.Email,
-			Up:    r.Up,
-			Down:  r.Down,
-			Total: r.Up + r.Down,
+			Up:    r.AccUp,
+			Down:  r.AccDown,
+			Total: r.AccUp + r.AccDown,
 		}
 	}
 
@@ -143,44 +146,50 @@ func localNodeTrafficBreakdown(db *gorm.DB) (*NodeTrafficBreakdown, error) {
 		Pluck("clients.email", &localEmails).Error; err != nil {
 		return nil, err
 	}
+	attachedLocal := make(map[string]struct{}, len(localEmails))
+	for _, email := range localEmails {
+		attachedLocal[email] = struct{}{}
+	}
+
+	var totals []xray.ClientTraffic
+	if err := db.Model(&xray.ClientTraffic{}).Find(&totals).Error; err != nil {
+		return nil, err
+	}
+	var remoteSums []struct {
+		Email string
+		Up    int64
+		Down  int64
+	}
+	if err := db.Table("node_client_traffics").
+		Select("email, COALESCE(SUM(acc_up), 0) AS up, COALESCE(SUM(acc_down), 0) AS down").
+		Group("email").
+		Scan(&remoteSums).Error; err != nil {
+		return nil, err
+	}
+	remoteByEmail := make(map[string][2]int64, len(remoteSums))
+	for _, rs := range remoteSums {
+		remoteByEmail[rs.Email] = [2]int64{rs.Up, rs.Down}
+	}
 
 	byEmail := make(map[string]NodeClientTrafficItem, len(localEmails))
-	if len(localEmails) > 0 {
-		var totals []xray.ClientTraffic
-		if err := db.Model(&xray.ClientTraffic{}).Where("email IN ?", localEmails).Find(&totals).Error; err != nil {
-			return nil, err
+	for _, ct := range totals {
+		rem := remoteByEmail[ct.Email]
+		up := max(int64(0), ct.Up-rem[0])
+		down := max(int64(0), ct.Down-rem[1])
+		_, isAttached := attachedLocal[ct.Email]
+		if !isAttached && up == 0 && down == 0 {
+			continue
 		}
-		var remoteSums []struct {
-			Email string
-			Up    int64
-			Down  int64
+		byEmail[ct.Email] = NodeClientTrafficItem{
+			Email: ct.Email,
+			Up:    up,
+			Down:  down,
+			Total: up + down,
 		}
-		if err := db.Table("node_client_traffics").
-			Select("email, COALESCE(SUM(up), 0) AS up, COALESCE(SUM(down), 0) AS down").
-			Where("email IN ?", localEmails).
-			Group("email").
-			Scan(&remoteSums).Error; err != nil {
-			return nil, err
-		}
-		remoteByEmail := make(map[string][2]int64, len(remoteSums))
-		for _, rs := range remoteSums {
-			remoteByEmail[rs.Email] = [2]int64{rs.Up, rs.Down}
-		}
-		totalByEmail := make(map[string][2]int64, len(totals))
-		for _, ct := range totals {
-			totalByEmail[ct.Email] = [2]int64{ct.Up, ct.Down}
-		}
-		for _, email := range localEmails {
-			tot := totalByEmail[email]
-			rem := remoteByEmail[email]
-			up := max(int64(0), tot[0]-rem[0])
-			down := max(int64(0), tot[1]-rem[1])
-			byEmail[email] = NodeClientTrafficItem{
-				Email: email,
-				Up:    up,
-				Down:  down,
-				Total: up + down,
-			}
+	}
+	for _, email := range localEmails {
+		if _, exists := byEmail[email]; !exists {
+			byEmail[email] = NodeClientTrafficItem{Email: email}
 		}
 	}
 
@@ -225,11 +234,12 @@ func (s *InboundService) GetClientNodeTraffics(email string) ([]ClientNodeTraffi
 	var nodeRows []struct {
 		NodeId   int
 		NodeName string
-		Up       int64
-		Down     int64
+		AccUp    int64
+		AccDown  int64
+		Detached bool
 	}
 	if err := db.Table("node_client_traffics nct").
-		Select("nct.node_id AS node_id, COALESCE(nodes.name, '') AS node_name, nct.up AS up, nct.down AS down").
+		Select("nct.node_id AS node_id, COALESCE(nodes.name, '') AS node_name, nct.acc_up AS acc_up, nct.acc_down AS acc_down, nct.detached AS detached").
 		Joins("LEFT JOIN nodes ON nodes.id = nct.node_id").
 		Where("nct.email = ?", email).
 		Scan(&nodeRows).Error; err != nil {
@@ -264,14 +274,17 @@ func (s *InboundService) GetClientNodeTraffics(email string) ([]ClientNodeTraffi
 
 	var sumRemoteUp, sumRemoteDown int64
 	for _, nr := range nodeRows {
-		sumRemoteUp += nr.Up
-		sumRemoteDown += nr.Down
+		if nr.Detached && nr.AccUp == 0 && nr.AccDown == 0 {
+			continue
+		}
+		sumRemoteUp += nr.AccUp
+		sumRemoteDown += nr.AccDown
 		byNode[nr.NodeId] = ClientNodeTrafficItem{
 			NodeId:   nr.NodeId,
 			NodeName: nr.NodeName,
-			Up:       nr.Up,
-			Down:     nr.Down,
-			Total:    nr.Up + nr.Down,
+			Up:       nr.AccUp,
+			Down:     nr.AccDown,
+			Total:    nr.AccUp + nr.AccDown,
 		}
 	}
 

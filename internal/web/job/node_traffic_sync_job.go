@@ -443,7 +443,7 @@ func (j *NodeTrafficSyncJob) syncOne(mgr *runtime.Manager, n *model.Node, doIpSy
 		active = append(active, emails...)
 	}
 
-	if !doIpSync {
+	if !doIpSync || n.SkipClientIpSync {
 		return active
 	}
 

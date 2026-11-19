@@ -216,11 +216,44 @@ type nodeTrafficCounter struct {
 	Down int64
 }
 
-func (s *InboundService) upsertNodeBaseline(tx *gorm.DB, nodeID int, email string, up, down int64) error {
+func (s *InboundService) upsertNodeBaseline(tx *gorm.DB, nodeID int, email string, up, down, addUp, addDown int64) error {
+	addUp = max(int64(0), addUp)
+	addDown = max(int64(0), addDown)
 	return tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "node_id"}, {Name: "email"}},
-		DoUpdates: clause.AssignmentColumns([]string{"up", "down"}),
-	}).Create(&model.NodeClientTraffic{NodeId: nodeID, Email: email, Up: up, Down: down}).Error
+		Columns: []clause.Column{{Name: "node_id"}, {Name: "email"}},
+		DoUpdates: clause.Assignments(map[string]any{
+			"up":       up,
+			"down":     down,
+			"acc_up":   gorm.Expr(database.ClampedAddExpr("acc_up"), addUp),
+			"acc_down": gorm.Expr(database.ClampedAddExpr("acc_down"), addDown),
+			"detached": false,
+		}),
+	}).Create(&model.NodeClientTraffic{
+		NodeId:   nodeID,
+		Email:    email,
+		Up:       up,
+		Down:     down,
+		AccUp:    clampTrafficCounter(addUp),
+		AccDown:  clampTrafficCounter(addDown),
+		Detached: false,
+	}).Error
+}
+
+// detachNodeBaselines drops empty baselines and preserves historical acc totals
+// with zeroed cursors so detaching a client never shifts node usage to local.
+func detachNodeBaselines(tx *gorm.DB, nodeID int, emails []string) error {
+	for _, batch := range chunkStrings(emails, sqliteMaxVars) {
+		if err := tx.Model(&model.NodeClientTraffic{}).
+			Where("node_id = ? AND email IN ? AND (acc_up > 0 OR acc_down > 0)", nodeID, batch).
+			Updates(map[string]any{"up": 0, "down": 0, "detached": true}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("node_id = ? AND email IN ? AND acc_up = 0 AND acc_down = 0", nodeID, batch).
+			Delete(&model.NodeClientTraffic{}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // mergeNodeClientTraffic folds one node-reported client into its central row.
@@ -582,7 +615,7 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 	nodeBaselines := make(map[string]nodeTrafficCounter)
 	var baselineRows []model.NodeClientTraffic
 	if err := db.Model(&model.NodeClientTraffic{}).
-		Where("node_id = ?", nodeID).
+		Where("node_id = ? AND detached = ?", nodeID, false).
 		Find(&baselineRows).Error; err != nil {
 		return false, err
 	}
@@ -991,13 +1024,8 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 					baselineGone = append(baselineGone, e)
 				}
 			}
-			// Chunk to avoid SQLite bind var limit when a node has many clients
-			// removed (e.g. after API bulk delete or structural change on node inbound).
-			for _, batch := range chunkStrings(baselineGone, sqliteMaxVars) {
-				if err := tx.Where("node_id = ? AND email IN ?", nodeID, batch).
-					Delete(&model.NodeClientTraffic{}).Error; err != nil {
-					return false, err
-				}
+			if err := detachNodeBaselines(tx, nodeID, baselineGone); err != nil {
+				return false, err
 			}
 			// The per-email row is the shared accumulator across every inbound
 			// (and node) the email is attached to. Only drop it when this was the
@@ -1036,6 +1064,10 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 			for _, batch := range chunkStrings(delEmails, sqliteMaxVars) {
 				if err := tx.Where("inbound_id = ? AND email IN ?", c.Id, batch).
 					Delete(&xray.ClientTraffic{}).Error; err != nil {
+					return false, err
+				}
+				if err := tx.Where("email IN ?", batch).
+					Delete(&model.NodeClientTraffic{}).Error; err != nil {
 					return false, err
 				}
 			}
@@ -1130,7 +1162,7 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 				centralCSByEmail[cs.Email] = row
 				statByEmail[cs.Email] = row
 				structuralChange = true
-				if err := s.upsertNodeBaseline(tx, nodeID, cs.Email, canon.Up, canon.Down); err != nil {
+				if err := s.upsertNodeBaseline(tx, nodeID, cs.Email, canon.Up, canon.Down, seedUp, seedDown); err != nil {
 					return false, err
 				}
 				nodeBaselines[cs.Email] = nodeTrafficCounter{Up: canon.Up, Down: canon.Down}
@@ -1181,6 +1213,9 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 				if err := clearGlobalTraffic(tx, cs.Email); err != nil {
 					return false, err
 				}
+				if err := tx.Where("email = ?", cs.Email).Delete(&model.NodeClientTraffic{}).Error; err != nil {
+					return false, err
+				}
 				existing.Up = canon.Up
 				existing.Down = canon.Down
 				existing.Enable = cs.Enable
@@ -1222,10 +1257,14 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 			if clientFrozen && seen && (canon.Up < base.Up || canon.Down < base.Down) {
 				continue
 			}
-			if seen && base == canon {
+			addUp, addDown := deltaUp, deltaDown
+			if renewed {
+				addUp, addDown = canon.Up, canon.Down
+			}
+			if !renewed && seen && base == canon && addUp == 0 && addDown == 0 {
 				continue
 			}
-			if err := s.upsertNodeBaseline(tx, nodeID, cs.Email, canon.Up, canon.Down); err != nil {
+			if err := s.upsertNodeBaseline(tx, nodeID, cs.Email, canon.Up, canon.Down, addUp, addDown); err != nil {
 				return false, err
 			}
 			nodeBaselines[cs.Email] = nodeTrafficCounter{Up: canon.Up, Down: canon.Down}
@@ -1251,10 +1290,6 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 			if _, still := snapEmailsAll[k.email]; still {
 				continue
 			}
-			if err := tx.Where("node_id = ? AND email = ?", nodeID, existing.Email).
-				Delete(&model.NodeClientTraffic{}).Error; err != nil {
-				return false, err
-			}
 			// Same shared-accumulator rule as the inbound-removal sweep above:
 			// keep the row while another inbound still references the email.
 			stillUsed, uErr := s.emailUsedByOtherInbounds(tx, existing.Email, c.Id)
@@ -1268,8 +1303,30 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 					Delete(&xray.ClientTraffic{}).Error; err != nil {
 					return false, err
 				}
+				if err := tx.Where("node_id = ? AND email = ?", nodeID, existing.Email).
+					Delete(&model.NodeClientTraffic{}).Error; err != nil {
+					return false, err
+				}
+			} else {
+				if err := detachNodeBaselines(tx, nodeID, []string{existing.Email}); err != nil {
+					return false, err
+				}
 			}
 			structuralChange = true
+		}
+	}
+
+	if !dirty && len(degradedInbounds) == 0 && len(snapTags) > 0 {
+		var goneFromNode []string
+		for email := range nodeBaselines {
+			if _, still := snapEmailsAll[email]; !still {
+				goneFromNode = append(goneFromNode, email)
+			}
+		}
+		if len(goneFromNode) > 0 {
+			if err := detachNodeBaselines(tx, nodeID, goneFromNode); err != nil {
+				return false, err
+			}
 		}
 	}
 

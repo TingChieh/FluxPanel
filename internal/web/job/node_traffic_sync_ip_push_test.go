@@ -84,3 +84,46 @@ func TestNodeTrafficSyncPushesOnlyHostedClientIps(t *testing.T) {
 		}
 	}
 }
+
+func TestNodeTrafficSync_SkipClientIpSyncSkipsAllIpEndpoints(t *testing.T) {
+	xuilogger.InitLogger(logging.ERROR)
+	dbtest.InitDB(t, filepath.Join(t.TempDir(), "x-ui.db"))
+	service.StartTrafficWriter()
+	t.Cleanup(service.StopTrafficWriter)
+	runtime.SetManager(runtime.NewManager(runtime.LocalDeps{APIPort: func() int { return 0 }, SetNeedRestart: func() {}}))
+	t.Cleanup(func() { runtime.SetManager(nil) })
+
+	var mu sync.Mutex
+	var ipPaths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, "clientIps") {
+			mu.Lock()
+			ipPaths = append(ipPaths, r.Method+" "+r.URL.Path)
+			mu.Unlock()
+		}
+		if strings.HasSuffix(r.URL.Path, "inbounds/list") {
+			_, _ = w.Write([]byte(`{"success":true,"obj":[]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"success":true}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	host, port, _ := strings.Cut(strings.TrimPrefix(srv.URL, "http://"), ":")
+	portNum, _ := strconv.Atoi(port)
+	if err := database.GetDB().Create(&model.Node{
+		Name: "hk-private", Scheme: "http", Address: host, Port: portNum, BasePath: "/", ApiToken: "tok",
+		Enable: true, Status: "online", AllowPrivateAddress: true, TlsVerifyMode: "verify", SkipClientIpSync: true,
+	}).Error; err != nil {
+		t.Fatalf("create node: %v", err)
+	}
+
+	NewNodeTrafficSyncJob().Run()
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(ipPaths) != 0 {
+		t.Fatalf("SkipClientIpSync node should not call IP endpoints, got %v", ipPaths)
+	}
+}

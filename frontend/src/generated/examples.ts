@@ -894,6 +894,7 @@ export const EXAMPLES: Record<string, unknown> = {
     "port": 2053,
     "remark": "",
     "scheme": "https",
+    "skipClientIpSync": false,
     "status": "online",
     "tlsVerifyMode": "verify",
     "totalDown": 5368709120,
@@ -933,6 +934,7 @@ export const EXAMPLES: Record<string, unknown> = {
     "port": 1,
     "remark": "",
     "scheme": "http",
+    "skipClientIpSync": false,
     "tlsVerifyMode": "verify"
   },
   "NodeTrafficBreakdown": {

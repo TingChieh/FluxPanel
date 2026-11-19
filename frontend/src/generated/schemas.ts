@@ -3184,6 +3184,9 @@ export const SCHEMAS: Record<string, unknown> = {
         "example": "https",
         "type": "string"
       },
+      "skipClientIpSync": {
+        "type": "boolean"
+      },
       "status": {
         "description": "Heartbeat-updated fields. UpdatedAt advances on every probe even when\nthe row is otherwise unchanged so the UI's \"last seen\" tooltip is\ntruthful without us having to read LastHeartbeat separately.\nonline|offline|unknown",
         "example": "online",
@@ -3277,6 +3280,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "port",
       "remark",
       "scheme",
+      "skipClientIpSync",
       "status",
       "tlsVerifyMode",
       "totalDown",
@@ -3383,6 +3387,9 @@ export const SCHEMAS: Record<string, unknown> = {
         ],
         "type": "string"
       },
+      "skipClientIpSync": {
+        "type": "boolean"
+      },
       "tlsVerifyMode": {
         "enum": [
           "verify",
@@ -3407,6 +3414,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "port",
       "remark",
       "scheme",
+      "skipClientIpSync",
       "tlsVerifyMode"
     ],
     "type": "object"

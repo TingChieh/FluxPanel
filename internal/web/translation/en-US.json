@@ -1199,6 +1199,8 @@
       "apiTokenKeepHint": "Leave blank to keep the current token",
       "allowPrivateAddress": "Allow private address",
       "allowPrivateAddressHint": "Enable only for nodes on a private network or VPN.",
+      "skipClientIpSync": "Skip client IP sync",
+      "skipClientIpSyncHint": "Keep traffic and online stats synced without pulling or storing this node's client source IPs on the master panel.",
       "outboundTag": "Connection outbound",
       "outboundTagHint": "Route this node's panel API traffic through the selected Xray outbound. A loopback bridge inbound is added to the running config automatically and applied live. Leave empty for a direct connection.",
       "outboundTagPlaceholder": "Direct connection",

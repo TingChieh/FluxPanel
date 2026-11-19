@@ -138,6 +138,7 @@ type NodeMutationRequest struct {
 	InboundSyncMode     string   `json:"inboundSyncMode" form:"inboundSyncMode" validate:"omitempty,oneof=all selected"`
 	InboundTags         []string `json:"inboundTags" form:"inboundTags"`
 	OutboundTag         string   `json:"outboundTag" form:"outboundTag"`
+	SkipClientIpSync    bool     `json:"skipClientIpSync" form:"skipClientIpSync"`
 }
 
 func (r *NodeMutationRequest) validateCredentials(create bool) error {
@@ -186,6 +187,7 @@ func (r *NodeMutationRequest) toNode() *model.Node {
 		InboundSyncMode:     r.InboundSyncMode,
 		InboundTags:         r.InboundTags,
 		OutboundTag:         r.OutboundTag,
+		SkipClientIpSync:    r.SkipClientIpSync,
 	}
 	if r.ApiToken != nil {
 		n.ApiToken = *r.ApiToken

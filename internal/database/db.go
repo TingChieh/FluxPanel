@@ -128,6 +128,43 @@ func migrateClientKeepAliveRangeColumn() error {
 	return migrator.AddColumn(&model.ClientRecord{}, "KeepAliveRange")
 }
 
+func migrateNodeClientTrafficAccColumns() error {
+	migrator := db.Migrator()
+	if !migrator.HasTable(&model.NodeClientTraffic{}) {
+		return nil
+	}
+	addedAcc := false
+	if !migrator.HasColumn(&model.NodeClientTraffic{}, "acc_up") {
+		if err := migrator.AddColumn(&model.NodeClientTraffic{}, "AccUp"); err != nil {
+			return err
+		}
+		addedAcc = true
+	}
+	if !migrator.HasColumn(&model.NodeClientTraffic{}, "acc_down") {
+		if err := migrator.AddColumn(&model.NodeClientTraffic{}, "AccDown"); err != nil {
+			return err
+		}
+		addedAcc = true
+	}
+	if !migrator.HasColumn(&model.NodeClientTraffic{}, "detached") {
+		if err := migrator.AddColumn(&model.NodeClientTraffic{}, "Detached"); err != nil {
+			return err
+		}
+	}
+	if addedAcc {
+		return db.Exec("UPDATE node_client_traffics SET acc_up = up, acc_down = down WHERE acc_up = 0 AND acc_down = 0 AND (up > 0 OR down > 0)").Error
+	}
+	return nil
+}
+
+func migrateNodeSkipClientIpSyncColumn() error {
+	migrator := db.Migrator()
+	if !migrator.HasTable(&model.Node{}) || migrator.HasColumn(&model.Node{}, "skip_client_ip_sync") {
+		return nil
+	}
+	return migrator.AddColumn(&model.Node{}, "SkipClientIpSync")
+}
+
 func initModels() error {
 	if err := migrateClientKeepAliveRangeColumn(); err != nil {
 		return err
@@ -145,6 +182,12 @@ func initModels() error {
 		return err
 	}
 	if err := migrateClientExternalLinkDialerProxyColumn(); err != nil {
+		return err
+	}
+	if err := migrateNodeClientTrafficAccColumns(); err != nil {
+		return err
+	}
+	if err := migrateNodeSkipClientIpSyncColumn(); err != nil {
 		return err
 	}
 	models := allModels()
@@ -1110,7 +1153,7 @@ func repairOverflowedTrafficCounters() error {
 		{"client_traffics", []string{"up", "down"}},
 		{"inbounds", []string{"up", "down"}},
 		{"outbound_traffics", []string{"up", "down", "total"}},
-		{"node_client_traffics", []string{"up", "down"}},
+		{"node_client_traffics", []string{"up", "down", "acc_up", "acc_down"}},
 	}
 	for _, target := range targets {
 		for _, col := range target.columns {

@@ -49,6 +49,7 @@ function defaultValues(): NodeFormValues {
     hasStoredToken: false,
     enable: true,
     allowPrivateAddress: false,
+    skipClientIpSync: false,
     tlsVerifyMode: 'verify',
     pinnedCertSha256: '',
     inboundSyncMode: 'all',
@@ -149,6 +150,7 @@ export default function NodeFormModal({
       basePath: values.basePath.trim() || '/',
       enable: values.enable,
       allowPrivateAddress: values.allowPrivateAddress,
+      skipClientIpSync: Boolean(values.skipClientIpSync),
       tlsVerifyMode: values.tlsVerifyMode,
       pinnedCertSha256: values.tlsVerifyMode === 'pin' ? values.pinnedCertSha256.trim() : '',
       inboundSyncMode: values.inboundSyncMode,
@@ -328,6 +330,15 @@ export default function NodeFormModal({
               name="allowPrivateAddress"
               valueProp="checked"
               tooltip={t('pages.nodes.allowPrivateAddressHint')}
+            >
+              <Switch />
+            </FormField>
+
+            <FormField
+              label={t('pages.nodes.skipClientIpSync')}
+              name="skipClientIpSync"
+              valueProp="checked"
+              tooltip={t('pages.nodes.skipClientIpSyncHint')}
             >
               <Switch />
             </FormField>

@@ -1076,6 +1076,8 @@
       "apiTokenKeepHint": "留空以保留当前令牌",
       "allowPrivateAddress": "允许私有地址",
       "allowPrivateAddressHint": "仅对私有网络或 VPN 上的节点启用。",
+      "skipClientIpSync": "跳过客户端 IP 同步",
+      "skipClientIpSyncHint": "仅同步该节点的流量与在线状态，不向主面板拉取或落库该节点的客户端源 IP。",
       "outboundTag": "连接出站",
       "outboundTagHint": "通过选定的 Xray 出站路由此节点的面板 API 流量。系统会自动将回环桥接入站添加到运行配置并实时应用。留空表示直接连接。",
       "outboundTagPlaceholder": "直接连接",

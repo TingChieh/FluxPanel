@@ -50,7 +50,7 @@ func seedWebNodeTrafficFixture(t *testing.T) string {
 	if err := db.Create(&xray.ClientTraffic{InboundId: 1, Email: "alice@test", Enable: true, Up: 350, Down: 850}).Error; err != nil {
 		t.Fatalf("seed client_traffic: %v", err)
 	}
-	if err := db.Create(&model.NodeClientTraffic{NodeId: 1, Email: "alice@test", Up: 300, Down: 700}).Error; err != nil {
+	if err := db.Create(&model.NodeClientTraffic{NodeId: 1, Email: "alice@test", Up: 300, Down: 700, AccUp: 300, AccDown: 700}).Error; err != nil {
 		t.Fatalf("seed node_client_traffic: %v", err)
 	}
 	return token

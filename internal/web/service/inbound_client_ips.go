@@ -24,7 +24,7 @@ func (s *InboundService) GetAllInboundClientIps() ([]model.InboundClientIps, err
 // Per-node pushes are scoped to it so their cost tracks the node, not the fleet.
 func nodeHostedEmails(db *gorm.DB, nodeID int) ([]string, error) {
 	var emails []string
-	err := db.Model(&model.NodeClientTraffic{}).Where("node_id = ?", nodeID).Pluck("email", &emails).Error
+	err := db.Model(&model.NodeClientTraffic{}).Where("node_id = ? AND detached = ?", nodeID, false).Pluck("email", &emails).Error
 	return emails, err
 }
 
