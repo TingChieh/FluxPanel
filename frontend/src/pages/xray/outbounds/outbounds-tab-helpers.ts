@@ -53,7 +53,6 @@ export function outboundAddresses(o: OutboundRow): string[] {
       return addr || port ? [`${addr}:${port}`] : [];
     }
     case isOutboundProtocol(o, Protocols.Wireguard):
-    case isOutboundProtocol(o, Protocols.AmneziaWG):
       return ((settings?.peers as Array<{ endpoint?: string }>) || [])
         .map((p) => p.endpoint || '')
         .filter(Boolean);

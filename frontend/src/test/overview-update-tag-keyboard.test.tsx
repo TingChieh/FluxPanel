@@ -25,7 +25,6 @@ describe('OverviewActionBar update tag', () => {
         onRestartXray={noop}
         onOpenLogs={noop}
         onOpenXrayLogs={noop}
-        onOpenAmneziaWGLogs={noop}
         onOpenConfig={noop}
         onOpenBackup={noop}
         onOpenSystemHistory={noop}

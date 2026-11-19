@@ -50,7 +50,6 @@ func TestOutboundTransportIsUDPMatchesTheCore(t *testing.T) {
 		{"canonical wireguard", map[string]any{"protocol": "wireguard"}, true},
 		{"capitalised wireguard", map[string]any{"protocol": "WireGuard"}, true},
 		{"upper hysteria", map[string]any{"protocol": "HYSTERIA"}, true},
-		{"amneziawg", map[string]any{"protocol": "amneziawg"}, true},
 		// The core's MASQUE client dials HTTP/3 over QUIC unless the ALPN offers h2 without h3.
 		{"masque over http/3", map[string]any{"protocol": "masque", "streamSettings": map[string]any{"network": "masque"}}, true},
 		{"masque pinned to http/2", map[string]any{"protocol": "masque", "streamSettings": map[string]any{"network": "masque", "tlsSettings": map[string]any{"alpn": []any{"h2"}}}}, false},
@@ -75,10 +74,9 @@ func TestOutboundTransportIsUDPMatchesTheCore(t *testing.T) {
 func TestBuildBatchTestConfigReadsTheProtocolIDLikeTheCore(t *testing.T) {
 	items := []*httpBatchItem{
 		{tag: "wg", outbound: map[string]any{"tag": "wg", "protocol": "WireGuard"}},
-		{tag: "awg", outbound: map[string]any{"tag": "awg", "protocol": "AmneziaWG"}},
 	}
 
-	cfg := buildBatchTestConfig(items, nil, []int{61011, 61012})
+	cfg := buildBatchTestConfig(items, nil, []int{61011})
 	raw, err := json.Marshal(cfg)
 	if err != nil {
 		t.Fatalf("marshal config: %v", err)
@@ -102,14 +100,6 @@ func TestBuildBatchTestConfigReadsTheProtocolIDLikeTheCore(t *testing.T) {
 	}
 	if settings, _ := wg["settings"].(map[string]any); settings == nil || settings["noKernelTun"] != true {
 		t.Errorf(`"WireGuard" settings = %v, want noKernelTun: the probe instance must not create a kernel device`, wg["settings"])
-	}
-
-	awg := byTag["awg"]
-	if awg == nil {
-		t.Fatalf("awg outbound missing from the temp config: %v", outbounds)
-	}
-	if protocol, _ := awg["protocol"].(string); protocol != "socks" {
-		t.Errorf(`"AmneziaWG" protocol = %q, want %q: a raw amneziawg entry fails the whole temp config`, protocol, "socks")
 	}
 }
 

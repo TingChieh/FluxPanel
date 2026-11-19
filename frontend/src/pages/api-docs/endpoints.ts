@@ -278,13 +278,6 @@ export const sections: readonly Section[] = [
       },
       {
         method: 'GET',
-        path: '/panel/api/inbounds/amneziawgKernelReadiness',
-        responseSchema: 'Readiness',
-        summary:
-          'Whether this host can run an AmneziaWG inbound on the kernel module. Returns ready, host blocker codes (root/tools/module/nft), and the command that fixes them. Saving an inbound also checks its features and rejects IPv6, port forwarding, routeThroughXray, or a pinned listen address that the kernel backend cannot honor.',
-      },
-      {
-        method: 'GET',
         path: '/panel/api/inbounds/allLinks',
         responseObjectSchema: { type: 'array', nullable: true, items: { type: 'string' } },
         summary:
@@ -775,29 +768,6 @@ export const sections: readonly Section[] = [
         responseSchema: 'LogEntry',
         responseSchemaArray: true,
         responseSchemaArrayNullable: true,
-      },
-      {
-        method: 'POST',
-        path: '/panel/api/server/amneziawglogs/:count',
-        summary:
-          'Return live AmneziaWG peer activity (handshake, endpoint, transfer) plus the panel’s own AmneziaWG event lines.',
-        params: [
-          {
-            name: 'count',
-            in: 'path',
-            type: 'number',
-            desc: 'Maximum peer rows and event lines to return.',
-          },
-          {
-            name: 'filter',
-            in: 'body (form)',
-            type: 'string',
-            desc: 'Keyword filter — only rows/lines containing this string.',
-            optional: true,
-          },
-        ],
-        body: 'filter=awg1',
-        responseSchema: 'AmneziaWGLogs',
       },
       {
         method: 'POST',

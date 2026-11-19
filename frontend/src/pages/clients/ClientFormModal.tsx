@@ -32,21 +32,15 @@ import { Controller, FormProvider, useForm, useWatch, useFieldArray } from 'reac
 
 import { HttpUtil, IntlUtil, RandomUtil, Wireguard } from '@/utils';
 import { formatInboundLabel } from '@/lib/inbounds/label';
-import { generateMtprotoSecret } from '@/lib/xray/inbound-defaults';
 import { normalizeClientIps, type ClientIpInfo } from '@/lib/clients/ip-log';
 import { resolveExternalLinkExpiry } from '@/lib/clients/external-link';
 import { useDatepicker } from '@/hooks/useDatepicker';
 import { useClientHwids } from '@/hooks/useClientHwids';
 import { useRawHostsQuery } from '@/api/queries/useRawHostsQuery';
 import { DateTimePicker, SelectAllClearButtons, selectTagRender } from '@/components/form';
-import { FormField, rhfZodValidate } from '@/components/form/rhf';
+import { FormField } from '@/components/form/rhf';
 import ClientHwidListModal from '@/components/clients/ClientHwidList';
 import { TLS_FLOW_CONTROL, TRAFFIC_RESETS } from '@/schemas/primitives';
-import {
-  OptionalAmneziaWGKeepAliveInputSchema,
-  OptionalNumericKeepAliveInputSchema,
-  keepAliveInputValue,
-} from '@/schemas/primitives/keepalive';
 import type {
   ClientRecord,
   InboundOption,
@@ -68,9 +62,6 @@ const MULTI_CLIENT_PROTOCOLS = new Set([
   'trojan',
   'hysteria',
   'wireguard',
-  'mtproto',
-  'amneziawg',
-  'tuic',
   'masque',
 ]);
 
@@ -143,11 +134,7 @@ type Values = ClientFormValues & {
   wgPublicKey: string;
   wgPreSharedKey: string;
   wgAllowedIPs: string;
-  awgAllowedIPs: string;
-  awgForwardedPorts: string;
   wgKeepAlive: number | string | undefined;
-  secret: string;
-  adTag: string;
 };
 
 const EMPTY: Values = {
@@ -182,11 +169,7 @@ const EMPTY: Values = {
   wgPublicKey: '',
   wgPreSharedKey: '',
   wgAllowedIPs: '',
-  awgAllowedIPs: '',
-  awgForwardedPorts: '',
   wgKeepAlive: 25,
-  secret: '',
-  adTag: '',
 };
 
 function toExternalLinkRows(links: ExternalLink[] | undefined): ExternalLinkRow[] {
@@ -218,27 +201,6 @@ export function parseAllowedIPsList(raw: string): string[] {
     .split(',')
     .map((s) => s.trim())
     .filter((s) => s !== '');
-}
-
-// Maps each of the two AllowedIPs fields to the specific wg/awg inbound the
-// client is currently attached to, so a save with both protocols attached at
-// once can send each its own value instead of one shared field ambiguously
-// covering both (see model.Client.AllowedIPsByInbound on the Go side).
-// Absent from the result when the client isn't actually attached to that
-// protocol's inbound (e.g. mid-edit, before the attach takes effect).
-export function resolveTunnelAllowedIPsByInbound(
-  attachedInboundIds: number[],
-  wireguardInboundIds: Set<number>,
-  amneziawgInboundIds: Set<number>,
-  wgAllowedIPs: string[],
-  awgAllowedIPs: string[],
-): Record<number, string[]> {
-  const wgId = attachedInboundIds.find((id) => wireguardInboundIds.has(id));
-  const awgId = attachedInboundIds.find((id) => amneziawgInboundIds.has(id));
-  const result: Record<number, string[]> = {};
-  if (wgId != null) result[wgId] = wgAllowedIPs;
-  if (awgId != null) result[awgId] = awgAllowedIPs;
-  return result;
 }
 
 export function resolveTotalBytes(
@@ -278,7 +240,6 @@ export default function ClientFormModal({
   const enable = useWatch({ control: methods.control, name: 'enable' });
   const flow = useWatch({ control: methods.control, name: 'flow' });
   const reverseTag = useWatch({ control: methods.control, name: 'reverseTag' });
-  const secret = useWatch({ control: methods.control, name: 'secret' });
   const email = useWatch({ control: methods.control, name: 'email' });
   const uuid = useWatch({ control: methods.control, name: 'uuid' });
   const trafficReset = useWatch({ control: methods.control, name: 'trafficReset' });
@@ -330,14 +291,6 @@ export default function ClientFormModal({
     return ids;
   }, [inbounds]);
 
-  const amneziawgIds = useMemo(() => {
-    const ids = new Set<number>();
-    for (const row of inbounds || []) {
-      if (row && row.protocol === 'amneziawg') ids.add(row.id);
-    }
-    return ids;
-  }, [inbounds]);
-
   function addExternalLinkRow(kind: 'link' | 'subscription') {
     appendExternalLink({
       kind,
@@ -361,11 +314,8 @@ export default function ClientFormModal({
       const et = Number(client.expiryTime) || 0;
       const seedIds = Array.isArray(attachedIds) ? attachedIds : [];
       const attachedWireguardId = seedIds.find((id) => wireguardIds.has(id));
-      const attachedAmneziawgId = seedIds.find((id) => amneziawgIds.has(id));
       const wgTunnelIPs =
         attachedWireguardId != null ? tunnelAllowedIPs[attachedWireguardId] : undefined;
-      const awgTunnelIPs =
-        attachedAmneziawgId != null ? tunnelAllowedIPs[attachedAmneziawgId] : undefined;
       const seed: Values = {
         ...EMPTY,
         email: client.email || '',
@@ -403,11 +353,7 @@ export default function ClientFormModal({
         wgPublicKey: client.publicKey || '',
         wgPreSharedKey: client.preSharedKey || '',
         wgAllowedIPs: wgTunnelIPs ?? client.allowedIPs ?? '',
-        awgAllowedIPs: awgTunnelIPs ?? client.allowedIPs ?? '',
-        awgForwardedPorts: client.forwardedPorts || '',
         wgKeepAlive: client.keepAlive,
-        secret: client.secret || '',
-        adTag: client.adTag || '',
       };
       if (et < 0) {
         seed.delayedStart = true;
@@ -462,22 +408,6 @@ export default function ClientFormModal({
     return ids;
   }, [inbounds]);
 
-  const mtprotoIds = useMemo(() => {
-    const ids = new Set<number>();
-    for (const row of inbounds || []) {
-      if (row && row.protocol === 'mtproto') ids.add(row.id);
-    }
-    return ids;
-  }, [inbounds]);
-
-  const mtprotoDomain = useMemo(() => {
-    for (const id of inboundIds || []) {
-      const ib = (inbounds || []).find((row) => row.id === id);
-      if (ib?.protocol === 'mtproto' && ib.mtprotoDomain) return ib.mtprotoDomain;
-    }
-    return 'www.cloudflare.com';
-  }, [inboundIds, inbounds]);
-
   const ss2022Method = useMemo(() => {
     for (const id of inboundIds || []) {
       const ib = (inbounds || []).find((row) => row.id === id);
@@ -516,16 +446,6 @@ export default function ClientFormModal({
     [inboundIds, wireguardIds],
   );
 
-  const showAmneziawg = useMemo(
-    () => (inboundIds || []).some((id) => amneziawgIds.has(id)),
-    [inboundIds, amneziawgIds],
-  );
-
-  const showMtproto = useMemo(
-    () => (inboundIds || []).some((id) => mtprotoIds.has(id)),
-    [inboundIds, mtprotoIds],
-  );
-
   function regenerateWireguardKeys() {
     const kp = Wireguard.generateKeypair();
     methods.setValue('wgPrivateKey', kp.privateKey);
@@ -534,10 +454,6 @@ export default function ClientFormModal({
 
   function regenerateWireguardPresharedKey() {
     methods.setValue('wgPreSharedKey', Wireguard.keyToBase64(Wireguard.generatePresharedKey()));
-  }
-
-  function regenerateMtprotoSecret() {
-    methods.setValue('secret', generateMtprotoSecret(mtprotoDomain));
   }
 
   useEffect(() => {
@@ -564,12 +480,6 @@ export default function ClientFormModal({
       methods.setValue('password', RandomUtil.randomShadowsocksPassword(ss2022Method));
     }
   }, [ss2022Method, methods]);
-
-  useEffect(() => {
-    if (showMtproto && !secret) {
-      methods.setValue('secret', generateMtprotoSecret(mtprotoDomain));
-    }
-  }, [showMtproto, secret, mtprotoDomain, methods]);
 
   const inboundOptions = useMemo(
     () =>
@@ -722,20 +632,6 @@ export default function ClientFormModal({
       typeof client?.keepAlive === 'number' &&
       client.keepAlive > 65535 &&
       values.wgKeepAlive === client.keepAlive;
-    if (showAmneziawg && !unchangedLegacyKeepAlive) {
-      const keepAliveSchema = showWireguard
-        ? OptionalNumericKeepAliveInputSchema
-        : OptionalAmneziaWGKeepAliveInputSchema;
-      const keepAliveResult = keepAliveSchema.safeParse(values.wgKeepAlive);
-      if (!keepAliveResult.success) {
-        methods.setError('wgKeepAlive', {
-          type: 'validate',
-          message: keepAliveResult.error.issues[0]?.message ?? 'validation.invalid',
-        });
-        return;
-      }
-      methods.clearErrors('wgKeepAlive');
-    }
     const schema = isEdit ? ClientFormSchema : ClientCreateFormSchema;
     const validated = schema.safeParse({
       email: values.email,
@@ -806,11 +702,7 @@ export default function ClientFormModal({
     const reverseTagValue = showReverseTag ? (values.reverseTag || '').trim() : '';
     clientPayload.reverse = reverseTagValue ? { tag: reverseTagValue } : null;
 
-    if (showWireguard || showAmneziawg) {
-      // AmneziaWG peers are wire-identical to WireGuard peers (same
-      // privateKey/publicKey/preSharedKey/allowedIPs fields on model.Client),
-      // so both protocols share this one field set — see wgPrivateKey etc.
-      // below and the AmneziaWG-labeled variants of the same inputs.
+    if (showWireguard) {
       clientPayload.privateKey = values.wgPrivateKey;
       if (!unchangedLegacyKeepAlive && values.wgKeepAlive !== undefined) {
         clientPayload.keepAlive = values.wgKeepAlive;
@@ -820,40 +712,9 @@ export default function ClientFormModal({
         clientPayload.preSharedKey = values.wgPreSharedKey;
       }
       const wgAllowedIPs = parseAllowedIPsList(values.wgAllowedIPs);
-      if (showWireguard && showAmneziawg) {
-        // Both protocols are attached at once: the two fields hold genuinely
-        // different addresses, so each must land on its own inbound instead
-        // of one broadcast value overwriting the other's (allowedIPsByInbound
-        // is what Update/Create key their per-inbound override off of).
-        const awgAllowedIPs = parseAllowedIPsList(values.awgAllowedIPs);
-        clientPayload.allowedIPsByInbound = resolveTunnelAllowedIPsByInbound(
-          values.inboundIds || [],
-          wireguardIds,
-          amneziawgIds,
-          wgAllowedIPs,
-          awgAllowedIPs,
-        );
-        if (wgAllowedIPs.length > 0) {
-          clientPayload.allowedIPs = wgAllowedIPs;
-        }
-      } else if (wgAllowedIPs.length > 0) {
+      if (wgAllowedIPs.length > 0) {
         clientPayload.allowedIPs = wgAllowedIPs;
       }
-      // Port-forwarding has no WireGuard equivalent — Xray-native WireGuard
-      // has no host-level iptables layer to hang per-client DNAT off of.
-      if (showAmneziawg) {
-        clientPayload.forwardedPorts = values.awgForwardedPorts.trim();
-      }
-    }
-
-    if (showMtproto) {
-      const adTag = values.adTag.trim();
-      if (adTag !== '' && !/^[0-9a-fA-F]{32}$/.test(adTag)) {
-        messageApi.error(t('pages.inbounds.form.mtgAdTagInvalid'));
-        return;
-      }
-      clientPayload.secret = values.secret;
-      clientPayload.adTag = adTag;
     }
 
     const externalLinks: ExternalLinkInput[] = values.externalLinks
@@ -1371,15 +1232,11 @@ export default function ClientFormModal({
                           />
                         </FormField>
                       )}
-                      {(showWireguard || showAmneziawg) && (
+                      {showWireguard && (
                         <>
                           <Form.Item
                             htmlFor={`${uid}-wg-private-key`}
-                            label={t(
-                              showAmneziawg
-                                ? 'pages.clients.amneziaWgPrivateKey'
-                                : 'pages.clients.wireguardPrivateKey',
-                            )}
+                            label={t('pages.clients.wireguardPrivateKey')}
                           >
                             <Space.Compact style={{ display: 'flex' }}>
                               <Input
@@ -1404,21 +1261,13 @@ export default function ClientFormModal({
                           </Form.Item>
                           <FormField
                             name="wgPublicKey"
-                            label={t(
-                              showAmneziawg
-                                ? 'pages.clients.amneziaWgPublicKey'
-                                : 'pages.clients.wireguardPublicKey',
-                            )}
+                            label={t('pages.clients.wireguardPublicKey')}
                           >
                             <Input disabled />
                           </FormField>
                           <Form.Item
                             htmlFor={`${uid}-wg-psk`}
-                            label={t(
-                              showAmneziawg
-                                ? 'pages.clients.amneziaWgPreSharedKey'
-                                : 'pages.clients.wireguardPreSharedKey',
-                            )}
+                            label={t('pages.clients.wireguardPreSharedKey')}
                           >
                             <Space.Compact style={{ display: 'flex' }}>
                               <FormField name="wgPreSharedKey" noStyle>
@@ -1431,110 +1280,22 @@ export default function ClientFormModal({
                               />
                             </Space.Compact>
                           </Form.Item>
-                          {showWireguard && showAmneziawg ? (
-                            <>
-                              <FormField
-                                name="wgAllowedIPs"
-                                label={t('pages.clients.wireguardAllowedIPs')}
-                                extra={t('pages.clients.wireguardAllowedIPsHint')}
-                              >
-                                <Input placeholder="10.0.0.2/32" />
-                              </FormField>
-                              <FormField
-                                name="awgAllowedIPs"
-                                label={t('pages.clients.amneziaWgAllowedIPs')}
-                                extra={t('pages.clients.amneziaWgAllowedIPsHint')}
-                              >
-                                <Input placeholder="10.8.1.2/32" />
-                              </FormField>
-                            </>
-                          ) : (
-                            <FormField
-                              name="wgAllowedIPs"
-                              label={t(
-                                showAmneziawg
-                                  ? 'pages.clients.amneziaWgAllowedIPs'
-                                  : 'pages.clients.wireguardAllowedIPs',
-                              )}
-                              extra={t(
-                                showAmneziawg
-                                  ? 'pages.clients.amneziaWgAllowedIPsHint'
-                                  : 'pages.clients.wireguardAllowedIPsHint',
-                              )}
-                            >
-                              <Input placeholder="10.8.1.2/32" />
-                            </FormField>
-                          )}
+                          <FormField
+                            name="wgAllowedIPs"
+                            label={t('pages.clients.wireguardAllowedIPs')}
+                            extra={t('pages.clients.wireguardAllowedIPsHint')}
+                          >
+                            <Input placeholder="10.0.0.2/32" />
+                          </FormField>
                           <FormField
                             name="wgKeepAlive"
                             label={t('pages.clients.tunnelKeepAlive')}
-                            extra={t(
-                              showAmneziawg && !showWireguard
-                                ? 'pages.clients.amneziaWgKeepAliveHint'
-                                : 'pages.clients.tunnelKeepAliveHint',
-                            )}
+                            extra={t('pages.clients.tunnelKeepAliveHint')}
                             transform={{
-                              output:
-                                showAmneziawg && !showWireguard
-                                  ? keepAliveInputValue
-                                  : (value) => Number(value) || 0,
+                              output: (value) => Number(value) || 0,
                             }}
-                            rules={
-                              showAmneziawg
-                                ? {
-                                    validate: rhfZodValidate(
-                                      showWireguard
-                                        ? OptionalNumericKeepAliveInputSchema
-                                        : OptionalAmneziaWGKeepAliveInputSchema,
-                                    ),
-                                  }
-                                : undefined
-                            }
                           >
-                            {showAmneziawg && !showWireguard ? (
-                              <Input placeholder="25" />
-                            ) : (
-                              <InputNumber min={0} max={65535} style={{ width: '100%' }} />
-                            )}
-                          </FormField>
-                          {showAmneziawg && (
-                            <FormField
-                              name="awgForwardedPorts"
-                              label={t('pages.clients.amneziaWgForwardedPorts')}
-                              extra={t('pages.clients.amneziaWgForwardedPortsHint')}
-                            >
-                              <Input placeholder="80, 443, 8000-8100" />
-                            </FormField>
-                          )}
-                        </>
-                      )}
-                      {showMtproto && (
-                        <>
-                          <Form.Item
-                            htmlFor={`${uid}-mtproto-secret`}
-                            label={t('pages.clients.mtprotoSecret')}
-                            extra={t('pages.clients.mtprotoSecretHint')}
-                          >
-                            <Space.Compact style={{ display: 'flex' }}>
-                              <Input
-                                id={`${uid}-mtproto-secret`}
-                                value={secret}
-                                style={{ flex: 1 }}
-                                onChange={(e) => methods.setValue('secret', e.target.value)}
-                              />
-                              <Button
-                                aria-label={t('regenerate')}
-                                icon={<ReloadOutlined aria-hidden />}
-                                onClick={regenerateMtprotoSecret}
-                              />
-                            </Space.Compact>
-                          </Form.Item>
-                          <FormField
-                            name="adTag"
-                            label={t('pages.clients.mtprotoAdTag')}
-                            extra={t('pages.clients.mtprotoAdTagHint')}
-                          >
-                            <Input allowClear placeholder="0123456789abcdef0123456789abcdef" />
+                            <InputNumber min={0} max={65535} style={{ width: '100%' }} />
                           </FormField>
                         </>
                       )}

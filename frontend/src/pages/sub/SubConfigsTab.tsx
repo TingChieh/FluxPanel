@@ -4,11 +4,7 @@ import { Button, Tag } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 
 import ConfigBlock from '@/components/clients/ConfigBlock';
-import {
-  amneziawgConfigFromLink,
-  isPostQuantumLink,
-  wireguardConfigFromLink,
-} from '@/lib/xray/inbound-link';
+import { isPostQuantumLink, wireguardConfigFromLink } from '@/lib/xray/inbound-link';
 import { LinkTags, parseLinkParts } from '@/lib/xray/link-label';
 import SubQrButton from './SubQrButton';
 
@@ -35,7 +31,6 @@ export default function SubConfigsTab({ links, onCopy }: SubConfigsTabProps) {
         const rowTitle = parts?.remark || `Link ${idx + 1}`;
         const isWireguardLink = link.startsWith('wireguard://') || link.startsWith('wg://');
         const wireguardConfig = isWireguardLink ? wireguardConfigFromLink(link, rowTitle) : '';
-        const amneziawgConfig = link.startsWith('vpn://') ? amneziawgConfigFromLink(link) : '';
         return (
           <Fragment key={link}>
             <div className="sub-row">
@@ -62,15 +57,6 @@ export default function SubConfigsTab({ links, onCopy }: SubConfigsTabProps) {
                 fileName={`${rowTitle || 'peer'}.conf`}
                 qrRemark={rowTitle}
                 tagColor="cyan"
-              />
-            )}
-            {amneziawgConfig && (
-              <ConfigBlock
-                label={t('pages.clients.amneziaWgConfig')}
-                text={amneziawgConfig}
-                fileName={`${rowTitle || 'peer'}.conf`}
-                qrRemark={rowTitle}
-                tagColor="purple"
               />
             )}
           </Fragment>

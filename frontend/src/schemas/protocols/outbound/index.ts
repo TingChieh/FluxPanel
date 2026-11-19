@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { BlackholeOutboundSettingsSchema } from './blackhole';
-import { AmneziaWGOutboundSettingsSchema } from './amneziawg';
 import { DNSOutboundSettingsSchema } from './dns';
 import { FreedomOutboundSettingsSchema } from './freedom';
 import { HttpOutboundSettingsSchema } from './http';
@@ -16,7 +15,6 @@ import { VmessOutboundSettingsSchema } from './vmess';
 import { WireguardOutboundSettingsSchema } from './wireguard';
 
 export * from './blackhole';
-export * from './amneziawg';
 export * from './dns';
 export * from './freedom';
 export * from './http';
@@ -36,7 +34,6 @@ export const OutboundSettingsSchema = z.discriminatedUnion('protocol', [
   z.object({ protocol: z.literal('trojan'), settings: TrojanOutboundSettingsSchema }),
   z.object({ protocol: z.literal('shadowsocks'), settings: ShadowsocksOutboundSettingsSchema }),
   z.object({ protocol: z.literal('wireguard'), settings: WireguardOutboundSettingsSchema }),
-  z.object({ protocol: z.literal('amneziawg'), settings: AmneziaWGOutboundSettingsSchema }),
   z.object({ protocol: z.literal('hysteria'), settings: HysteriaOutboundSettingsSchema }),
   z.object({ protocol: z.literal('masque'), settings: MasqueOutboundSettingsSchema }),
   z.object({ protocol: z.literal('http'), settings: HttpOutboundSettingsSchema }),

@@ -582,19 +582,3 @@ func TestSubJsonServiceWireguardNoKey(t *testing.T) {
 	}
 }
 
-func TestSubJsonServiceSkipsAmneziaWG(t *testing.T) {
-	if got := NewSubJsonService("", "", "", "", nil).getConfig(&SubService{address: "sub.example.com"}, &model.Inbound{Listen: "203.0.113.8", Port: 51820, Protocol: model.AmneziaWG}, model.Client{}, "sub.example.com"); len(got) != 0 {
-		t.Fatalf("getConfig emitted %d unsupported AmneziaWG Xray config(s)", len(got))
-	}
-}
-
-func TestSubJsonServiceSkipsTUIC(t *testing.T) {
-	if got := NewSubJsonService("", "", "", "", nil).getConfig(
-		&SubService{address: "sub.example.com"},
-		&model.Inbound{Listen: "203.0.113.8", Port: 8443, Protocol: model.TUIC},
-		model.Client{},
-		"sub.example.com",
-	); len(got) != 0 {
-		t.Fatalf("getConfig emitted %d unsupported TUIC Xray config(s)", len(got))
-	}
-}

@@ -3,9 +3,6 @@ package model
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -35,9 +32,6 @@ const (
 	Mixed       Protocol = "mixed"
 	WireGuard   Protocol = "wireguard"
 	Hysteria    Protocol = "hysteria"
-	MTProto     Protocol = "mtproto"
-	AmneziaWG   Protocol = "amneziawg"
-	TUIC        Protocol = "tuic"
 	MASQUE      Protocol = "masque"
 )
 
@@ -69,7 +63,7 @@ type Inbound struct {
 	// Xray configuration fields
 	Listen            string   `json:"listen" form:"listen"`
 	Port              int      `json:"port" form:"port" validate:"gte=0,lte=65535" example:"443"`
-	Protocol          Protocol `json:"protocol" form:"protocol" validate:"required,oneof=vmess vless trojan shadowsocks wireguard hysteria http mixed tunnel tun mtproto amneziawg tuic masque" example:"vless"`
+	Protocol          Protocol `json:"protocol" form:"protocol" validate:"required,oneof=vmess vless trojan shadowsocks wireguard hysteria http mixed tunnel tun masque" example:"vless"`
 	Settings          string   `json:"settings" form:"settings"`
 	StreamSettings    string   `json:"streamSettings" form:"streamSettings"`
 	Tag               string   `json:"tag" form:"tag" gorm:"unique" example:"in-443-tcp"`
@@ -652,174 +646,6 @@ func HealShadowsocksClientMethods(settings string) (string, bool) {
 		cm["method"] = method
 		clients[i] = cm
 		changed = true
-	}
-	if !changed {
-		return settings, false
-	}
-	out, err := json.MarshalIndent(parsed, "", "  ")
-	if err != nil {
-		return settings, false
-	}
-	return string(out), true
-}
-
-// GenerateFakeTLSSecret builds an MTProto FakeTLS secret for the given domain:
-// the "ee" FakeTLS marker, 16 random bytes, then the domain encoded as hex.
-// MTProto is multi-client, so this value belongs to one client: mtg's [secrets]
-// config and that client's tg:// link both read it per client.
-func GenerateFakeTLSSecret(domain string) string {
-	return "ee" + mtprotoRandomMiddle() + hex.EncodeToString([]byte(domain))
-}
-
-func mtprotoRandomMiddle() string {
-	buf := make([]byte, 16)
-	if _, err := rand.Read(buf); err != nil {
-		panic(fmt.Errorf("mtproto: crypto/rand read failed: %w", err))
-	}
-	return hex.EncodeToString(buf)
-}
-
-// mtprotoSecretMiddle returns the 16-byte random middle of an existing secret
-// when it is well-formed, otherwise a freshly generated one. Reusing the middle
-// keeps the secret stable when only the FakeTLS domain changes.
-func mtprotoSecretMiddle(secret string) string {
-	s := secret
-	if strings.HasPrefix(s, "ee") || strings.HasPrefix(s, "dd") {
-		s = s[2:]
-	}
-	if len(s) >= 32 {
-		mid := s[:32]
-		if _, err := hex.DecodeString(mid); err == nil {
-			return mid
-		}
-	}
-	return mtprotoRandomMiddle()
-}
-
-// ValidMtprotoAdTag reports whether a Telegram advertising tag from
-// @MTProxybot is well-formed: exactly 16 bytes as 32 hex characters. mtg
-// refuses to start (or rejects a live update) on a malformed tag, so every
-// write path validates before the tag can reach a generated config.
-func ValidMtprotoAdTag(tag string) bool {
-	if len(tag) != 32 {
-		return false
-	}
-	_, err := hex.DecodeString(tag)
-	return err == nil
-}
-
-// ValidMtprotoSecret mirrors mtg's secret parser: hex, else unpadded URL-safe
-// base64, of the 0xee FakeTLS marker, a 16-byte key and a non-empty host name.
-func ValidMtprotoSecret(secret string) bool {
-	decoded, err := hex.DecodeString(secret)
-	if err != nil {
-		decoded, err = base64.RawURLEncoding.DecodeString(secret)
-	}
-	return err == nil && len(decoded) > 17 && decoded[0] == 0xee
-}
-
-// StripMtprotoInboundSecret removes the vestigial inbound-level `secret` from an
-// mtproto inbound's settings JSON. MTProto is multi-client: every secret lives on
-// a client, and mtg's [secrets] config plus every share link read only the
-// per-client secrets. A lingering inbound-level secret is dead data — it once
-// leaked into stale links that mtg rejected as "incorrect client random". Returns
-// the rewritten settings and true when a `secret` key was removed.
-func StripMtprotoInboundSecret(settings string) (string, bool) {
-	if settings == "" {
-		return settings, false
-	}
-	var parsed map[string]any
-	if err := json.Unmarshal([]byte(settings), &parsed); err != nil {
-		return settings, false
-	}
-	if _, ok := parsed["secret"]; !ok {
-		return settings, false
-	}
-	delete(parsed, "secret")
-	out, err := json.MarshalIndent(parsed, "", "  ")
-	if err != nil {
-		return settings, false
-	}
-	return string(out), true
-}
-
-// StripMtprotoInboundAdTag drops the dead inbound-level `adTag` — tags live on clients.
-func StripMtprotoInboundAdTag(settings string) (string, bool) {
-	if settings == "" {
-		return settings, false
-	}
-	var parsed map[string]any
-	if err := json.Unmarshal([]byte(settings), &parsed); err != nil {
-		return settings, false
-	}
-	if _, ok := parsed["adTag"]; !ok {
-		return settings, false
-	}
-	delete(parsed, "adTag")
-	out, err := json.MarshalIndent(parsed, "", "  ")
-	if err != nil {
-		return settings, false
-	}
-	return string(out), true
-}
-
-// mtprotoSecretDomain extracts the FakeTLS domain embedded in the tail of a
-// secret, returning an empty string when the secret is malformed. Each mtproto
-// client carries its own domain inside its secret, so healing preserves it
-// instead of forcing every client onto the inbound-level default.
-func mtprotoSecretDomain(secret string) string {
-	s := secret
-	if strings.HasPrefix(s, "ee") || strings.HasPrefix(s, "dd") {
-		s = s[2:]
-	}
-	if len(s) <= 32 {
-		return ""
-	}
-	decoded, err := hex.DecodeString(s[32:])
-	if err != nil || len(decoded) == 0 {
-		return ""
-	}
-	return string(decoded)
-}
-
-// HealMtprotoClientSecrets normalises every client's FakeTLS secret in an
-// mtproto inbound's settings JSON: each secret is rebuilt so it stays a valid
-// FakeTLS value, keeping the client's own embedded domain when present and
-// falling back to the inbound-level fakeTlsDomain otherwise. Returns the
-// rewritten settings and true when anything changed.
-func HealMtprotoClientSecrets(settings string) (string, bool) {
-	if settings == "" {
-		return settings, false
-	}
-	var parsed map[string]any
-	if err := json.Unmarshal([]byte(settings), &parsed); err != nil {
-		return settings, false
-	}
-	clients, ok := parsed["clients"].([]any)
-	if !ok || len(clients) == 0 {
-		return settings, false
-	}
-	defaultDomain, _ := parsed["fakeTlsDomain"].(string)
-	defaultDomain = strings.TrimSpace(defaultDomain)
-	changed := false
-	for _, raw := range clients {
-		client, ok := raw.(map[string]any)
-		if !ok {
-			continue
-		}
-		secret, _ := client["secret"].(string)
-		domain := mtprotoSecretDomain(secret)
-		if domain == "" {
-			domain = defaultDomain
-		}
-		if domain == "" {
-			continue
-		}
-		expected := "ee" + mtprotoSecretMiddle(secret) + hex.EncodeToString([]byte(domain))
-		if secret != expected {
-			client["secret"] = expected
-			changed = true
-		}
 	}
 	if !changed {
 		return settings, false

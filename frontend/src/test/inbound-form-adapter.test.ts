@@ -217,17 +217,6 @@ describe('formValuesToWirePayload', () => {
     expect(payload.streamSettings).toBe('');
   });
 
-  it('emits empty sniffing for mtproto (mtg-served, not Xray)', () => {
-    const values = rawInboundToFormValues({
-      ...vlessRow,
-      protocol: 'mtproto',
-      settings: { fakeTlsDomain: 'www.cloudflare.com', secret: 'ee00' },
-    });
-    const payload = formValuesToWirePayload(values);
-    expect(payload.protocol).toBe('mtproto');
-    expect(payload.sniffing).toBe('');
-  });
-
   // xray-core 26.10.31 (#7295): the XHTTP server reads h2Params; the form must not strip it.
   it('keeps an XHTTP inbound h2Params set through JSON', () => {
     const h2Params = { MaxConcurrentStreams: 512, MaxReadFrameSize: 1048576 };

@@ -13,8 +13,6 @@ func validateClientKeepAlive(protocol model.Protocol, client model.Client) error
 		return nil
 	}
 	switch protocol {
-	case model.AmneziaWG:
-		return client.KeepAlive.Validate(true)
 	case model.WireGuard:
 		return client.KeepAlive.Validate(false)
 	default:
@@ -35,7 +33,7 @@ func validateClientKeepAliveAgainstExisting(protocol model.Protocol, client mode
 	if err := validateClientKeepAlive(protocol, client); err == nil || client.KeepAlive == nil {
 		return err
 	}
-	if protocol != model.AmneziaWG && protocol != model.WireGuard {
+	if protocol != model.WireGuard {
 		return nil
 	}
 	value := client.KeepAlive.String()

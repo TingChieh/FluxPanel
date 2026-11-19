@@ -5,12 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"slices"
 	"strings"
 	"time"
 
-	"github.com/TingChieh/FluxPanel/internal/amneziawg"
-	"github.com/TingChieh/FluxPanel/internal/amneziawgkern"
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 	"github.com/TingChieh/FluxPanel/internal/logger"
@@ -30,77 +27,6 @@ func droppedClientNeedsRestart() bool {
 		logger.Warning("get RestartXrayOnClientDisable failed:", err)
 	}
 	return on
-}
-
-func validateAmneziaWGClientWrite(inbound *model.Inbound, clients []model.Client, previousEmail string) error {
-	if inbound.Protocol != model.AmneziaWG {
-		return nil
-	}
-	var settings amneziawg.InboundSettings
-	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
-		return fmt.Errorf("amneziawg: invalid settings: %w", err)
-	}
-	for _, client := range clients {
-		for _, value := range []struct{ field, value string }{
-			{"email", client.Email},
-			{"publicKey", client.PublicKey},
-			{"preSharedKey", client.PreSharedKey},
-		} {
-			if err := amneziawg.ValidateConfigValue(value.field, value.value); err != nil {
-				return fmt.Errorf("amneziawg: client %q: %w", client.Email, err)
-			}
-		}
-		for _, allowedIP := range client.AllowedIPs {
-			if err := amneziawg.ValidateConfigValue("allowedIPs", allowedIP); err != nil {
-				return fmt.Errorf("amneziawg: client %q: %w", client.Email, err)
-			}
-		}
-	}
-	if settings.Server == nil || !settings.Server.KernelMode {
-		return nil
-	}
-	inst := amneziawg.Instance{Listen: inbound.Listen, IPv6Enabled: settings.Server.IPv6Enabled}
-	v4Base, _, err := defaultAmneziaWGSubnetBases(inbound.Settings)
-	if err != nil {
-		return err
-	}
-	inst.Address = []string{v4Base}
-	for _, client := range clients {
-		inst.Peers = append(inst.Peers, amneziawg.Peer{
-			Email: client.Email, AllowedIPs: client.AllowedIPs, ForwardedPorts: client.ForwardedPortsSpec(),
-		})
-	}
-	if err := amneziawgkern.ValidateInstanceFeatures(inst, settings.Server.RouteThroughXray); err != nil {
-		return err
-	}
-	if !inbound.Enable {
-		return nil
-	}
-	inst.Peers = nil
-	for _, client := range clients {
-		if !client.Enable {
-			continue
-		}
-		allowedIPs := client.AllowedIPs
-		for _, old := range settings.Clients {
-			if previousEmail == "" || !strings.EqualFold(old.Email, previousEmail) {
-				continue
-			}
-			if len(allowedIPs) == 0 {
-				allowedIPs = old.AllowedIPs
-			}
-			// Preserve legacy addresses on active peers; validate newly added
-			// addresses, or every address when enabling a disabled peer.
-			if old.Enable {
-				allowedIPs = slices.DeleteFunc(slices.Clone(allowedIPs), func(ip string) bool {
-					return slices.Contains(old.AllowedIPs, ip)
-				})
-			}
-			break
-		}
-		inst.Peers = append(inst.Peers, amneziawg.Peer{Email: client.Email, AllowedIPs: allowedIPs})
-	}
-	return amneziawgkern.ValidatePeerSubnets(inst)
 }
 
 func sameClientConfigExceptUpdatedAt(a, b map[string]any) bool {
@@ -344,7 +270,7 @@ func (s *ClientService) delInboundClients(inboundSvc *InboundService, inboundId 
 func (s *ClientService) otherTunnelAllowedIPs(db *gorm.DB, inboundSvc *InboundService, excludeID int, selfEmails map[string]struct{}) (map[string]string, error) {
 	var inbounds []*model.Inbound
 	err := db.Model(model.Inbound{}).
-		Where("protocol IN ? AND id != ?", []model.Protocol{model.WireGuard, model.AmneziaWG}, excludeID).
+		Where("protocol = ? AND id != ?", model.WireGuard, excludeID).
 		Find(&inbounds).Error
 	if err != nil {
 		return nil, err
@@ -455,9 +381,6 @@ func (s *ClientService) AddInboundClient(inboundSvc *InboundService, data *model
 	if err != nil {
 		return false, err
 	}
-	if err := validateTuicClientEmails(oldInbound.Protocol, clients); err != nil {
-		return false, err
-	}
 
 	// A client already on this inbound is skipped instead of appended again:
 	// checkEmailsExistForClients exempts a matching subId so one identity can
@@ -493,7 +416,7 @@ func (s *ClientService) AddInboundClient(inboundSvc *InboundService, data *model
 	}
 
 	var selfEmails map[string]struct{}
-	if oldInbound.Protocol == model.WireGuard || oldInbound.Protocol == model.AmneziaWG {
+	if oldInbound.Protocol == model.WireGuard {
 		selfEmails = make(map[string]struct{}, len(clients))
 		for _, c := range clients {
 			if c.Email != "" {
@@ -504,28 +427,11 @@ func (s *ClientService) AddInboundClient(inboundSvc *InboundService, data *model
 		if cErr != nil {
 			return false, cErr
 		}
-		if oldInbound.Protocol == model.WireGuard {
-			if dErr := defaultWireguardClients(oldInbound.Settings, existingClients, clients, interfaceClients, crossUsed); dErr != nil {
-				return false, dErr
-			}
+		if dErr := defaultWireguardClients(oldInbound.Settings, existingClients, clients, interfaceClients, crossUsed); dErr != nil {
+			return false, dErr
 		}
-		if oldInbound.Protocol == model.AmneziaWG {
-			if dErr := defaultAmneziaWGClients(oldInbound.Settings, existingClients, clients, interfaceClients, crossUsed); dErr != nil {
-				return false, dErr
-			}
-		}
-	}
-	if err := validateAmneziaWGClientWrite(oldInbound, clients, ""); err != nil {
-		return false, err
 	}
 
-	var portCtx portConflictContext
-	if oldInbound.Protocol == model.AmneziaWG {
-		portCtx, err = inboundSvc.loadPortConflictContext(database.GetDB(), oldInbound.NodeID)
-		if err != nil {
-			return false, err
-		}
-	}
 	for _, client := range clients {
 		if strings.TrimSpace(client.Email) == "" {
 			return false, common.NewError("client email is required")
@@ -543,35 +449,13 @@ func (s *ClientService) AddInboundClient(inboundSvc *InboundService, data *model
 			if client.Auth == "" {
 				return false, common.NewError("empty client ID")
 			}
-		case "wireguard", "amneziawg":
+		case "wireguard":
 			if client.PublicKey == "" {
 				return false, common.NewError("wireguard client requires a key")
-			}
-		case "mtproto":
-			if client.Secret == "" {
-				return false, common.NewError("mtproto client requires a secret")
-			}
-			if client.AdTag != "" && !model.ValidMtprotoAdTag(client.AdTag) {
-				return false, common.NewError("mtproto client ad tag must be 32 hex characters")
-			}
-		case "tuic":
-			if client.ID == "" {
-				return false, common.NewError("empty client ID")
-			}
-			if client.Password == "" {
-				return false, common.NewError("tuic client requires a password")
-			}
-			if client.Email == "" {
-				return false, common.NewError("empty client email")
 			}
 		default:
 			if client.ID == "" {
 				return false, common.NewError("empty client ID")
-			}
-		}
-		if oldInbound.Protocol == model.AmneziaWG {
-			if hit := inboundSvc.checkForwardedPortsConflict(portCtx, client.ForwardedPortsSpec()); hit != "" {
-				return false, common.NewError("amneziawg: forwardedPorts collides with", hit)
 			}
 		}
 	}
@@ -619,7 +503,7 @@ func (s *ClientService) AddInboundClient(inboundSvc *InboundService, data *model
 	if txErr := runSerializedTx(func(tx *gorm.DB) error {
 		// lockInbound is per-inbound, so the pre-tx cross-inbound checks race
 		// concurrent writers on other inbounds — re-run them in here (#6225).
-		if oldInbound.Protocol == model.WireGuard || oldInbound.Protocol == model.AmneziaWG {
+		if oldInbound.Protocol == model.WireGuard {
 			crossUsed, cErr := s.otherTunnelAllowedIPs(tx, inboundSvc, oldInbound.Id, selfEmails)
 			if cErr != nil {
 				return cErr
@@ -631,17 +515,6 @@ func (s *ClientService) AddInboundClient(inboundSvc *InboundService, data *model
 			for i := range clients {
 				if entry, taken := wireguardAllowedIPsOverlap(clients[i].AllowedIPs, crossAddrs); taken != "" {
 					return common.NewError("allowedIPs entry", entry, "overlaps", taken, "used by a client on", crossUsed[taken])
-				}
-			}
-		}
-		if oldInbound.Protocol == model.AmneziaWG {
-			txPortCtx, pErr := inboundSvc.loadPortConflictContext(tx, oldInbound.NodeID)
-			if pErr != nil {
-				return pErr
-			}
-			for i := range clients {
-				if hit := inboundSvc.checkForwardedPortsConflict(txPortCtx, clients[i].ForwardedPortsSpec()); hit != "" {
-					return common.NewError("amneziawg: forwardedPorts collides with", hit)
 				}
 			}
 		}
@@ -672,12 +545,6 @@ func (s *ClientService) AddInboundClient(inboundSvc *InboundService, data *model
 	if oldInbound.NodeID == nil {
 		if !push {
 			needRestart = true
-		} else if oldInbound.Protocol == model.MTProto {
-			inboundSvc.applyLocalMtproto(oldInbound.Id)
-		} else if oldInbound.Protocol == model.AmneziaWG {
-			inboundSvc.applyLocalAmneziaWG(oldInbound.Id)
-		} else if oldInbound.Protocol == model.TUIC {
-			inboundSvc.applyLocalTuic(oldInbound.Id)
 		} else {
 			for _, client := range clients {
 				if len(client.Email) == 0 {
@@ -772,9 +639,6 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 	if err != nil {
 		return false, err
 	}
-	if err := validateTuicClientEmails(oldInbound.Protocol, clients); err != nil {
-		return false, err
-	}
 
 	oldClients, err := inboundSvc.GetClients(oldInbound)
 	if err != nil {
@@ -798,9 +662,7 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 		newClientId = clients[0].Email
 	case "hysteria":
 		newClientId = clients[0].Auth
-	case "wireguard", "amneziawg":
-		newClientId = clients[0].Email
-	case "mtproto":
+	case "wireguard":
 		newClientId = clients[0].Email
 	default:
 		newClientId = clients[0].ID
@@ -824,9 +686,6 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 	if strings.TrimSpace(clients[0].Email) == "" {
 		return false, common.NewError("client email is required")
 	}
-	if oldInbound.Protocol == model.MTProto && clients[0].AdTag != "" && !model.ValidMtprotoAdTag(clients[0].AdTag) {
-		return false, common.NewError("mtproto client ad tag must be 32 hex characters")
-	}
 
 	if clients[0].Email != oldEmail {
 		existEmail, err := s.checkEmailsExistForClients(inboundSvc, clients)
@@ -841,7 +700,7 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 	// WireGuard/AmneziaWG keys are never rotated by an edit: when the incoming
 	// payload omits them (a metadata-only change), carry the stored credentials
 	// forward so the settings JSON and the running peer keep the client's identity.
-	if (oldInbound.Protocol == model.WireGuard || oldInbound.Protocol == model.AmneziaWG) && clientIndex >= 0 && clientIndex < len(oldClients) {
+	if oldInbound.Protocol == model.WireGuard && clientIndex >= 0 && clientIndex < len(oldClients) {
 		old := oldClients[clientIndex]
 		if clients[0].PrivateKey == "" {
 			clients[0].PrivateKey = old.PrivateKey
@@ -877,22 +736,6 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 		}
 		if clients[0].KeepAlive == nil {
 			clients[0].KeepAlive = old.KeepAlive
-		}
-		// AWG partial edits (nil: the field was not sent) keep the stored spec; "" withdraws it.
-		if oldInbound.Protocol == model.AmneziaWG && clients[0].ForwardedPorts == nil {
-			clients[0].ForwardedPorts = old.ForwardedPorts
-		}
-	}
-	if err := validateAmneziaWGClientWrite(oldInbound, clients, oldEmail); err != nil {
-		return false, err
-	}
-	if oldInbound.Protocol == model.AmneziaWG {
-		portCtx, err := inboundSvc.loadPortConflictContext(database.GetDB(), oldInbound.NodeID)
-		if err != nil {
-			return false, err
-		}
-		if hit := inboundSvc.checkForwardedPortsConflict(portCtx, clients[0].ForwardedPortsSpec()); hit != "" {
-			return false, common.NewError("amneziawg: forwardedPorts collides with", hit)
 		}
 	}
 
@@ -934,7 +777,7 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 			if v, ok2 := newMap["subId"].(string); ok2 {
 				clients[0].SubID = v
 			}
-			if oldInbound.Protocol == model.WireGuard || oldInbound.Protocol == model.AmneziaWG {
+			if oldInbound.Protocol == model.WireGuard {
 				newMap["privateKey"] = clients[0].PrivateKey
 				newMap["publicKey"] = clients[0].PublicKey
 				newMap["allowedIPs"] = clients[0].AllowedIPs
@@ -943,9 +786,6 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 				}
 				if clients[0].KeepAlive != nil {
 					newMap["keepAlive"] = clients[0].KeepAlive
-				}
-				if oldInbound.Protocol == model.AmneziaWG && clients[0].ForwardedPortsSpec() != "" {
-					newMap["forwardedPorts"] = clients[0].ForwardedPortsSpec()
 				}
 			}
 			// Withdrawn forwards are stored as no spec at all, whatever the protocol.
@@ -1025,17 +865,6 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 	// Persist client stats + inbound atomically, serialized against the traffic
 	// poll to avoid the cross-transaction lock-order deadlock (runSerializedTx).
 	if txErr := runSerializedTx(func(tx *gorm.DB) error {
-		// Same re-check-inside-the-writer rule as AddInboundClient (#6225):
-		// the pre-tx pass can race a concurrent writer on another inbound.
-		if oldInbound.Protocol == model.AmneziaWG {
-			txPortCtx, pErr := inboundSvc.loadPortConflictContext(tx, oldInbound.NodeID)
-			if pErr != nil {
-				return pErr
-			}
-			if hit := inboundSvc.checkForwardedPortsConflict(txPortCtx, clients[0].ForwardedPortsSpec()); hit != "" {
-				return common.NewError("amneziawg: forwardedPorts collides with", hit)
-			}
-		}
 		if len(clients[0].Email) > 0 {
 			if len(oldEmail) > 0 {
 				emailUnchanged := strings.EqualFold(oldEmail, clients[0].Email)
@@ -1126,12 +955,6 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 		if oldInbound.NodeID == nil {
 			if !push {
 				needRestart = true
-			} else if oldInbound.Protocol == model.MTProto {
-				inboundSvc.applyLocalMtproto(oldInbound.Id)
-			} else if oldInbound.Protocol == model.AmneziaWG {
-				inboundSvc.applyLocalAmneziaWG(oldInbound.Id)
-			} else if oldInbound.Protocol == model.TUIC {
-				inboundSvc.applyLocalTuic(oldInbound.Id)
 			} else {
 				if oldClients[clientIndex].Enable {
 					err1 := rt.RemoveUser(context.Background(), oldInbound, oldEmail)
@@ -1314,18 +1137,7 @@ func (s *ClientService) DelInboundClientByEmail(inboundSvc *InboundService, inbo
 	// inbound's runtime even when the same email survives in another inbound.
 	if len(email) > 0 {
 		if oldInbound.NodeID == nil {
-			if oldInbound.Protocol == model.MTProto {
-				// mtg serves the full secret set, so any client delete re-applies
-				// it (removing the last client stops the sidecar) regardless of the
-				// client's enable state.
-				inboundSvc.applyLocalMtproto(oldInbound.Id)
-			} else if oldInbound.Protocol == model.AmneziaWG {
-				// Same reasoning as MTProto above: the interface config is
-				// regenerated from the full peer set, so any delete re-applies it.
-				inboundSvc.applyLocalAmneziaWG(oldInbound.Id)
-			} else if oldInbound.Protocol == model.TUIC {
-				inboundSvc.applyLocalTuic(oldInbound.Id)
-			} else if needApiDel {
+			if needApiDel {
 				// Local inbound: a disabled client isn't in the running Xray, so only
 				// a live one (needApiDel) needs an API removal.
 				if !push {

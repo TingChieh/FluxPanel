@@ -2122,30 +2122,11 @@ func TestSubscriptionDecodesInboundSettingsOncePerRequest(t *testing.T) {
 	// Growth, not an absolute byte count, so the race detector or a Go upgrade cannot move
 	// it: tripling n triples linear work and multiplies a per-link decode by nine.
 	const small, scale, maxGrowth = 300, 3, 5.0
-	serverPriv, serverPub := mustWireguardKeypair(t)
+	serverPriv, _ := mustWireguardKeypair(t)
 	clientPriv, _ := mustWireguardKeypair(t)
 
 	email := func(i int) string { return fmt.Sprintf("user-%04d@sub", i) }
-	uuid := func(i int) string { return fmt.Sprintf("11111111-2222-4333-8444-%012d", i) }
 	seed := map[model.Protocol]func(t *testing.T, n int) *model.Inbound{
-		model.TUIC: func(t *testing.T, n int) *model.Inbound {
-			return seedSharedSubIdInbound(t, model.TUIC, subId, n, `"server":{"certificate":"/c","private_key":"/k"}`,
-				func(i int) string {
-					return fmt.Sprintf(`{"uuid":%q,"password":"pw","email":%q,"enable":true}`, uuid(i), email(i))
-				},
-				func(i int) model.ClientRecord {
-					return model.ClientRecord{Email: email(i), UUID: uuid(i), Password: "pw"}
-				})
-		},
-		model.AmneziaWG: func(t *testing.T, n int) *model.Inbound {
-			return seedSharedSubIdInbound(t, model.AmneziaWG, subId, n, fmt.Sprintf(`"server":{"privateKey":%q,"publicKey":%q,"mtu":1420}`, serverPriv, serverPub),
-				func(i int) string {
-					return fmt.Sprintf(`{"email":%q,"privateKey":%q,"allowedIPs":["10.8.%d.%d/32"],"enable":true}`, email(i), clientPriv, i/256, i%256)
-				},
-				func(i int) model.ClientRecord {
-					return model.ClientRecord{Email: email(i), PrivateKey: clientPriv, AllowedIPs: fmt.Sprintf("10.8.%d.%d/32", i/256, i%256)}
-				})
-		},
 		model.WireGuard: func(t *testing.T, n int) *model.Inbound {
 			return seedSharedSubIdInbound(t, model.WireGuard, subId, n, fmt.Sprintf(`"secretKey":%q,"mtu":1420`, serverPriv),
 				func(i int) string {
@@ -2206,10 +2187,7 @@ func TestSubscriptionDecodesInboundSettingsOncePerRequest(t *testing.T) {
 		protocol model.Protocol
 		fetch    func(t *testing.T) int
 	}{
-		{"raw tuic", model.TUIC, raw},
-		{"raw amneziawg", model.AmneziaWG, raw},
-		{"clash tuic", model.TUIC, clash},
-		{"clash amneziawg", model.AmneziaWG, clash},
+		{"raw wireguard", model.WireGuard, raw},
 		{"clash wireguard", model.WireGuard, clash},
 		{"json wireguard", model.WireGuard, jsonSub},
 		{"json hysteria", model.Hysteria, jsonSub},

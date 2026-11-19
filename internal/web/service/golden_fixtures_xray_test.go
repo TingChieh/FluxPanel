@@ -180,7 +180,7 @@ func buildGoldenInbound(t *testing.T, inbound map[string]any) error {
 // inbound and builds it.
 func TestGoldenInboundFixturesBuildInXray(t *testing.T) {
 	for name, fixture := range goldenFixtures(t, "inbound") {
-		if protocol, _ := fixture["protocol"].(string); protocol == string(model.MTProto) {
+		if protocol, _ := fixture["protocol"].(string); protocol == "mtproto" {
 			continue
 		}
 		t.Run(name, func(t *testing.T) {
@@ -202,7 +202,7 @@ func TestGoldenInboundFixturesBuildInXray(t *testing.T) {
 func TestGoldenInboundFullFixturesBuildInXray(t *testing.T) {
 	for name, fixture := range goldenFixtures(t, "inbound-full") {
 		protocol, _ := fixture["protocol"].(string)
-		if protocol == string(model.MTProto) {
+		if protocol == "mtproto" {
 			continue
 		}
 		t.Run(name, func(t *testing.T) {

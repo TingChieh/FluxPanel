@@ -100,7 +100,7 @@ export interface ClientSpeedEntry {
   down: number;
 }
 
-type ClientSpeedSource = 'xray' | 'tuic';
+type ClientSpeedSource = 'xray';
 
 type ClientStatRow = ClientTraffic & { email?: string };
 
@@ -307,7 +307,7 @@ export function useClients(options: UseClientsOptions = {}) {
     Partial<Record<ClientSpeedSource, Record<string, ClientSpeedEntry>>>
   >({});
   const clientSpeedExpiryTimers = useRef<Partial<Record<ClientSpeedSource, number>>>({});
-  const clientSpeedSourceVersions = useRef<Record<ClientSpeedSource, number>>({ xray: 0, tuic: 0 });
+  const clientSpeedSourceVersions = useRef<Record<ClientSpeedSource, number>>({ xray: 0 });
   const clientSpeed = useMemo(() => {
     const combined: Record<string, ClientSpeedEntry> = {};
     for (const source of Object.values(clientSpeedBySource)) {
@@ -752,7 +752,7 @@ export function useClients(options: UseClientsOptions = {}) {
       const p = payload as {
         onlineClients?: string[];
         clientTraffics?: { email: string; up: number; down: number }[];
-        clientTrafficSource?: 'xray' | 'tuic';
+        clientTrafficSource?: 'xray';
         clientTrafficIntervalMs?: number;
       };
       if (Array.isArray(p.onlineClients)) {
@@ -765,7 +765,7 @@ export function useClients(options: UseClientsOptions = {}) {
         // dropped and an unchanged result returns the previous object — which lets
         // React bail out of the update instead of re-rendering the table.
         const next: Record<string, ClientSpeedEntry> = {};
-        const source = p.clientTrafficSource === 'tuic' ? 'tuic' : 'xray';
+        const source: ClientSpeedSource = 'xray';
         const sampleIntervalMs =
           typeof p.clientTrafficIntervalMs === 'number' &&
           Number.isFinite(p.clientTrafficIntervalMs) &&

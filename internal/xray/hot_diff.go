@@ -14,7 +14,6 @@ import (
 // process. It only covers the sections Xray can reload at runtime: inbounds,
 // outbounds and routing rules/balancers.
 type HotDiff struct {
-	TuicRelayChanges   []InboundReplacement
 	RemovedInboundTags []string
 	AddedInbounds      [][]byte
 	RemovedUsers       []UserOp
@@ -64,7 +63,7 @@ func (d *HotDiff) DropsUsers() bool {
 
 // Empty reports whether the diff contains no operations.
 func (d *HotDiff) Empty() bool {
-	return len(d.TuicRelayChanges) == 0 && len(d.RemovedInboundTags) == 0 &&
+	return len(d.RemovedInboundTags) == 0 &&
 		len(d.AddedInbounds) == 0 &&
 		len(d.RemovedUsers) == 0 &&
 		len(d.AddedUsers) == 0 &&
@@ -153,15 +152,11 @@ func diffInbounds(oldCfg, newCfg *Config, diff *HotDiff) bool {
 		if oldIb.Tag == apiTag || oldIb.Tag == "api" {
 			return false
 		}
-		if oldIb.TuicRelay && (!exists || newIb.TuicRelay) {
-			diff.TuicRelayChanges = append(diff.TuicRelayChanges, InboundReplacement{Previous: oldIb, Next: newIb})
-			continue
-		}
 		if exists && (inboundHasReverseClient(oldIb) || inboundHasReverseClient(newIb)) {
 			logger.Debug("hot diff: inbound [", oldIb.Tag, "] carries a reverse-tagged client, forcing a full restart instead of a hot swap")
 			return false
 		}
-		if exists && !oldIb.TuicRelay {
+		if exists {
 			diff.DroppedClients = append(diff.DroppedClients, droppedClients(oldIb, newIb)...)
 		}
 		if exists && diffInboundUsers(oldIb, newIb, diff) {
@@ -195,10 +190,6 @@ func diffInbounds(oldCfg, newCfg *Config, diff *HotDiff) bool {
 		}
 		if newIb.Tag == apiTag || newIb.Tag == "api" {
 			return false
-		}
-		if newIb.TuicRelay {
-			diff.TuicRelayChanges = append(diff.TuicRelayChanges, InboundReplacement{Next: newIb})
-			continue
 		}
 		if inboundUsesTproxy(newIb) {
 			logger.Debug("hot diff: new inbound [", newIb.Tag, "] is a TPROXY target (e.g. internal/amneziawg's Xray egress bridge); a gRPC add reports success but does not reliably bind a working listener, forcing a full restart instead of a hot add")

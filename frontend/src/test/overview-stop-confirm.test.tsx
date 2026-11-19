@@ -29,7 +29,6 @@ function renderBar(
       onRestartXray={onRestartXray}
       onOpenLogs={noop}
       onOpenXrayLogs={noop}
-      onOpenAmneziaWGLogs={noop}
       onOpenConfig={noop}
       onOpenBackup={noop}
       onOpenSystemHistory={noop}

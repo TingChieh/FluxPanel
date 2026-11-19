@@ -27,7 +27,6 @@ import {
   withoutClients,
 } from '@/lib/xray/inbound-form-adapter';
 import { createDefaultInboundSettings } from '@/lib/xray/inbound-defaults';
-import { generateAwgObfuscation } from '@/lib/xray/amneziawg-obfuscation';
 import { composeInboundTag, isAutoInboundTag, type InboundTagInput } from '@/lib/xray/inbound-tag';
 import {
   canEnableReality,
@@ -69,15 +68,12 @@ import './InboundFormModal.css';
 import { AdvancedAllEditor, AdvancedSliceEditor } from './advanced-editors';
 import { formatInboundIssue, formatInboundValidation } from './formatValidationError';
 import {
-  AmneziawgFields,
   HttpFields,
   HysteriaFields,
   MasqueSettingsFields,
   MasqueStreamFields,
   MixedFields,
-  MtprotoFields,
   ShadowsocksFields,
-  TuicFields,
   TunFields,
   TunnelFields,
   VlessFields,
@@ -312,8 +308,7 @@ export default function InboundFormModal({
     protocol !== Protocols.HYSTERIA &&
     protocol !== Protocols.MASQUE &&
     protocol !== Protocols.WIREGUARD &&
-    protocol !== Protocols.TUNNEL &&
-    protocol !== Protocols.TUIC;
+    protocol !== Protocols.TUNNEL;
 
   const wPort = useWatch({ control, name: 'port' });
   const wListen = (useWatch({ control, name: 'listen' }) ?? '') as string;
@@ -386,41 +381,6 @@ export default function InboundFormModal({
   const regenInboundWg = () => {
     const kp = Wireguard.generateKeypair();
     setV('settings.secretKey', kp.privateKey);
-  };
-
-  // AmneziaWG uses the same Curve25519 keys as WireGuard, just nested under
-  // settings.server instead of flat on settings — see amneziawg.ts. Unlike
-  // WireGuard's Xray-native inbound (which re-derives its public key at
-  // runtime and never stores one), AmneziaWG's server.publicKey is a real,
-  // persisted field the Go backend reads directly, so it must be kept in
-  // sync even when the user free-types a new private key instead of using
-  // the regenerate button.
-  const awgPrivateKey = useWatch({ control, name: 'settings.server.privateKey' });
-  const awgPubKey =
-    typeof awgPrivateKey === 'string' && awgPrivateKey.length > 0
-      ? Wireguard.generateKeypair(awgPrivateKey).publicKey
-      : '';
-
-  useEffect(() => {
-    if (protocol === Protocols.AMNEZIAWG) {
-      setV('settings.server.publicKey', awgPubKey);
-    }
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [awgPubKey, protocol]);
-
-  const regenInboundAwg = () => {
-    const kp = Wireguard.generateKeypair();
-    setV('settings.server.privateKey', kp.privateKey);
-    setV('settings.server.publicKey', kp.publicKey);
-  };
-
-  // Randomizes the AmneziaWG 3.1 obfuscation set client-side; the shared
-  // generator mirrors the Go backend's amneziawg.GenerateObfuscation31.
-  const regenInboundAwgObfuscation = () => {
-    const obf = generateAwgObfuscation();
-    for (const [field, value] of Object.entries(obf)) {
-      setV(`settings.server.${field}`, value);
-    }
   };
 
   const matchesVlessAuth = (
@@ -534,11 +494,6 @@ export default function InboundFormModal({
     if (!open) return;
     if (!protocol) return;
     const current = getV('shareAddrStrategy') as InboundFormValues['shareAddrStrategy'] | undefined;
-    if (protocol === Protocols.MTPROTO) {
-      if (current !== 'listen') setV('shareAddrStrategy', 'listen');
-      if (getV('shareAddr')) setV('shareAddr', '');
-      return;
-    }
     if (!availableNodesFetched) return;
     if (!nodeShareOptionAvailable && (current ?? 'node') === 'node') {
       setV('shareAddrStrategy', 'listen');
@@ -724,38 +679,33 @@ export default function InboundFormModal({
         <Input placeholder={t('pages.inbounds.monitorDesc')} />
       </FormField>
 
-      {protocol !== Protocols.MTPROTO && (
-        <>
-          <FormField
-            name="shareAddrStrategy"
-            label={t('pages.inbounds.form.shareAddrStrategy')}
-            tooltip={t('pages.inbounds.form.shareAddrStrategyHelp')}
-          >
-            <NativeSelect
-              options={SHARE_ADDR_STRATEGIES.filter(
-                (strategy) => strategy !== 'node' || nodeShareOptionAvailable,
-              ).map((strategy) => ({
-                value: strategy,
-                label: t(`pages.inbounds.form.shareAddrStrategyOptions.${strategy}`),
-              }))}
-            />
-          </FormField>
+      <FormField
+        name="shareAddrStrategy"
+        label={t('pages.inbounds.form.shareAddrStrategy')}
+        tooltip={t('pages.inbounds.form.shareAddrStrategyHelp')}
+      >
+        <NativeSelect
+          options={SHARE_ADDR_STRATEGIES.filter(
+            (strategy) => strategy !== 'node' || nodeShareOptionAvailable,
+          ).map((strategy) => ({
+            value: strategy,
+            label: t(`pages.inbounds.form.shareAddrStrategyOptions.${strategy}`),
+          }))}
+        />
+      </FormField>
 
-          {shareAddrStrategy === 'custom' && (
-            <FormField
-              name="shareAddr"
-              label={t('pages.inbounds.form.shareAddr')}
-              tooltip={t('pages.inbounds.form.shareAddrHelp')}
-              rules={{
-                validate: (value) =>
-                  isValidShareAddrInput(String(value ?? '')) ||
-                  t('pages.inbounds.form.shareAddrHelp'),
-              }}
-            >
-              <Input placeholder="edge.example.com" />
-            </FormField>
-          )}
-        </>
+      {shareAddrStrategy === 'custom' && (
+        <FormField
+          name="shareAddr"
+          label={t('pages.inbounds.form.shareAddr')}
+          tooltip={t('pages.inbounds.form.shareAddrHelp')}
+          rules={{
+            validate: (value) =>
+              isValidShareAddrInput(String(value ?? '')) || t('pages.inbounds.form.shareAddrHelp'),
+          }}
+        >
+          <Input placeholder="edge.example.com" />
+        </FormField>
       )}
 
       <FormField
@@ -871,16 +821,6 @@ export default function InboundFormModal({
         <WireguardFields wgPubKey={wgPubKey} regenInboundWg={regenInboundWg} />
       )}
 
-      {protocol === Protocols.AMNEZIAWG && (
-        <AmneziawgFields
-          awgPubKey={awgPubKey}
-          regenInboundAwg={regenInboundAwg}
-          regenInboundAwgObfuscation={regenInboundAwgObfuscation}
-        />
-      )}
-
-      {protocol === Protocols.TUIC && <TuicFields />}
-
       {protocol === Protocols.MASQUE && <MasqueSettingsFields />}
 
       {protocol === Protocols.TUN && <TunFields />}
@@ -889,8 +829,6 @@ export default function InboundFormModal({
 
       {protocol === Protocols.HTTP && <HttpFields />}
       {protocol === Protocols.MIXED && <MixedFields mixedUdpOn={mixedUdpOn} />}
-
-      {protocol === Protocols.MTPROTO && <MtprotoFields />}
 
       {protocol === Protocols.SHADOWSOCKS && <ShadowsocksFields isSSWith2022={isSSWith2022} />}
 
@@ -1259,9 +1197,6 @@ export default function InboundFormModal({
                     Protocols.TUNNEL,
                     Protocols.TUN,
                     Protocols.WIREGUARD,
-                    Protocols.MTPROTO,
-                    Protocols.AMNEZIAWG,
-                    Protocols.TUIC,
                     Protocols.MASQUE,
                   ] as string[]
                 ).includes(protocol) ||

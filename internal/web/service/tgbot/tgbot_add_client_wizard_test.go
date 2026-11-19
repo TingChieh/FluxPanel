@@ -42,10 +42,10 @@ func attachPickerRows(t *testing.T, tb *Tgbot, draft *clientDraft) []telego.Inli
 
 // WireGuard and AmneziaWG clients get a generated keypair and address on Create,
 // so the attach picker offers them; Mixed authenticates per inbound and has none.
-func TestAttachPickerOffersWireGuardAndAmneziaWG(t *testing.T) {
+func TestAttachPickerOffersWireGuard(t *testing.T) {
 	tb, _ := newScreenTgbot(t, false)
 	initReportDB(t)
-	seedPickerInbounds(t, model.VLESS, model.WireGuard, model.AmneziaWG, model.Mixed)
+	seedPickerInbounds(t, model.VLESS, model.WireGuard, model.Mixed)
 
 	draft := &clientDraft{}
 	// The picker marks selection, so its labels carry the checkbox and protocol.
@@ -55,7 +55,7 @@ func TestAttachPickerOffersWireGuardAndAmneziaWG(t *testing.T) {
 		labels = append(labels, row.Text)
 	}
 	slices.Sort(labels)
-	for _, want := range []string{"amneziawg", "vless", "wireguard"} {
+	for _, want := range []string{"vless", "wireguard"} {
 		found := false
 		for _, label := range labels {
 			if strings.Contains(label, want) {

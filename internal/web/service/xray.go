@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
@@ -11,12 +10,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/TingChieh/FluxPanel/internal/amneziawg"
-	"github.com/TingChieh/FluxPanel/internal/amneziawgnet"
 	"github.com/TingChieh/FluxPanel/internal/config"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 	"github.com/TingChieh/FluxPanel/internal/logger"
-	"github.com/TingChieh/FluxPanel/internal/tuic"
 	"github.com/TingChieh/FluxPanel/internal/util/json_util"
 	"github.com/TingChieh/FluxPanel/internal/util/maskcompat"
 	"github.com/TingChieh/FluxPanel/internal/xray"
@@ -189,11 +185,6 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 	xrayConfig.OutboundConfigs = healOutboundStreams(xrayConfig.OutboundConfigs,
 		liftXhttpSessionIDKeys, upgradeStreamLegacyXdns, upgradeStreamLegacyUDPHop, normalizeStreamUDPHop)
 	xrayConfig.OutboundConfigs = dropXDriveOutboundsRefusedByCore(xrayConfig.OutboundConfigs)
-	// Bridge amneziawg outbounds before anything else reads OutboundConfigs;
-	// the core has no amneziawg proxy and would reject the raw entry.
-	if err := transformAmneziaWGOutbounds(xrayConfig); err != nil {
-		return nil, err
-	}
 	if xray.KernelTunBlocked() {
 		xrayConfig.OutboundConfigs = forceUserspaceWireGuardTun(xrayConfig.OutboundConfigs)
 	}
@@ -210,9 +201,6 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 			continue
 		}
 		if inbound.NodeID != nil {
-			continue
-		}
-		if inbound.Protocol == model.MTProto || inbound.Protocol == model.AmneziaWG || inbound.Protocol == model.TUIC {
 			continue
 		}
 		if err := normalizeVlessFallbacks(inbound); err != nil {
@@ -441,44 +429,6 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 		mergeSubscriptionOutbounds(xrayConfig, prepend, appendList)
 	}
 
-	// Route opted-in local mtproto inbounds through the core's router. Each one
-	// gets a loopback SOCKS bridge — tagged with the inbound's own tag so it is
-	// matchable in routing rules — that its mtg sidecar dials Telegram through.
-	// Done after the subscription merge so a selected subscription outbound (or
-	// balancer) is a valid rule target.
-	for i := range inbounds {
-		inbound := inbounds[i]
-		if inbound.Protocol != model.MTProto || !inbound.Enable || inbound.NodeID != nil {
-			continue
-		}
-		injectMtprotoEgress(xrayConfig, inbound)
-	}
-
-	// Every AmneziaWG inbound is embedded (internal/amneziawgnet: amneziawg-go
-	// over a gVisor netstack, no kernel module) and relays every peer's
-	// decapsulated traffic into its own loopback SOCKS5 inbound, always on —
-	// unlike mtproto's bridge above, there's no opt-in gate here: once
-	// traffic is decapsulated in gVisor, Xray's own freedom outbound is the
-	// only way it reaches the real internet at all, not an optional extra
-	// hop. Whether it goes anywhere beyond Xray's default routing is up to
-	// whatever rules the admin adds through the stock Routing page, exactly
-	// like routing any other protocol.
-	injectAmneziawgnetSocks(xrayConfig, inbounds)
-	tuicInstances := configuredTuicInstances(inbounds)
-	if err := injectTuicRelay(xrayConfig, tuicInstances); err != nil {
-		return nil, err
-	}
-
-	// Restores each opted-in peer's own distinct public IPv6 source identity
-	// for its outbound connections — a peer that has an IPv6 address in its
-	// AllowedIPs, on an inbound with IPv6Enabled, gets its own freedom
-	// outbound bound to that exact address via sendThrough.
-	// internal/amneziawgnet's own Manager is responsible for actually
-	// aliasing that address onto the host (see v6alias.go) so the kernel
-	// lets Xray bind an egress socket to it at all; this call only builds
-	// the Xray-side outbound/routing-rule half.
-	injectAmneziawgV6Egress(xrayConfig, inbounds)
-
 	// Wire the panel's own HTTP traffic through the configured outbound, after
 	// the subscription merge so subscription outbound tags are valid targets.
 	if egressTag, err := s.settingService.GetPanelOutbound(); err != nil {
@@ -705,420 +655,6 @@ func routingTagIsBalancer(routing map[string]any, tag string) bool {
 		}
 	}
 	return false
-}
-
-// mtprotoEgressSocksSettings is the loopback SOCKS server a routed mtproto
-// inbound exposes for its mtg sidecar to dial Telegram through. mtg makes plain
-// TCP connections, so UDP is left off (matching the panel egress bridge).
-const mtprotoEgressSocksSettings = `{"auth":"noauth","udp":false}`
-
-// injectMtprotoEgress wires one routed mtproto inbound into the generated
-// config after any selected outbound resolves in the final target set. Invalid
-// selected targets or routing data skip the entire injection; without a selected
-// outbound, the bridge retains default-route behavior. Generated state remains
-// hot-appliable, leaves the stored template untouched, and never forces a full
-// Xray restart. Mirrors injectPanelEgress.
-func injectMtprotoEgress(cfg *xray.Config, inbound *model.Inbound) {
-	var parsed struct {
-		RouteThroughXray bool   `json:"routeThroughXray"`
-		RouteXrayPort    int    `json:"routeXrayPort"`
-		OutboundTag      string `json:"outboundTag"`
-	}
-	if err := json.Unmarshal([]byte(inbound.Settings), &parsed); err != nil {
-		return
-	}
-	if !parsed.RouteThroughXray || parsed.RouteXrayPort <= 0 || inbound.Tag == "" {
-		return
-	}
-	tag := inbound.Tag
-	for i := range cfg.InboundConfigs {
-		if cfg.InboundConfigs[i].Tag == tag {
-			logger.Warning("mtproto egress: inbound tag [", tag, "] already present in generated config, skipping bridge")
-			return
-		}
-	}
-
-	if parsed.OutboundTag != "" {
-		routing := map[string]any{}
-		if len(cfg.RouterConfig) > 0 {
-			if err := json.Unmarshal(cfg.RouterConfig, &routing); err != nil {
-				logger.Warning("mtproto egress: routing section is unparsable, skipping injection:", err)
-				return
-			}
-		}
-		if !routingTargetExists(routing, cfg.OutboundConfigs, parsed.OutboundTag) {
-			logger.Warning("mtproto egress: target tag [", parsed.OutboundTag, "] not found, skipping injection")
-			return
-		}
-		rules, _ := routing["rules"].([]any)
-		rule := map[string]any{
-			"type":       "field",
-			"inboundTag": []any{tag},
-		}
-		if routingTagIsBalancer(routing, parsed.OutboundTag) {
-			rule["balancerTag"] = parsed.OutboundTag
-		} else {
-			rule["outboundTag"] = parsed.OutboundTag
-		}
-		routing["rules"] = append([]any{rule}, rules...)
-		newRouting, err := json.Marshal(routing)
-		if err != nil {
-			logger.Warning("mtproto egress: failed to rebuild routing section, skipping injection:", err)
-			return
-		}
-		cfg.RouterConfig = json_util.RawMessage(newRouting)
-	}
-
-	cfg.InboundConfigs = append(cfg.InboundConfigs, xray.InboundConfig{
-		Listen:   json_util.RawMessage(`"127.0.0.1"`),
-		Port:     parsed.RouteXrayPort,
-		Protocol: "socks",
-		Settings: json_util.RawMessage(mtprotoEgressSocksSettings),
-		Tag:      tag,
-	})
-}
-
-// Peers resolve DNS inside the tunnel, so domain rules match only via sniffing; routeOnly
-// keeps the dial on the peer's IP, else Telegram's FakeTLS (IP + foreign SNI) breaks.
-const amneziawgEgressSniffingSettings = `{"enabled":true,"destOverride":["http","tls","quic","fakedns"],"routeOnly":true}`
-
-// injectAmneziawgnetSocks gives every enabled AmneziaWG inbound with at
-// least one qualifying peer its own loopback SOCKS5 inbound for the
-// embedded (amneziawg-go) relay path (internal/amneziawgnet) -- always on,
-// since there is no alternative datapath once traffic is decapsulated in
-// gVisor: Xray's own freedom outbound is how it reaches the real internet at
-// all (see internal/amneziawgnet/relay.go's doc comment, Finding 3 of the
-// migration plan). Tagged with the inbound's own real tag: it's already
-// selectable in the panel's stock Routing page (InboundService.GetInboundTags
-// is protocol-blind), and per-inbound traffic totals
-// (internal/web/service/inbound_traffic.go's addClientTraffic) match by
-// exact tag -- reusing it isn't a style choice.
-func injectAmneziawgnetSocks(cfg *xray.Config, inbounds []*model.Inbound) {
-	existingTags := make(map[string]struct{}, len(cfg.InboundConfigs))
-	for i := range cfg.InboundConfigs {
-		existingTags[cfg.InboundConfigs[i].Tag] = struct{}{}
-	}
-
-	for _, inbound := range inbounds {
-		if inbound.Protocol != model.AmneziaWG || !inbound.Enable || inbound.NodeID != nil {
-			continue
-		}
-		inst, ok := amneziawg.InstanceFromInbound(inbound)
-		if !ok {
-			continue
-		}
-		// Kernel-mode inbounds forward in the kernel and never dial Xray, so a
-		// relay inbound for them would listen forever with nothing behind it.
-		if inst.KernelMode {
-			continue
-		}
-		if _, taken := existingTags[inbound.Tag]; taken {
-			logger.Warning("amneziawgnet socks: inbound tag [", inbound.Tag, "] already present in generated config, skipping its relay inbound")
-			continue
-		}
-
-		emails := make([]string, 0, len(inst.Peers))
-		for _, p := range inst.Peers {
-			if p.Email != "" {
-				emails = append(emails, p.Email)
-			}
-		}
-		if len(emails) == 0 {
-			continue
-		}
-
-		settings, err := amneziawgnet.SocksInboundSettings(emails, amneziawgnet.SocksPassword())
-		if err != nil {
-			logger.Warning("amneziawgnet socks: building settings for inbound [", inbound.Tag, "]: ", err)
-			continue
-		}
-
-		existingTags[inbound.Tag] = struct{}{}
-		cfg.InboundConfigs = append(cfg.InboundConfigs, xray.InboundConfig{
-			Listen:   json_util.RawMessage(`"127.0.0.1"`),
-			Port:     amneziawgnet.SOCKSPortForInbound(inbound.Id),
-			Protocol: "socks",
-			Settings: json_util.RawMessage(settings),
-			Sniffing: json_util.RawMessage(amneziawgEgressSniffingSettings),
-			Tag:      inbound.Tag,
-		})
-	}
-}
-
-// Keep sniffed domains available for routing without replacing the requested destination.
-const tuicEgressSniffingSettings = `{"enabled":true,"destOverride":["http","tls","quic","fakedns"],"routeOnly":true}`
-
-func injectTuicRelay(cfg *xray.Config, instances []tuic.Instance) error {
-	existingTags := map[string]struct{}{"api": {}}
-	var api struct {
-		Tag string `json:"tag"`
-	}
-	if len(cfg.API) > 0 {
-		if err := json.Unmarshal(cfg.API, &api); err != nil {
-			return err
-		}
-		if api.Tag != "" {
-			existingTags[api.Tag] = struct{}{}
-		}
-	}
-	for i := range cfg.InboundConfigs {
-		existingTags[cfg.InboundConfigs[i].Tag] = struct{}{}
-	}
-	var userLevel uint32
-	policyReady := false
-	for _, inst := range instances {
-		if _, taken := existingTags[inst.Tag]; taken {
-			logger.Warningf("tuic: skipping inbound %d: relay tag conflicts with another inbound", inst.Id)
-			continue
-		}
-		emails := make([]string, 0, len(inst.Clients))
-		for _, client := range inst.Clients {
-			if client.Email != "" {
-				emails = append(emails, client.Email)
-			}
-		}
-		if !policyReady {
-			var err error
-			userLevel, err = tuicRelayPolicyLevel(cfg)
-			if err != nil {
-				return fmt.Errorf("tuic relay: policy: %w", err)
-			}
-			policyReady = true
-		}
-		slices.Sort(emails)
-		emails = slices.Compact(emails)
-		settings, err := tuic.SocksInboundSettings(emails, tuic.SocksPassword(), userLevel)
-		if err != nil {
-			return fmt.Errorf("tuic relay: inbound %d: %w", inst.Id, err)
-		}
-		existingTags[inst.Tag] = struct{}{}
-		cfg.InboundConfigs = append(cfg.InboundConfigs, xray.InboundConfig{
-			Listen:        json_util.RawMessage(`"127.0.0.1"`),
-			Port:          tuic.SOCKSPortForInbound(inst.Id),
-			Protocol:      "socks",
-			TuicRelay:     true,
-			TuicInboundID: inst.Id,
-			Settings:      json_util.RawMessage(settings),
-			Sniffing:      json_util.RawMessage(tuicEgressSniffingSettings),
-			Tag:           inst.Tag,
-		})
-	}
-	return nil
-}
-
-// Relay authentication carries routing identity; native TUIC owns client accounting and source IPs.
-// Copy session limits from level 0, but disable Xray's duplicate traffic and loopback online stats.
-func tuicRelayPolicyLevel(cfg *xray.Config) (uint32, error) {
-	var policy map[string]json.RawMessage
-	if len(cfg.Policy) > 0 {
-		if err := json.Unmarshal(cfg.Policy, &policy); err != nil {
-			return 0, err
-		}
-	}
-	if policy == nil {
-		policy = make(map[string]json.RawMessage)
-	}
-	var levels map[uint32]json.RawMessage
-	if raw, ok := policy["levels"]; ok {
-		if err := json.Unmarshal(raw, &levels); err != nil {
-			return 0, err
-		}
-	}
-	if levels == nil {
-		levels = make(map[uint32]json.RawMessage)
-	}
-	var relayPolicy map[string]json.RawMessage
-	if raw, ok := levels[0]; ok {
-		if err := json.Unmarshal(raw, &relayPolicy); err != nil {
-			return 0, err
-		}
-	}
-	if relayPolicy == nil {
-		relayPolicy = make(map[string]json.RawMessage)
-	}
-	for _, key := range []string{"statsUserUplink", "statsUserDownlink", "statsUserOnline"} {
-		relayPolicy[key] = json.RawMessage("false")
-	}
-	level := ^uint32(0)
-	for {
-		if _, exists := levels[level]; !exists {
-			break
-		}
-		if level == 0 {
-			return 0, errors.New("no free user policy level")
-		}
-		level--
-	}
-	raw, err := json.Marshal(relayPolicy)
-	if err != nil {
-		return 0, err
-	}
-	levels[level] = raw
-	policy["levels"], err = json.Marshal(levels)
-	if err != nil {
-		return 0, err
-	}
-	cfg.Policy, err = json.Marshal(policy)
-	return level, err
-}
-
-// amneziawgV6EgressTag returns the stable, globally-unique freedom outbound
-// tag for one peer's IPv6 source-identity egress. Stable across config
-// regenerations (a pure function of two stable identifiers), so
-// internal/xray/hot_diff.go's tag-keyed outbound/routing diffing recognizes
-// "unchanged" rather than remove+recreate on every poll. The inbound.Id
-// prefix is defense in depth, not load-bearing on its own: email is already
-// enforced globally unique across the whole panel's client table
-// (model.ClientRecord.Email has a gorm uniqueIndex) — kept anyway since it
-// costs nothing and makes the tag self-describing, matching
-// NodeEgressInboundTag's own style.
-func amneziawgV6EgressTag(inboundID int, email string) string {
-	return fmt.Sprintf("amneziawg-v6-%d-%s", inboundID, email)
-}
-
-// amneziawgV6EgressSettings carries the template's private-range egress block:
-// the per-peer rule is matched ahead of the routing-level geoip:private rule.
-func amneziawgV6EgressSettings() map[string]any {
-	return map[string]any{
-		"finalRules": []any{
-			map[string]any{"action": "block", "ip": []any{"geoip:private"}},
-			map[string]any{"action": "allow"},
-		},
-	}
-}
-
-// injectAmneziawgV6Egress gives every enabled, non-node-hosted AmneziaWG
-// peer with an IPv6 AllowedIPs entry its own single-purpose freedom
-// outbound, bound via sendThrough to that exact address, plus a routing
-// rule sending only that peer's IPv6-destined traffic through it — restoring the
-// per-client public IPv6 identity the hard cutover temporarily dropped
-// (Phase 3.5 of the migration plan). Scoped to outbound source identity
-// only: it depends on internal/amneziawgnet's own alias mechanism actually
-// giving the host that address at the OS level (see v6alias.go's
-// V6AliasesActive, the exact same gate this function uses below) — without
-// that, sendThrough fails to bind and every connection through it errors
-// outright (freedom.go's dial failure); there is no fallback outbound.
-//
-// The routing rule matches both inboundTag and user: SocksInboundSettings
-// (used by injectAmneziawgnetSocks above) already authenticates each
-// connection as the peer's own email via stock SOCKS5 auth, and a stock
-// Xray SOCKS5 inbound sets that connection's stats/routing identity from
-// the authenticated username — so "user" reliably isolates exactly one
-// peer's traffic, the same building block Finding 3 of the migration plan
-// already established for per-client stats.
-//
-// Modeled on injectNodeEgresses (the established N-per-slice inbound+rule
-// precedent, not injectAmneziawgnetSocks itself, which only ever emits a
-// single inbound and never touches outbounds/routing) and
-// mergeSubscriptionOutbounds's unmarshal-append-remarshal pattern for
-// cfg.OutboundConfigs. Synthetic rules are prepended ahead of whatever's
-// already in the routing rules array, the same pattern injectNodeEgresses/
-// injectMtprotoEgress already use for their own always-must-win infra
-// rules — this never touches the admin's own saved Routing-page rule
-// order.
-func injectAmneziawgV6Egress(cfg *xray.Config, inbounds []*model.Inbound) {
-	// Protocol is checked alongside Tag, not just Tag alone: a tag collision
-	// with some unrelated (non-socks) inbound must not be mistaken for this
-	// instance's own relay having been created.
-	liveInboundTags := make(map[string]struct{}, len(cfg.InboundConfigs))
-	for i := range cfg.InboundConfigs {
-		if cfg.InboundConfigs[i].Protocol == "socks" {
-			liveInboundTags[cfg.InboundConfigs[i].Tag] = struct{}{}
-		}
-	}
-
-	var existingOutbounds []any
-	if len(cfg.OutboundConfigs) > 0 {
-		if err := json.Unmarshal(cfg.OutboundConfigs, &existingOutbounds); err != nil {
-			logger.Warning("amneziawg v6 egress: outbounds section is unparsable, skipping injection:", err)
-			return
-		}
-	}
-	usedOutboundTags := make(map[string]struct{}, len(existingOutbounds))
-	for _, o := range existingOutbounds {
-		if m, ok := o.(map[string]any); ok {
-			if t, ok := m["tag"].(string); ok {
-				usedOutboundTags[t] = struct{}{}
-			}
-		}
-	}
-
-	routing := map[string]any{}
-	if len(cfg.RouterConfig) > 0 {
-		if err := json.Unmarshal(cfg.RouterConfig, &routing); err != nil {
-			logger.Warning("amneziawg v6 egress: routing section is unparsable, skipping injection:", err)
-			return
-		}
-	}
-	rules, _ := routing["rules"].([]any)
-	newRules := make([]any, 0)
-	newOutbounds := make([]any, 0)
-
-	for _, inbound := range inbounds {
-		if inbound.Protocol != model.AmneziaWG || !inbound.Enable || inbound.NodeID != nil {
-			continue
-		}
-		if _, live := liveInboundTags[inbound.Tag]; !live {
-			// The relay inbound itself wasn't created this pass (e.g. a tag
-			// collision inside injectAmneziawgnetSocks) -- no SOCKS5 inbound
-			// exists for hot_diff.go's inboundTag match to ever fire against.
-			continue
-		}
-		inst, ok := amneziawg.InstanceFromInbound(inbound)
-		if !ok || !amneziawgnet.V6AliasesActive(inst) {
-			continue
-		}
-		for _, p := range inst.Peers {
-			if p.Email == "" {
-				continue
-			}
-			v6 := amneziawg.FirstIPv6(p.AllowedIPs)
-			if v6 == "" {
-				continue
-			}
-			tag := amneziawgV6EgressTag(inbound.Id, p.Email)
-			if _, taken := usedOutboundTags[tag]; taken {
-				logger.Warning("amneziawg v6 egress: outbound tag [", tag, "] already exists, skipping peer [", p.Email, "]")
-				continue
-			}
-			usedOutboundTags[tag] = struct{}{}
-			newOutbounds = append(newOutbounds, map[string]any{
-				"tag":         tag,
-				"protocol":    "freedom",
-				"sendThrough": v6,
-				"settings":    amneziawgV6EgressSettings(),
-			})
-			newRules = append(newRules, map[string]any{
-				"type":        "field",
-				"inboundTag":  []any{inbound.Tag},
-				"user":        []any{p.Email},
-				"ip":          []any{"::/0"},
-				"outboundTag": tag,
-			})
-		}
-	}
-
-	if len(newOutbounds) == 0 {
-		return
-	}
-
-	merged := make([]any, 0, len(existingOutbounds))
-	merged = append(merged, existingOutbounds...)
-	merged = append(merged, newOutbounds...)
-	combined, err := json.MarshalIndent(merged, "", "  ")
-	if err != nil {
-		logger.Warning("amneziawg v6 egress: failed to rebuild outbounds section, skipping injection:", err)
-		return
-	}
-	cfg.OutboundConfigs = json_util.RawMessage(combined)
-
-	routing["rules"] = append(newRules, rules...)
-	newRouting, err := json.Marshal(routing)
-	if err != nil {
-		logger.Warning("amneziawg v6 egress: failed to rebuild routing section, skipping injection:", err)
-		return
-	}
-	cfg.RouterConfig = json_util.RawMessage(newRouting)
 }
 
 // mergeSubscriptionOutbounds appends the subscription outbounds to the
@@ -1528,7 +1064,7 @@ func (s *XrayService) RestartXray(isForce bool) error {
 		configUnchanged := process.GetConfig().Equals(xrayConfig)
 		if !isForce && configUnchanged && !isNeedXrayRestart.Load() {
 			logger.Debug("It does not need to restart Xray")
-			return repairUnavailableTuicRelays(xrayConfig, process.GetAPIPort())
+			return nil
 		}
 		// A config the core cannot bind never replaces one that works: its failed
 		// start exits the core, and the watchdog would then loop on it forever.
@@ -1552,8 +1088,6 @@ func (s *XrayService) RestartXray(isForce bool) error {
 				return nil
 			}
 		}
-		invalidateTuicRelayReadiness(process.GetConfig())
-		invalidateTuicRelayReadiness(xrayConfig)
 		_ = process.Stop()
 	} else if conflicts := bindConflicts(xrayConfig, nil); len(conflicts) > 0 {
 		// Nothing is running to protect and the core is the authority on what it
@@ -1561,16 +1095,10 @@ func (s *XrayService) RestartXray(isForce bool) error {
 		logger.Warning("xray config may not start:", conflicts[0].String())
 	}
 
-	invalidateTuicRelayReadiness(xrayConfig)
 	process = xray.NewProcess(xrayConfig)
 	xrayState.replace(process)
 	s.xrayAPI.StatsLastValues = nil
-	err = process.Start()
-	if err != nil {
-		return err
-	}
-
-	if err := publishTuicRelayReadiness(xrayConfig); err != nil {
+	if err := process.Start(); err != nil {
 		return err
 	}
 
@@ -1591,8 +1119,8 @@ func (s *XrayService) restartToDropClients(diff *xray.HotDiff) bool {
 	return restart
 }
 
-// tryHotApply reconciles the running core with newCfg over gRPC; false means restart, while a TUIC
-// relay error defers that update instead of restarting unrelated connections. Hold the package lock.
+// tryHotApply reconciles the running core with newCfg over gRPC; false means restart.
+// Hold the package lock.
 func (s *XrayService) tryHotApply(process *xray.Process, newCfg *xray.Config) (applied bool, applyErr error) {
 	defer func() {
 		if applyErr != nil {
@@ -1606,9 +1134,6 @@ func (s *XrayService) tryHotApply(process *xray.Process, newCfg *xray.Config) (a
 		return false, nil
 	}
 	if diff.Empty() {
-		if err := repairUnavailableTuicRelays(newCfg, process.GetAPIPort()); err != nil {
-			return false, err
-		}
 		process.SetConfig(newCfg)
 		persistHotConfig(process)
 		return true, nil
@@ -1620,14 +1145,8 @@ func (s *XrayService) tryHotApply(process *xray.Process, newCfg *xray.Config) (a
 		return false, nil
 	}
 
-	if tuicRequiresOrdinaryRemoval(oldCfg, diff.TuicRelayChanges) {
-		return false, nil
-	}
 	apiPort := process.GetAPIPort()
 	if apiPort <= 0 {
-		if len(diff.TuicRelayChanges) > 0 {
-			return false, errors.New("TUIC relay update requires the Xray HandlerService API")
-		}
 		return false, nil
 	}
 	// A dedicated client: s.xrayAPI may be in use by traffic polling on other
@@ -1635,53 +1154,16 @@ func (s *XrayService) tryHotApply(process *xray.Process, newCfg *xray.Config) (a
 	hotAPI := xray.XrayAPI{}
 	if err := hotAPI.Init(apiPort); err != nil {
 		logger.Debug("hot apply: failed to init xray api:", err)
-		if len(diff.TuicRelayChanges) > 0 {
-			return false, err
-		}
 		return false, nil
 	}
 	defer hotAPI.Close()
 
-	staged, relayErr := reconcileTuicHotConfig(&hotAPI, oldCfg, newCfg, diff.TuicRelayChanges)
-	defer staged.finish()
-	effective := staged.effective
-	intermediate := *oldCfg
-	intermediate.InboundConfigs = nil
-	for _, inbound := range oldCfg.InboundConfigs {
-		if !inbound.TuicRelay {
-			intermediate.InboundConfigs = append(intermediate.InboundConfigs, inbound)
-		}
-	}
-	for _, inbound := range effective.InboundConfigs {
-		if inbound.TuicRelay {
-			intermediate.InboundConfigs = append(intermediate.InboundConfigs, inbound)
-		}
-	}
-	ordinary, hot := xray.ComputeHotDiff(&intermediate, effective)
-	if !hot || len(ordinary.TuicRelayChanges) > 0 {
-		relayErr = errors.Join(relayErr, staged.rollback(&hotAPI))
-		intermediate.InboundConfigs = oldCfg.InboundConfigs
-		process.SetConfig(&intermediate)
-		persistHotConfig(process)
-
-		return false, errors.Join(relayErr, errors.New("independent Xray changes could not be planned after TUIC reconciliation"))
-	}
-	if !applyXrayHotDiff(&hotAPI, ordinary) {
-		relayErr = errors.Join(relayErr, staged.rollback(&hotAPI))
-		intermediate.InboundConfigs = oldCfg.InboundConfigs
-		process.SetConfig(&intermediate)
-		persistHotConfig(process)
-		if relayErr != nil {
-			return false, relayErr
-		}
+	if !applyXrayHotDiff(&hotAPI, diff) {
 		return false, nil
 	}
-	balancerOverrides.reapply(process, &hotAPI, effective)
-	process.SetConfig(effective)
+	balancerOverrides.reapply(process, &hotAPI, newCfg)
+	process.SetConfig(newCfg)
 	persistHotConfig(process)
-	if relayErr != nil {
-		return false, relayErr
-	}
 	return true, nil
 }
 

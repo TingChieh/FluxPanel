@@ -88,10 +88,7 @@ export function isInboundMultiUser(record: { protocol: string }): boolean {
     case 'trojan':
     case 'shadowsocks':
     case 'hysteria':
-    case 'mtproto':
     case 'wireguard':
-    case 'amneziawg':
-    case 'tuic':
     case 'masque':
       return true;
     default:

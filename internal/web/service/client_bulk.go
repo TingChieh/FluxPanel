@@ -92,7 +92,7 @@ func (s *ClientService) BulkAttach(inboundSvc *InboundService, emails []string, 
 			recordErr("inbound %d: %v", ibId, err)
 			continue
 		}
-		if inbound.Protocol == model.WireGuard || inbound.Protocol == model.AmneziaWG {
+		if inbound.Protocol == model.WireGuard {
 			attachAnyTunnel = true
 		}
 		existingClients, err := inboundSvc.GetClients(inbound)
@@ -345,9 +345,6 @@ func (s *ClientService) BulkAdjust(inboundSvc *InboundService, emails []string, 
 		flow = "" // ignore unknown directives — "" means "leave flow untouched"
 	}
 	adTag = strings.TrimSpace(adTag)
-	if adTag != "" && adTag != bulkFlowClear && !model.ValidMtprotoAdTag(adTag) {
-		return result, false, common.NewError("mtproto client ad tag must be 32 hex characters")
-	}
 	if limitHwid != nil && *limitHwid < 0 {
 		zero := 0
 		limitHwid = &zero
@@ -712,15 +709,9 @@ func (s *ClientService) bulkAdjustInboundClients(
 		(!oldInbound.DisableFlow &&
 			inboundCanEnableTlsFlow(string(oldInbound.Protocol), oldInbound.StreamSettings, oldInbound.Settings))
 
-	wantAdTag := ""
-	if adTag != "" && adTag != bulkFlowClear {
-		wantAdTag = strings.ToLower(adTag)
-	}
-
 	interfaceClients, _ := settings["clients"].([]any)
 	foundEmails := map[string]bool{}
 	flowChanged := false
-	adTagChanged := false
 	hasInboundChanges := false
 	nowMs := time.Now().Unix() * 1000
 	for i, client := range interfaceClients {
@@ -761,16 +752,7 @@ func (s *ClientService) bulkAdjustInboundClients(
 			}
 		}
 		if adTag != "" {
-			if oldInbound.Protocol == model.MTProto {
-				if cur, _ := c["adTag"].(string); cur != wantAdTag {
-					c["adTag"] = wantAdTag
-					adTagChanged = true
-				}
-				res.adTagHonored[targetEmail] = true
-				clientChanged = true
-			} else {
-				res.adTagIneligible[targetEmail] = true
-			}
+			res.adTagIneligible[targetEmail] = true
 		}
 		if clientChanged {
 			c["updated_at"] = nowMs
@@ -833,9 +815,6 @@ func (s *ClientService) bulkAdjustInboundClients(
 			}
 		}
 	} else {
-		if adTagChanged && oldInbound.Protocol == model.MTProto && oldInbound.NodeID == nil {
-			inboundSvc.applyLocalMtproto(oldInbound.Id)
-		}
 		if oldInbound.NodeID != nil && !flowChanged && len(foundEmails) <= nodeBulkPushThreshold {
 			rt, push, _, perr := inboundSvc.nodePushPlan(oldInbound)
 			if perr != nil {
@@ -849,9 +828,6 @@ func (s *ClientService) bulkAdjustInboundClients(
 					}
 					if entry.applyTotal {
 						updated.TotalGB = entry.newTotal
-					}
-					if adTag != "" && oldInbound.Protocol == model.MTProto {
-						updated.AdTag = wantAdTag
 					}
 					updated.UpdatedAt = nowMs
 					ctx, cancel := nodePushContext()
@@ -1449,7 +1425,7 @@ func (s *ClientService) bulkCreate(inboundSvc *InboundService, payloads []Client
 				ok = false
 				break
 			}
-			if ib.Protocol == model.WireGuard || ib.Protocol == model.AmneziaWG {
+			if ib.Protocol == model.WireGuard {
 				createAnyTunnel = true
 			}
 			if e := s.fillProtocolDefaults(&prep[idx].client, ib); e != nil {

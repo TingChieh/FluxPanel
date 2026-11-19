@@ -17,7 +17,6 @@ export const OutboundProtocols = Object.freeze({
   Trojan: 'trojan',
   Shadowsocks: 'shadowsocks',
   Wireguard: 'wireguard',
-  AmneziaWG: 'amneziawg',
   Hysteria: 'hysteria',
   Masque: 'masque',
   Socks: 'socks',

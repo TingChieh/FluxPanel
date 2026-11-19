@@ -49,7 +49,6 @@ import {
   VmessFields,
   WireguardFields,
 } from './protocols';
-import { AmneziawgFields } from './protocols';
 import {
   GrpcForm,
   HttpUpgradeForm,
@@ -491,7 +490,6 @@ export default function OutboundFormModal({
                       )}
 
                       {protocol === 'wireguard' && <WireguardFields />}
-                      {protocol === 'amneziawg' && <AmneziawgFields />}
 
                       {streamAllowed && network && (
                         <>

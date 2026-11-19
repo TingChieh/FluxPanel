@@ -38,7 +38,7 @@ func (s *InboundService) AddTraffic(inboundTraffics []*xray.Traffic, clientTraff
 	if err != nil {
 		return
 	}
-	s.resetMtprotoClientQuotas(renewed)
+	_ = renewed
 	// Off the serial writer: a hanging node must not stall traffic accounting.
 	needRestart = s.applyTrafficRemotePlans(remotePlans) || needRestart
 	if len(disabledNodeIDs) > 0 {
@@ -226,23 +226,10 @@ func canonicalizeClientTraffic(tx *gorm.DB, traffics []*xray.ClientTraffic) ([]*
 			continue
 		}
 		email := traffic.Email
-		if traffic.TuicTrafficID > 0 {
-			var owner xray.ClientTraffic
-			err := tx.Select("email").Where("id = ?", traffic.TuicTrafficID).Take(&owner).Error
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				continue
-			}
-			if err != nil {
-				return nil, err
-			}
-			email = owner.Email
-		}
 		current := byEmail[email]
 		if current == nil {
 			copy := *traffic
 			copy.Email = email
-			copy.TuicUUID = ""
-			copy.TuicInboundId = 0
 			byEmail[email] = &copy
 			continue
 		}
@@ -695,9 +682,6 @@ func (s *InboundService) ResetClientTrafficByEmail(clientEmail string) error {
 			return tx.Where("email = ?", clientEmail).Delete(&model.NodeClientTraffic{}).Error
 		})
 	})
-	if err == nil {
-		s.resetMtprotoClientQuota(clientEmail)
-	}
 	return err
 }
 
@@ -709,7 +693,6 @@ func (s *InboundService) ResetClientTraffic(id int, clientEmail string) (needRes
 		return inner
 	})
 	if err == nil {
-		s.resetMtprotoClientQuota(clientEmail)
 		// Siblings on other nodes are delivered by their own inbound's reset.
 		if ownNode != nil {
 			s.deliverNodeResetsNow([]int{*ownNode})

@@ -1,7 +1,6 @@
 package sub
 
 import (
-	"encoding/base64"
 	"net/url"
 	"strings"
 	"testing"
@@ -131,17 +130,13 @@ func TestInboundLinks_PreservesPerInboundWireGuardIdentity(t *testing.T) {
 	seedSubDB(t)
 	db := database.GetDB()
 
-	serverPriv, serverPub, err := wgutil.GenerateWireguardKeypair()
+	serverPriv, _, err := wgutil.GenerateWireguardKeypair()
 	if err != nil {
 		t.Fatalf("server keypair: %v", err)
 	}
 	wgPriv, _, err := wgutil.GenerateWireguardKeypair()
 	if err != nil {
 		t.Fatalf("wg client keypair: %v", err)
-	}
-	awgPriv, _, err := wgutil.GenerateWireguardKeypair()
-	if err != nil {
-		t.Fatalf("awg client keypair: %v", err)
 	}
 	// Shared clients row deliberately holds the *other* tunnel's key/address
 	// (last sync wins) — the failure mode ListClientsForInbound alone would export.
@@ -152,21 +147,13 @@ func TestInboundLinks_PreservesPerInboundWireGuardIdentity(t *testing.T) {
 
 	email := "dual@e"
 	wgSettings := `{"secretKey":"` + serverPriv + `","clients":[{"email":"` + email + `","privateKey":"` + wgPriv + `","allowedIPs":["10.0.0.5/32"],"enable":true}]}`
-	awgSettings := `{"server":{"privateKey":"` + serverPriv + `","publicKey":"` + serverPub + `","mtu":1420},` +
-		`"clients":[{"email":"` + email + `","privateKey":"` + awgPriv + `","allowedIPs":["10.8.1.5/32"],"enable":true}]}`
 
 	wgIb := &model.Inbound{
 		UserId: 1, Tag: "wg-dual", Enable: true, Listen: "203.0.113.7", Port: 51820,
 		Protocol: model.WireGuard, Remark: "WG", Settings: wgSettings,
 	}
-	awgIb := &model.Inbound{
-		UserId: 1, Tag: "awg-dual", Enable: true, Listen: "203.0.113.8", Port: 443,
-		Protocol: model.AmneziaWG, Remark: "AWG", Settings: awgSettings,
-	}
-	for _, ib := range []*model.Inbound{wgIb, awgIb} {
-		if err := db.Create(ib).Error; err != nil {
-			t.Fatalf("create inbound %s: %v", ib.Tag, err)
-		}
+	if err := db.Create(wgIb).Error; err != nil {
+		t.Fatalf("create inbound %s: %v", wgIb.Tag, err)
 	}
 	rec := &model.ClientRecord{
 		Email: email, SubID: "subDual", Enable: true,
@@ -175,10 +162,8 @@ func TestInboundLinks_PreservesPerInboundWireGuardIdentity(t *testing.T) {
 	if err := db.Create(rec).Error; err != nil {
 		t.Fatalf("create client: %v", err)
 	}
-	for _, ib := range []*model.Inbound{wgIb, awgIb} {
-		if err := db.Create(&model.ClientInbound{ClientId: rec.Id, InboundId: ib.Id}).Error; err != nil {
-			t.Fatalf("create client_inbound %s: %v", ib.Tag, err)
-		}
+	if err := db.Create(&model.ClientInbound{ClientId: rec.Id, InboundId: wgIb.Id}).Error; err != nil {
+		t.Fatalf("create client_inbound %s: %v", wgIb.Tag, err)
 	}
 
 	svc := NewSubService("{{EMAIL}}")
@@ -197,27 +182,5 @@ func TestInboundLinks_PreservesPerInboundWireGuardIdentity(t *testing.T) {
 	}
 	if got := wu.Query().Get("address"); got != "10.0.0.5/32" {
 		t.Fatalf("wg address = %q, want 10.0.0.5/32 (not merged 10.9.9.9/32)", got)
-	}
-
-	awgLinks := svc.inboundLinks(awgIb)
-	if len(awgLinks) != 1 {
-		t.Fatalf("awg links = %d, want 1: %v", len(awgLinks), awgLinks)
-	}
-	if !strings.HasPrefix(awgLinks[0], "vpn://") {
-		t.Fatalf("awg link = %q, want vpn:// prefix", awgLinks[0])
-	}
-	raw, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(awgLinks[0], "vpn://"))
-	if err != nil {
-		t.Fatalf("awg link decode: %v (%s)", err, awgLinks[0])
-	}
-	textCfg := string(raw)
-	if !strings.Contains(textCfg, "PrivateKey = "+awgPriv) {
-		t.Fatalf("awg config missing inbound private key %q:\n%s", awgPriv, textCfg)
-	}
-	if !strings.Contains(textCfg, "Address = 10.8.1.5/32") {
-		t.Fatalf("awg config missing inbound address 10.8.1.5/32:\n%s", textCfg)
-	}
-	if strings.Contains(textCfg, mergedPriv) || strings.Contains(textCfg, "10.9.9.9/32") {
-		t.Fatalf("awg config leaked merged clients-table tunnel identity:\n%s", textCfg)
 	}
 }

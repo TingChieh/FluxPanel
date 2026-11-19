@@ -64,10 +64,4 @@ describe('outboundAddresses', () => {
       'e.example.com:443',
     ]);
   });
-
-  it('reads the peer endpoint of an amneziawg id', () => {
-    expect(
-      outboundAddresses(row('amneziawg', { peers: [{ endpoint: 'f.example.com:51820' }] })),
-    ).toEqual(['f.example.com:51820']);
-  });
 });

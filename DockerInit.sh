@@ -33,37 +33,21 @@ case $PLATFORM in
     armv6) XRAY_ZIP="arm32-v6" ;;
     386) XRAY_ZIP="32" ;;
 esac
-# The panel looks binaries up by GOARCH; on arm Xray's is "arm32"
-# (internal/xray/process.go) and mtg's plain "arm", as install.sh renames them.
+# The panel looks binaries up by GOARCH; on arm Xray's is "arm32".
 case $PLATFORM in
     armv7 | armv6)
         XRAY_BIN="xray-linux-arm32"
-        MTG_BIN="mtg-linux-arm"
         ;;
     *)
         XRAY_BIN="xray-linux-${PLATFORM}"
-        MTG_BIN="mtg-linux-${PLATFORM}"
         ;;
 esac
-MTG_MULTI_VER=$(curl -sfL "https://api.github.com/repos/mhsanaei/mtg-multi/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
-if [ -z "$MTG_MULTI_VER" ]; then
-    echo "DockerInit: could not resolve the latest mtg-multi release tag" >&2
-    exit 1
-fi
 mkdir -p build/bin
 cd build/bin
 curl -sfLRO "https://github.com/XTLS/Xray-core/releases/download/v26.11.9/Xray-linux-${XRAY_ZIP}.zip"
 unzip "Xray-linux-${XRAY_ZIP}.zip"
 rm -f "Xray-linux-${XRAY_ZIP}.zip" geoip.dat geosite.dat
 mv xray "${XRAY_BIN}"
-# mtg-multi (MTProto sidecar) ships prebuilt release binaries for every target
-# we package, so download and unpack the matching one instead of compiling.
-MTG_PKG="mtg-multi-${MTG_MULTI_VER#v}-linux-${PLATFORM}"
-curl -sfLRO "https://github.com/mhsanaei/mtg-multi/releases/download/${MTG_MULTI_VER}/${MTG_PKG}.tar.gz"
-tar -xzf "${MTG_PKG}.tar.gz"
-mv "${MTG_PKG}/mtg-multi" "${MTG_BIN}"
-rm -rf "${MTG_PKG}" "${MTG_PKG}.tar.gz"
-chmod +x "${MTG_BIN}"
 curl -sfLRO https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
 curl -sfLRO https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
 curl -sfLRo geoip_IR.dat https://github.com/chocolate4u/Iran-v2ray-rules/releases/latest/download/geoip.dat

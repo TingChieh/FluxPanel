@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Form, Input, InputNumber, Modal, Select, message } from 'antd';
+import { Alert, Form, InputNumber, Modal, Select, message } from 'antd';
 import { FormProvider, useForm } from 'react-hook-form';
 
 import { ClientBulkAdjustFormSchema, type ClientBulkAdjustFormValues } from '@/schemas/client';
@@ -138,13 +138,6 @@ export default function ClientBulkAdjustModal({
                 precision={0}
                 placeholder={t('pages.clients.bulkFlowNoChange')}
               />
-            </FormField>
-            <FormField
-              name="adTag"
-              label={t('pages.clients.mtprotoAdTag')}
-              extra={t('pages.clients.bulkAdTagHint')}
-            >
-              <Input placeholder={t('pages.clients.bulkFlowNoChange')} allowClear />
             </FormField>
           </Form>
         </FormProvider>

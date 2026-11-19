@@ -13,7 +13,6 @@ import (
 
 	"github.com/robfig/cron/v3"
 
-	"github.com/TingChieh/FluxPanel/internal/amneziawg"
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/util/common"
 	"github.com/TingChieh/FluxPanel/internal/xray"
@@ -112,20 +111,6 @@ func (s *XraySettingService) CheckXrayConfig(XrayTemplateConfig string) error {
 			coreVersion = process.GetXrayVersion()
 		}
 		for _, outbound := range outbounds {
-			// Panel pseudo-protocol: validated panel-side because the core's
-			// loader would reject it outright.
-			if amneziawg.IsAmneziaWGOutbound(outbound) {
-				var probe struct {
-					Tag string `json:"tag"`
-				}
-				if err := json.Unmarshal(outbound, &probe); err != nil {
-					return common.NewError("xray template config invalid: amneziawg outbound tag unreadable:", err)
-				}
-				if err := amneziawg.ValidateAmneziaWGOutbound(probe.Tag, outbound); err != nil {
-					return err
-				}
-				continue
-			}
 			var probe struct {
 				Tag            string          `json:"tag"`
 				StreamSettings json.RawMessage `json:"streamSettings"`

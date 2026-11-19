@@ -114,7 +114,6 @@ func run(root, outDir string) error {
 				"ProbeResultUI",
 				"RealityScanResult",
 				"GeodataTokenIssue",
-				"AmneziaWGLogs",
 				"PeerActivity",
 				"HwidSlotStatus",
 			),
@@ -126,19 +125,6 @@ func run(root, outDir string) error {
 		{
 			Path:        resolveRel(root, "internal/web/controller"),
 			StructAllow: setOf("TgBotCapabilities"),
-		},
-		{
-			Path:        resolveRel(root, "internal/amneziawg"),
-			StructAllow: setOf("ServerSettings"),
-		},
-		{
-			Path:        resolveRel(root, "internal/amneziawgkern"),
-			StructAllow: setOf("Readiness", "Blocker"),
-			AliasAllow:  setOf("BlockerCode"),
-		},
-		{
-			Path:        resolveRel(root, "internal/tuic"),
-			StructAllow: setOf("TuicServerSettings", "TuicClientSettings"),
 		},
 	}
 

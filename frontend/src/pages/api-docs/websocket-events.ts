@@ -45,7 +45,6 @@ const statusPayloadSchema = {
     'diskIO',
     'diskTraffic',
     'xray',
-    'amneziawg',
     'panelVersion',
     'panelGuid',
     'uptime',
@@ -84,11 +83,6 @@ const statusPayloadSchema = {
         version: { type: 'string' },
       },
     },
-    amneziawg: {
-      type: 'object',
-      required: ['configured', 'running'],
-      properties: { configured: { type: 'boolean' }, running: { type: 'boolean' } },
-    },
     panelVersion: { type: 'string' },
     panelGuid: { type: 'string' },
     uptime: int64,
@@ -125,8 +119,8 @@ const trafficPayloadSchema = {
     clientTraffics: { type: 'array', items: { $ref: '#/components/schemas/ClientTraffic' } },
     clientTrafficSource: {
       type: 'string',
-      enum: ['xray', 'tuic'],
-      description: 'Present for native TUIC samples; omitted Xray samples default to xray.',
+      enum: ['xray'],
+      description: 'Traffic sampling source; omitted samples default to xray.',
     },
     clientTrafficIntervalMs: {
       type: 'integer',
@@ -208,7 +202,6 @@ export function buildWebSocketEvents(
           diskIO: { read: 1048576, write: 2097152 },
           diskTraffic: { read: 4096, write: 8192 },
           xray: { state: 'running', errorMsg: '', version: '25.10.31' },
-          amneziawg: { configured: false, running: false },
           panelVersion: 'v3.x.x',
           panelGuid: 'panel-guid',
           uptime: 86400,
@@ -225,8 +218,7 @@ export function buildWebSocketEvents(
     },
     {
       type: 'traffic',
-      summary:
-        'Live traffic deltas plus online, per-node and last-online maps. TUIC also sends source-tagged client deltas with their sampling interval for live speed.',
+      summary: 'Live traffic deltas plus online, per-node and last-online maps.',
       payloadSchema: trafficPayloadSchema,
       example: {
         type: 'traffic',

@@ -86,7 +86,6 @@ func allModels() []any {
 		&model.NodePendingReset{},
 		&model.OutboundSubscription{},
 		&model.SubBalancer{},
-		&model.TuicTrafficReceipt{},
 	}
 }
 
@@ -514,57 +513,6 @@ func seedHostsFromExternalProxy() error {
 	})
 }
 
-func seedMtprotoCustomShareAddrToHosts() error {
-	const seederName = "MtprotoCustomShareAddrToHosts"
-	var count int64
-	if err := db.Model(&model.HistoryOfSeeders{}).Where("seeder_name = ?", seederName).Count(&count).Error; err != nil {
-		return err
-	}
-	if count > 0 {
-		return nil
-	}
-
-	return db.Transaction(func(tx *gorm.DB) error {
-		var inbounds []model.Inbound
-		if err := tx.Where("protocol = ? AND TRIM(COALESCE(share_addr_strategy, '')) = ?", string(model.MTProto), "custom").Find(&inbounds).Error; err != nil {
-			return err
-		}
-		for _, inbound := range inbounds {
-			if err := CreateHostFromMtprotoCustomShareAddr(tx, inbound.Id, inbound.ShareAddr); err != nil {
-				return err
-			}
-			if err := tx.Model(&model.Inbound{}).Where("id = ?", inbound.Id).Updates(map[string]any{
-				"share_addr_strategy": "listen",
-				"share_addr":          "",
-			}).Error; err != nil {
-				return err
-			}
-		}
-		return tx.Create(&model.HistoryOfSeeders{SeederName: seederName}).Error
-	})
-}
-
-func CreateHostFromMtprotoCustomShareAddr(tx *gorm.DB, inboundId int, rawAddress string) error {
-	address := strings.TrimPrefix(strings.TrimSuffix(strings.TrimSpace(rawAddress), "]"), "[")
-	if address == "" {
-		return nil
-	}
-	var sameAddress []model.Host
-	if err := tx.Where("inbound_id = ? AND address = ? AND is_disabled = ?", inboundId, address, false).
-		Find(&sameAddress).Error; err != nil {
-		return err
-	}
-	for _, host := range sameAddress {
-		if !slices.Contains(host.ExcludeFromSubTypes, "raw") {
-			return nil
-		}
-	}
-	return tx.Create(&model.Host{
-		GroupId: random.NumLower(16), InboundId: inboundId,
-		Remark: address, Address: address, Security: "same",
-	}).Error
-}
-
 func seedWireguardPeersToClients() error {
 	var history []string
 	if err := db.Model(&model.HistoryOfSeeders{}).Pluck("seeder_name", &history).Error; err != nil {
@@ -689,166 +637,6 @@ func wireguardPeerEmail(remark string, peer map[string]any, index int, used map[
 		suffix = strings.TrimSpace(c)
 	}
 	email := strings.ReplaceAll(base+"-"+suffix, " ", "-")
-	candidate := email
-	for n := 2; ; n++ {
-		if _, taken := used[candidate]; !taken {
-			return candidate
-		}
-		candidate = email + "-" + strconv.Itoa(n)
-	}
-}
-
-// seedMtprotoSecretsToClients converts each legacy single-secret mtproto inbound
-// into a one-client inbound so MTProto joins the shared multi-client model: the
-// inbound-level secret becomes the first client's FakeTLS secret, and a
-// ClientRecord + client_inbounds link are created so per-client traffic, limits,
-// and share links work exactly like every other protocol. One-time, self-gated
-// on the "MtprotoSecretsToClients" seeder row. Mirrors seedWireguardPeersToClients.
-func seedMtprotoSecretsToClients() error {
-	var history []string
-	if err := db.Model(&model.HistoryOfSeeders{}).Pluck("seeder_name", &history).Error; err != nil {
-		return err
-	}
-	if slices.Contains(history, "MtprotoSecretsToClients") {
-		return nil
-	}
-
-	var inbounds []model.Inbound
-	if err := db.Where("protocol = ?", string(model.MTProto)).Find(&inbounds).Error; err != nil {
-		return err
-	}
-
-	return db.Transaction(func(tx *gorm.DB) error {
-		usedEmails := map[string]struct{}{}
-		var existingEmails []string
-		if err := tx.Model(&model.ClientRecord{}).Pluck("email", &existingEmails).Error; err != nil {
-			return err
-		}
-		for _, e := range existingEmails {
-			usedEmails[e] = struct{}{}
-		}
-
-		for _, inbound := range inbounds {
-			if strings.TrimSpace(inbound.Settings) == "" {
-				continue
-			}
-			var settings map[string]any
-			if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
-				log.Printf("MtprotoSecretsToClients: skip inbound %d (invalid settings json): %v", inbound.Id, err)
-				continue
-			}
-			if clients, ok := settings["clients"].([]any); ok && len(clients) > 0 {
-				continue
-			}
-
-			var linkCount int64
-			if err := tx.Model(&model.ClientInbound{}).Where("inbound_id = ?", inbound.Id).Count(&linkCount).Error; err != nil {
-				return err
-			}
-			if linkCount > 0 {
-				continue
-			}
-
-			secret, _ := settings["secret"].(string)
-			secret = strings.TrimSpace(secret)
-			if secret == "" {
-				domain, _ := settings["fakeTlsDomain"].(string)
-				secret = model.GenerateFakeTLSSecret(strings.TrimSpace(domain))
-			}
-
-			email := mtprotoInboundClientEmail(inbound.Remark, usedEmails)
-			usedEmails[email] = struct{}{}
-
-			obj := map[string]any{
-				"email":  email,
-				"secret": secret,
-				"enable": true,
-				"subId":  random.NumLower(16),
-			}
-			c := model.Client{Email: email, Secret: secret, Enable: true, SubID: obj["subId"].(string)}
-
-			incoming := c.ToRecord()
-			var row model.ClientRecord
-			err := tx.Where("email = ?", email).First(&row).Error
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				if err := tx.Create(incoming).Error; err != nil {
-					return err
-				}
-				row = *incoming
-			} else if err != nil {
-				return err
-			} else {
-				model.MergeClientRecord(&row, incoming)
-				if err := tx.Save(&row).Error; err != nil {
-					return err
-				}
-			}
-
-			link := model.ClientInbound{ClientId: row.Id, InboundId: inbound.Id}
-			if err := tx.Where("client_id = ? AND inbound_id = ?", row.Id, inbound.Id).
-				FirstOrCreate(&link).Error; err != nil {
-				return err
-			}
-
-			delete(settings, "secret")
-			settings["clients"] = []any{obj}
-			newSettings, err := json.Marshal(settings)
-			if err != nil {
-				return err
-			}
-			if err := tx.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-				Update("settings", string(newSettings)).Error; err != nil {
-				return err
-			}
-		}
-		return tx.Create(&model.HistoryOfSeeders{SeederName: "MtprotoSecretsToClients"}).Error
-	})
-}
-
-// stripMtprotoInboundSecrets removes the vestigial inbound-level `secret` from
-// every mtproto inbound. seedMtprotoSecretsToClients already drops it while
-// converting legacy single-secret inbounds, but inbounds that already had clients
-// kept the dead field, and the old HealMtprotoSecret regenerated it on every
-// save. mtg and every share link read only per-client secrets, so the
-// inbound-level value is dead data that once leaked into stale, unusable links.
-// One-time, self-gated on the "StripMtprotoInboundSecrets" seeder row.
-func stripMtprotoInboundSecrets() error {
-	var history []string
-	if err := db.Model(&model.HistoryOfSeeders{}).Pluck("seeder_name", &history).Error; err != nil {
-		return err
-	}
-	if slices.Contains(history, "StripMtprotoInboundSecrets") {
-		return nil
-	}
-
-	var inbounds []model.Inbound
-	if err := db.Where("protocol = ?", string(model.MTProto)).Find(&inbounds).Error; err != nil {
-		return err
-	}
-
-	return db.Transaction(func(tx *gorm.DB) error {
-		for _, inbound := range inbounds {
-			stripped, ok := model.StripMtprotoInboundSecret(inbound.Settings)
-			if !ok {
-				continue
-			}
-			if err := tx.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-				Update("settings", stripped).Error; err != nil {
-				return err
-			}
-		}
-		return tx.Create(&model.HistoryOfSeeders{SeederName: "StripMtprotoInboundSecrets"}).Error
-	})
-}
-
-// mtprotoInboundClientEmail derives a stable, unique client email for a migrated
-// mtproto inbound from its remark.
-func mtprotoInboundClientEmail(remark string, used map[string]struct{}) string {
-	base := strings.TrimSpace(remark)
-	if base == "" {
-		base = "mtproto"
-	}
-	email := strings.ReplaceAll(base, " ", "-")
 	candidate := email
 	for n := 2; ; n++ {
 		if _, taken := used[candidate]; !taken {
@@ -1753,17 +1541,7 @@ func runSeeders(isUsersEmpty bool) error {
 		}
 	}
 
-	if !slices.Contains(seedersHistory, "ClientForwardedPortsBackfill") {
-		if err := backfillClientForwardedPorts(); err != nil {
-			return err
-		}
-	}
-
 	if err := seedHostsFromExternalProxy(); err != nil {
-		return err
-	}
-
-	if err := seedMtprotoCustomShareAddrToHosts(); err != nil {
 		return err
 	}
 
@@ -1776,19 +1554,6 @@ func runSeeders(isUsersEmpty bool) error {
 	}
 
 	if err := backfillEmptyHostGroupIds(); err != nil {
-		return err
-	}
-
-	// Self-gated on the "MtprotoSecretsToClients" row.
-	if err := seedMtprotoSecretsToClients(); err != nil {
-		return err
-	}
-
-	// Self-gated on the "StripMtprotoInboundSecrets" row. Must run after the
-	// seeder above so legacy single-secret inbounds are first converted to a
-	// client (which preserves the secret) before the inbound-level copy is
-	// dropped from every mtproto inbound.
-	if err := stripMtprotoInboundSecrets(); err != nil {
 		return err
 	}
 
@@ -1951,40 +1716,6 @@ func clearLegacyProxySettings() error {
 			return err
 		}
 		return tx.Create(&model.HistoryOfSeeders{SeederName: "LegacyProxySettingsCleanup"}).Error
-	})
-}
-
-// The client editor fills forwardedPorts from the record, which kept the value it was created
-// with; an emptied field now withdraws the forwards, so the record must hold the live spec.
-func backfillClientForwardedPorts() error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		var inbounds []model.Inbound
-		if err := tx.Select("id", "settings").Where("protocol = ?", model.AmneziaWG).Find(&inbounds).Error; err != nil {
-			return err
-		}
-		for _, ib := range inbounds {
-			var parsed struct {
-				Clients []struct {
-					Email          string `json:"email"`
-					ForwardedPorts string `json:"forwardedPorts"`
-				} `json:"clients"`
-			}
-			if json.Unmarshal([]byte(ib.Settings), &parsed) != nil {
-				continue
-			}
-			for _, c := range parsed.Clients {
-				spec := strings.TrimSpace(c.ForwardedPorts)
-				if c.Email == "" || spec == "" {
-					continue
-				}
-				if err := tx.Model(&model.ClientRecord{}).
-					Where("email = ? AND (wg_forwarded_ports IS NULL OR wg_forwarded_ports = '')", c.Email).
-					UpdateColumn("wg_forwarded_ports", spec).Error; err != nil {
-					return err
-				}
-			}
-		}
-		return tx.Create(&model.HistoryOfSeeders{SeederName: "ClientForwardedPortsBackfill"}).Error
 	})
 }
 

@@ -17,13 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TingChieh/FluxPanel/internal/amneziawgkern"
-	"github.com/TingChieh/FluxPanel/internal/amneziawgnet"
 	"github.com/TingChieh/FluxPanel/internal/config"
 	"github.com/TingChieh/FluxPanel/internal/eventbus"
 	"github.com/TingChieh/FluxPanel/internal/logger"
-	"github.com/TingChieh/FluxPanel/internal/mtproto"
-	"github.com/TingChieh/FluxPanel/internal/tuic"
 	"github.com/TingChieh/FluxPanel/internal/util/common"
 	"github.com/TingChieh/FluxPanel/internal/util/cronspec"
 	"github.com/TingChieh/FluxPanel/internal/util/sys"
@@ -303,9 +299,6 @@ const (
 	cadenceXrayRunning   = "@every 1s"
 	cadenceXrayRestart   = "@every 30s"
 	cadenceXrayTraffic   = "@every 5s"
-	cadenceMtproto       = "@every 10s"
-	cadenceAmneziaWG     = "@every 10s"
-	cadenceTuic          = "@every 10s"
 	cadenceClientIPScan  = "@every 10s"
 	cadenceNodeHeartbeat = "@every 5s"
 	cadenceNodeTraffic   = "@every 5s"
@@ -341,20 +334,6 @@ func (s *Server) startTask(restartXray bool, loc *time.Location) {
 		time.Sleep(time.Second * 5)
 		_, _ = s.cron.AddJob(cadenceXrayTraffic, job.NewXrayTrafficJob())
 	}()
-
-	// Reconcile mtproto (mtg) sidecars and scrape their traffic
-	mtJob := job.NewMtprotoJob()
-	_, _ = s.cron.AddJob(cadenceMtproto, mtJob)
-	go mtJob.Run()
-
-	// Reconcile embedded AmneziaWG interfaces; traffic rides Xray's own stats
-	awgJob := job.NewAmneziaWGJob()
-	_, _ = s.cron.AddJob(cadenceAmneziaWG, awgJob)
-	go awgJob.Run()
-
-	tuicJob := job.NewTuicJob()
-	_, _ = s.cron.AddJob(cadenceTuic, tuicJob)
-	go tuicJob.Run()
 
 	// check client ips from log file every 10 sec
 	_, _ = s.cron.AddJob(cadenceClientIPScan, job.NewCheckClientIpJob())
@@ -796,18 +775,6 @@ func (s *Server) stop(stopXray bool, stopTgBot bool) error {
 	}
 	if s.cron != nil {
 		<-s.cron.Stop().Done()
-	}
-	if stopXray {
-		tuic.GetManager().StopAll()
-		if err := job.NewTuicJob().FlushStoppedTraffic(); err != nil {
-			logger.Warning("persist final TUIC traffic on shutdown failed:", err)
-			err2 = err
-		}
-		mtproto.GetManager().StopAll()
-		amneziawgnet.GetManager().StopAll()
-		job.NewAmneziaWGJob().FlushKernelTraffic()
-		amneziawgkern.GetManager().StopAll()
-		amneziawgnet.GetOutboundManager().StopAll()
 	}
 	if stopXray {
 		if err := s.xrayService.StopXray(); err != nil && !errors.Is(err, service.ErrXrayNotRunning) {

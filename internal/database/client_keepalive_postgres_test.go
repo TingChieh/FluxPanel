@@ -1,7 +1,6 @@
 package database
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -139,13 +138,6 @@ func TestClientKeepAlivePostgresMigrationPreservesLegacyScalars(t *testing.T) {
 		t.Fatalf("read ranged client record = %q, %v; want 15-25", rangeRecord.KeepAlive, err)
 	}
 
-	inbound := &model.Inbound{
-		UserId: 1, Port: 51889, Protocol: model.AmneziaWG, Tag: "legacy-awg-range-pg",
-		Settings: "{\"server\":{\"privateKey\":\"server\",\"publicKey\":\"pub\"},\"clients\":[{\"email\":\"legacy-range\",\"keepAlive\":\"15-25\"}]}",
-	}
-	if err := GetDB().Create(inbound).Error; err != nil {
-		t.Fatalf("save ranged inbound: %v", err)
-	}
 	if err := CloseDB(); err != nil {
 		t.Fatal(err)
 	}
@@ -166,18 +158,5 @@ func TestClientKeepAlivePostgresMigrationPreservesLegacyScalars(t *testing.T) {
 	}
 	if got.KeepAlive != "45" {
 		t.Fatalf("reopened explicit zero after old update = %q, want 45", got.KeepAlive)
-	}
-	var reopened model.Inbound
-	if err := GetDB().First(&reopened, inbound.Id).Error; err != nil {
-		t.Fatal(err)
-	}
-	var payload struct {
-		Clients []model.Client `json:"clients"`
-	}
-	if err := json.Unmarshal([]byte(reopened.Settings), &payload); err != nil {
-		t.Fatalf("read range from inbound settings after reopen: %v", err)
-	}
-	if len(payload.Clients) != 1 || payload.Clients[0].KeepAliveText() != "15-25" {
-		t.Fatalf("reopened inbound keepAlive = %#v, want 15-25", payload.Clients)
 	}
 }

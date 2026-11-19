@@ -1,4 +1,3 @@
-import { resolveTuicServerSettings } from '@/lib/tuic';
 import type {
   InboundFormValues,
   ShareAddrStrategy,
@@ -6,13 +5,10 @@ import type {
 } from '@/schemas/forms/inbound-form';
 import type { InboundSettings } from '@/schemas/protocols/inbound';
 import {
-  AmneziawgClientSchema,
   HysteriaClientSchema,
   MasqueClientSchema,
-  MtprotoClientSchema,
   ShadowsocksClientSchema,
   TrojanClientSchema,
-  TuicClientSchema,
   VlessClientSchema,
   VmessClientSchema,
   WireguardClientSchema,
@@ -174,11 +170,7 @@ function stripTlsCertUseFile(stream: Record<string, unknown>): void {
 export function rawInboundToFormValues(row: RawInboundRow): InboundFormValues {
   const protocol = (row.protocol || 'vless') as InboundSettings['protocol'];
   const rawSettings = coerceJsonObject(row.settings);
-  const settings = (
-    protocol === 'tuic'
-      ? { clients: rawSettings.clients, server: resolveTuicServerSettings(rawSettings) }
-      : rawSettings
-  ) as InboundSettings['settings'];
+  const settings = rawSettings as InboundSettings['settings'];
   const rawStream = coerceJsonObject(row.streamSettings);
   const streamSettings =
     Object.keys(rawStream).length > 0 ? (rawStream as StreamSettings) : undefined;
@@ -287,12 +279,6 @@ function clientSchemaForProtocol(protocol: string): z.ZodType | null {
       return HysteriaClientSchema;
     case 'wireguard':
       return WireguardClientSchema;
-    case 'mtproto':
-      return MtprotoClientSchema;
-    case 'amneziawg':
-      return AmneziawgClientSchema;
-    case 'tuic':
-      return TuicClientSchema;
     case 'masque':
       return MasqueClientSchema;
     default:

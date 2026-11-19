@@ -5,8 +5,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/google/uuid"
-
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 
@@ -153,7 +151,7 @@ func (s *ClientService) syncInboundClients(tx *gorm.DB, inboundId int, clients [
 		}
 	}
 
-	isTunnel := inbound.Protocol == model.WireGuard || inbound.Protocol == model.AmneziaWG
+	isTunnel := inbound.Protocol == model.WireGuard
 	var onLowerTunnel map[int]struct{}
 	if isTunnel && len(existing) > 0 {
 		ids := make([]int, 0, len(existing))
@@ -265,37 +263,6 @@ func (s *ClientService) syncInboundClients(tx *gorm.DB, inboundId int, clients [
 	}
 	if err := settleRecordFlows(tx, relinked); err != nil {
 		return err
-	}
-
-	affected := map[int]struct{}{inboundId: {}}
-	for _, ids := range chunkInts(wantedIds, sqlInChunk) {
-		var inboundIDs []int
-		if err := tx.Model(&model.ClientInbound{}).Distinct("inbound_id").Where("client_id IN ?", ids).Pluck("inbound_id", &inboundIDs).Error; err != nil {
-			return err
-		}
-		for _, id := range inboundIDs {
-			affected[id] = struct{}{}
-		}
-	}
-	affectedIDs := make([]int, 0, len(affected))
-	for id := range affected {
-		affectedIDs = append(affectedIDs, id)
-	}
-	for _, ids := range chunkInts(affectedIDs, sqlInChunk) {
-		var duplicates int64
-		err := tx.Raw(`SELECT COUNT(*) FROM (
-            SELECT ci.inbound_id, LOWER(c.uuid) FROM clients c
-            JOIN client_inbounds ci ON ci.client_id = c.id
-            JOIN inbounds i ON i.id = ci.inbound_id
-            WHERE i.protocol = ? AND c.uuid <> '' AND ci.inbound_id IN ?
-            GROUP BY ci.inbound_id, LOWER(c.uuid) HAVING COUNT(*) > 1
-        ) AS duplicate_uuids`, model.TUIC, ids).Scan(&duplicates).Error
-		if err != nil {
-			return err
-		}
-		if duplicates > 0 {
-			return fmt.Errorf("TUIC: duplicate client UUID within inbound")
-		}
 	}
 
 	return nil
@@ -437,8 +404,8 @@ func clientsOnLowerTunnel(tx *gorm.DB, inboundId int, nodeID *int, clientIds []i
 		var ids []int
 		if err := tx.Table("client_inbounds").
 			Joins("JOIN inbounds ON inbounds.id = client_inbounds.inbound_id").
-			Where("client_inbounds.client_id IN ? AND inbounds.protocol IN ?",
-				batch, []model.Protocol{model.WireGuard, model.AmneziaWG}).
+			Where("client_inbounds.client_id IN ? AND inbounds.protocol = ?",
+				batch, model.WireGuard).
 			Where(outranks, inboundId).
 			Distinct().Pluck("client_inbounds.client_id", &ids).Error; err != nil {
 			return nil, err
@@ -591,10 +558,8 @@ func (s *ClientService) ListForInboundBySubId(tx *gorm.DB, inboundId int, subId 
 
 // validateProtocolClients runs inside the write every path linking clients to an inbound
 // shares, so a client the protocol's core config would refuse never reaches it.
-func (s *ClientService) validateProtocolClients(tx *gorm.DB, protocol model.Protocol, inboundID int, changed []model.Client, detached []string, prune bool) error {
+func (s *ClientService) validateProtocolClients(_ *gorm.DB, protocol model.Protocol, _ int, changed []model.Client, _ []string, _ bool) error {
 	switch protocol {
-	case model.TUIC:
-		return s.validateTuicIdentities(tx, inboundID, changed, detached, prune)
 	case model.MASQUE:
 		return validateMasqueEmails(changed)
 	}
@@ -608,43 +573,6 @@ func validateMasqueEmails(clients []model.Client) error {
 		if strings.Contains(client.Email, ":") {
 			return fmt.Errorf("MASQUE: client email %q cannot contain \":\"", client.Email)
 		}
-	}
-	return nil
-}
-
-func (s *ClientService) validateTuicIdentities(tx *gorm.DB, inboundID int, changed []model.Client, detached []string, prune bool) error {
-	candidates := append([]model.Client(nil), changed...)
-	if !prune {
-		current, err := s.ListForInbound(tx, inboundID)
-		if err != nil {
-			return err
-		}
-		excluded := make(map[string]bool)
-		for _, client := range changed {
-			excluded[client.Email] = true
-		}
-		for _, email := range detached {
-			excluded[email] = true
-		}
-		for _, client := range current {
-			if !excluded[client.Email] {
-				candidates = append(candidates, client)
-			}
-		}
-	}
-	seen := make(map[uuid.UUID]string)
-	for _, client := range candidates {
-		if client.ID == "" {
-			continue
-		}
-		id, err := uuid.Parse(client.ID)
-		if err != nil {
-			return fmt.Errorf("TUIC: invalid client UUID")
-		}
-		if email, exists := seen[id]; exists && email != client.Email {
-			return fmt.Errorf("TUIC: duplicate client UUID within inbound")
-		}
-		seen[id] = client.Email
 	}
 	return nil
 }

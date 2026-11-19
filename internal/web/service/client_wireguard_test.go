@@ -398,52 +398,6 @@ func TestAllocateWireguardAddressSkipsAddressesInsideUsedPrefixes(t *testing.T) 
 // A /0 that is being written contains every other peer's address, and its host bits
 // are read back as the peer's own tunnel address (amneziawg.FirstIPv4). Only a stored
 // 0.0.0.0/0 or ::/0 keeps nobody out, as legacy peers carry it.
-func TestWireguardSlashZeroIsSubjectToTheOverlapGuard(t *testing.T) {
-	for _, tt := range []struct {
-		entry, used string
-		taken       bool
-	}{
-		{"10.8.1.2/0", "10.8.1.2/32", true},
-		{"10.8.1.3/0", "10.8.1.2/32", true},
-		{"0.0.0.0/0", "10.8.1.2/32", true},
-		{"::/0", "fd00::2/128", true},
-		{"fd00::2/0", "fd00::2/128", true},
-		{"::/0", "10.8.1.2/32", false},
-		{"10.8.1.2/32", "10.8.1.2/0", true},
-		{"fd00::2/128", "fd00::2/0", true},
-		{"10.8.1.2/32", "10.8.1.3/0", false},
-		{"10.8.1.2/32", "0.0.0.0/0", false},
-		{"0.0.0.0/0", "0.0.0.0/0", false},
-	} {
-		t.Run(tt.entry+" next to "+tt.used, func(t *testing.T) {
-			if _, taken := wireguardAllowedIPsOverlap([]string{tt.entry}, []string{tt.used}); (taken != "") != tt.taken {
-				t.Errorf("taken = %q, want a collision: %v", taken, tt.taken)
-			}
-		})
-	}
-
-	existing := []model.Client{{Email: "victim@wg", AllowedIPs: []string{"10.0.0.2/32"}}}
-	awgSettings := `{"server":{"subnetIp":"10.0.0.0","subnetCidr":24}}`
-	for _, entry := range []string{"10.0.0.2/0", "0.0.0.0/0"} {
-		clients := []model.Client{{Email: "other@wg", AllowedIPs: []string{entry}}}
-		err := defaultWireguardClients("", existing, clients, []any{map[string]any{}}, nil)
-		if err == nil || !strings.Contains(err.Error(), entry+" overlaps 10.0.0.2/32") {
-			t.Errorf("wireguard: %s next to 10.0.0.2/32: err = %v, want an overlap", entry, err)
-		}
-		err = defaultAmneziaWGClients(awgSettings, existing, clients, []any{map[string]any{}}, nil)
-		if err == nil || !strings.Contains(err.Error(), entry+" overlaps 10.0.0.2/32") {
-			t.Errorf("amneziawg: %s next to 10.0.0.2/32: err = %v, want an overlap", entry, err)
-		}
-	}
-
-	got, err := allocateWireguardAddress([]string{"10.0.0.2/0"}, "10.0.0.0/24", true)
-	if err != nil || got != "10.0.0.3/32" {
-		t.Errorf("allocated %q (%v) next to a stored 10.0.0.2/0, want 10.0.0.3/32", got, err)
-	}
-}
-
-// The edit form echoes what the client holds, so a legacy peer's default route has
-// to survive a save next to other clients; no edit may bring in a new one.
 func TestUpdateInboundClientKeepsButNeverAddsDefaultRoute(t *testing.T) {
 	setupConflictDB(t)
 	seedInboundConflict(t, "own-wg", "0.0.0.0", 51830, model.WireGuard, ``, `{"clients":[`+

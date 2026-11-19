@@ -1,7 +1,5 @@
 import { RandomUtil, Wireguard } from '@/utils';
-import { generateAwgObfuscation } from '@/lib/xray/amneziawg-obfuscation';
 
-import type { AmneziawgInboundSettings } from '@/schemas/protocols/inbound/amneziawg';
 import type { HttpInboundSettings } from '@/schemas/protocols/inbound/http';
 import type { HysteriaClient, HysteriaInboundSettings } from '@/schemas/protocols/inbound/hysteria';
 import {
@@ -9,13 +7,11 @@ import {
   type MasqueInboundSettings,
 } from '@/schemas/protocols/inbound/masque';
 import type { MixedInboundSettings } from '@/schemas/protocols/inbound/mixed';
-import type { MtprotoClient, MtprotoInboundSettings } from '@/schemas/protocols/inbound/mtproto';
 import type {
   ShadowsocksClient,
   ShadowsocksInboundSettings,
 } from '@/schemas/protocols/inbound/shadowsocks';
 import type { TrojanClient, TrojanInboundSettings } from '@/schemas/protocols/inbound/trojan';
-import type { TuicClient, TuicInboundSettings } from '@/schemas/protocols/inbound/tuic';
 import type { TunInboundSettings } from '@/schemas/protocols/inbound/tun';
 import type { TunnelInboundSettings } from '@/schemas/protocols/inbound/tunnel';
 import type { VlessClient, VlessInboundSettings } from '@/schemas/protocols/inbound/vless';
@@ -142,22 +138,6 @@ export function createDefaultHysteriaClient(seed: HysteriaClientSeed = {}): Hyst
   };
 }
 
-export interface TuicClientSeed extends ClientBaseSeed {
-  uuid?: string;
-  id?: string;
-  password?: string;
-}
-
-export function createDefaultTuicClient(seed: TuicClientSeed = {}): TuicClient {
-  const uuid = seed.uuid ?? seed.id ?? RandomUtil.randomUUID();
-  return {
-    uuid,
-    id: uuid,
-    password: seed.password ?? RandomUtil.randomSeq(10),
-    ...clientBase(seed),
-  };
-}
-
 // Inbound-settings factories. Each returns a Zod-parsable wire-shape with
 // schema defaults already applied — no class instance, no XrayCommonClass.
 // Callers (form modals via Step 4, InboundsPage clone via Step 5) call
@@ -232,36 +212,6 @@ export function createDefaultMixedInboundSettings(): MixedInboundSettings {
   };
 }
 
-function domainToHex(domain: string): string {
-  return Array.from(new TextEncoder().encode(domain))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-// generateMtprotoSecret builds an "ee" FakeTLS secret: the marker, 16 random
-// bytes (32 hex chars), then the domain encoded as hex. Mirrors the Go
-// model.GenerateFakeTLSSecret; the backend re-derives it on save so this is
-// only for immediate display in the form.
-export function generateMtprotoSecret(domain: string): string {
-  return `ee${RandomUtil.randomSeq(32, { type: 'hex' })}${domainToHex(domain)}`;
-}
-
-export function createDefaultMtprotoInboundSettings(): MtprotoInboundSettings {
-  return {
-    fakeTlsDomain: 'www.cloudflare.com',
-    clients: [],
-  };
-}
-
-// createDefaultMtprotoClient seeds a new MTProto client with a fresh FakeTLS
-// secret fronting the given domain. Mirrors the WireGuard client default: the
-// backend re-derives the secret on save, so this is only for immediate display.
-export function createDefaultMtprotoClient(domain: string): Partial<MtprotoClient> {
-  return {
-    secret: generateMtprotoSecret(domain || 'www.cloudflare.com'),
-  };
-}
-
 export function createDefaultTunnelInboundSettings(): TunnelInboundSettings {
   return {
     portMap: {},
@@ -314,56 +264,8 @@ export function createDefaultWireguardInboundSettings(
   };
 }
 
-// AmneziaWG is multi-client, like WireGuard, and uses the same Curve25519
-// keypair format — Wireguard.generateKeypair() works unchanged. Unlike
-// WireGuard's Xray-native inbound, the server's publicKey is a real
-// persisted field here (the Go backend reads it directly rather than
-// re-deriving it), so it's seeded alongside privateKey. The obfuscation
-// parameters are randomized per inbound (a static default would give every
-// install the same DPI fingerprint), mirroring the Go backend's
-// internal/amneziawg.GenerateObfuscation31.
-export function createDefaultAmneziawgInboundSettings(): AmneziawgInboundSettings {
-  const kp = Wireguard.generateKeypair();
-  return {
-    server: {
-      privateKey: kp.privateKey,
-      publicKey: kp.publicKey,
-      subnetIp: '10.8.1.0',
-      subnetCidr: 24,
-      primaryDns: '8.8.8.8',
-      secondaryDns: '8.8.4.4',
-      externalInterface: '',
-      kernelMode: false,
-      ipv6Enabled: false,
-      ipv6Subnet: '',
-      ipv6ExternalInterface: '',
-      ...generateAwgObfuscation(),
-    },
-    clients: [],
-  };
-}
-
 export function createDefaultMasqueInboundSettings(): MasqueInboundSettings {
   return { clients: [], address: [...MASQUE_DEFAULT_ADDRESS_POOL] };
-}
-
-export function createDefaultTuicInboundSettings(): TuicInboundSettings {
-  return {
-    server: {
-      certificate: '',
-      private_key: '',
-      congestion_control: 'bbr',
-      alpn: ['h3', 'spdy/3.1'],
-      udp_relay_mode: 'native',
-      zero_rtt_handshake: true,
-      log_level: 'info',
-      max_idle_time: 15,
-      authentication_timeout: 3,
-      max_udp_relay_packet_size: 1500,
-      sni: '',
-    },
-    clients: [],
-  };
 }
 
 // Protocol-aware dispatch over every inbound-settings factory. Mirrors
@@ -382,9 +284,6 @@ export type AnyInboundSettings =
   | TunInboundSettings
   | TunnelInboundSettings
   | WireguardInboundSettings
-  | MtprotoInboundSettings
-  | AmneziawgInboundSettings
-  | TuicInboundSettings
   | MasqueInboundSettings;
 
 export function createDefaultInboundSettings(protocol: string): AnyInboundSettings | null {
@@ -409,12 +308,6 @@ export function createDefaultInboundSettings(protocol: string): AnyInboundSettin
       return createDefaultTunInboundSettings();
     case 'wireguard':
       return createDefaultWireguardInboundSettings();
-    case 'mtproto':
-      return createDefaultMtprotoInboundSettings();
-    case 'amneziawg':
-      return createDefaultAmneziawgInboundSettings();
-    case 'tuic':
-      return createDefaultTuicInboundSettings();
     case 'masque':
       return createDefaultMasqueInboundSettings();
     default:

@@ -163,7 +163,7 @@ func (s *ClientService) TunnelAllowedIPsByInbound(inboundSvc *InboundService, em
 			}
 			return nil, err
 		}
-		if inbound.Protocol != model.WireGuard && inbound.Protocol != model.AmneziaWG {
+		if inbound.Protocol != model.WireGuard {
 			continue
 		}
 		clients, err := inboundSvc.GetClients(inbound)

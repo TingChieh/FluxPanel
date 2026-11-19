@@ -10,8 +10,6 @@ import { InfinityIcon } from '@/components/ui';
 import { useDatepicker } from '@/hooks/useDatepicker';
 import {
   genAllLinks,
-  genAmneziaWGPeerConfigs,
-  genAmneziaWGPeerLinks,
   genWireguardPeerConfigs,
   genWireguardPeerLinks,
   preferPublicHost,
@@ -56,8 +54,6 @@ export default function InboundInfoModal({
   const [links, setLinks] = useState<{ remark?: string; link: string }[]>([]);
   const [wireguardConfigs, setWireguardConfigs] = useState<string[][]>([]);
   const [wireguardLinks, setWireguardLinks] = useState<string[][]>([]);
-  const [amneziawgConfigs, setAmneziawgConfigs] = useState<string[][]>([]);
-  const [amneziawgLinks, setAmneziawgLinks] = useState<string[][]>([]);
   const [subLink, setSubLink] = useState('');
   const [subJsonLink, setSubJsonLink] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -174,28 +170,6 @@ export default function InboundInfoModal({
           fallbackHostname,
         }),
       );
-      setAmneziawgConfigs([]);
-      setAmneziawgLinks([]);
-      setLinks([]);
-    } else if (info.protocol === Protocols.AMNEZIAWG) {
-      setAmneziawgConfigs(
-        genAmneziaWGPeerConfigs({
-          inbound: inboundForLinks,
-          remark: dbInbound.remark,
-          hostOverride: nodeAddress,
-          fallbackHostname,
-        }),
-      );
-      setAmneziawgLinks(
-        genAmneziaWGPeerLinks({
-          inbound: inboundForLinks,
-          remark: dbInbound.remark,
-          hostOverride: nodeAddress,
-          fallbackHostname,
-        }),
-      );
-      setWireguardConfigs([]);
-      setWireguardLinks([]);
       setLinks([]);
     } else {
       setLinks(
@@ -209,8 +183,6 @@ export default function InboundInfoModal({
       );
       setWireguardConfigs([]);
       setWireguardLinks([]);
-      setAmneziawgConfigs([]);
-      setAmneziawgLinks([]);
     }
 
     if (clientSet?.subId) {
@@ -870,81 +842,6 @@ export default function InboundInfoModal({
         </dl>
       )}
 
-      {inbound.protocol === Protocols.MTPROTO && inbound.settings && (
-        <dl className="info-list info-list-block">
-          <div className="info-row">
-            <dt>{t('pages.inbounds.form.fakeTlsDomain')}</dt>
-            <dd>
-              <Tag color="green" className="value-tag">
-                {inbound.settings.fakeTlsDomain as string}
-              </Tag>
-            </dd>
-          </div>
-          {(() => {
-            const s = inbound.settings;
-            const df = s.domainFronting as
-              | { ip?: string; port?: number; proxyProtocol?: boolean }
-              | undefined;
-            const frontingTarget =
-              df && (df.ip || df.port) ? `${df.ip ?? ''}${df.port ? `:${df.port}` : ''}` : '';
-            return (
-              <>
-                {frontingTarget && (
-                  <div className="info-row">
-                    <dt>{t('pages.inbounds.form.mtgDomainFrontingIp')}</dt>
-                    <dd>
-                      <Tag color="blue" className="value-tag">
-                        {frontingTarget}
-                      </Tag>
-                    </dd>
-                  </div>
-                )}
-                {df?.proxyProtocol && (
-                  <div className="info-row">
-                    <dt>{t('pages.inbounds.form.mtgDomainFrontingProxyProtocol')}</dt>
-                    <dd>
-                      <Tag color="green" className="value-tag">
-                        {t('enabled')}
-                      </Tag>
-                    </dd>
-                  </div>
-                )}
-                {Boolean(s.proxyProtocolListener) && (
-                  <div className="info-row">
-                    <dt>{t('pages.inbounds.form.mtgProxyProtocolListener')}</dt>
-                    <dd>
-                      <Tag color="green" className="value-tag">
-                        {t('enabled')}
-                      </Tag>
-                    </dd>
-                  </div>
-                )}
-                {Boolean(s.preferIp) && (
-                  <div className="info-row">
-                    <dt>{t('pages.inbounds.form.mtgPreferIp')}</dt>
-                    <dd>
-                      <Tag color="blue" className="value-tag">
-                        {s.preferIp as string}
-                      </Tag>
-                    </dd>
-                  </div>
-                )}
-                {Boolean(s.debug) && (
-                  <div className="info-row">
-                    <dt>{t('pages.inbounds.form.mtgDebug')}</dt>
-                    <dd>
-                      <Tag color="green" className="value-tag">
-                        {t('enabled')}
-                      </Tag>
-                    </dd>
-                  </div>
-                )}
-              </>
-            );
-          })()}
-        </dl>
-      )}
-
       {dbInbound.isMixed && inbound.settings && (
         <dl className="info-list info-list-block">
           <div className="info-row">
@@ -1247,64 +1144,6 @@ export default function InboundInfoModal({
                 )}
               </Fragment>
             ))}
-        </>
-      )}
-
-      {inbound?.protocol === Protocols.AMNEZIAWG && amneziawgConfigs.length > 0 && (
-        <>
-          <Divider>{t('pages.inbounds.copyLink')}</Divider>
-          {amneziawgConfigs.map((peerConfigs, idx) => (
-            <Fragment key={idx}>
-              {peerConfigs.map(
-                (cfg, j, all) =>
-                  cfg && (
-                    <div key={`awg-cfg-${j}`} className="link-panel">
-                      <div className="link-panel-header">
-                        <Tag color="green">
-                          {t('pages.inbounds.info.peerNumberConfig', { n: idx + 1 })}
-                        </Tag>
-                        <Tooltip title={t('copy')}>
-                          <Button
-                            size="small"
-                            icon={<CopyOutlined aria-hidden />}
-                            aria-label={t('copy')}
-                            onClick={() => copyText(cfg, t)}
-                          />
-                        </Tooltip>
-                        <Tooltip title={t('download')}>
-                          <Button
-                            size="small"
-                            icon={<DownloadOutlined aria-hidden />}
-                            aria-label={t('download')}
-                            onClick={() => downloadText(cfg, peerConfFileName(idx, j, all.length))}
-                          />
-                        </Tooltip>
-                      </div>
-                      <code className="link-panel-text">{cfg}</code>
-                    </div>
-                  ),
-              )}
-              {(amneziawgLinks[idx] ?? []).map(
-                (link, j) =>
-                  link && (
-                    <div key={`awg-link-${j}`} className="link-panel">
-                      <div className="link-panel-header">
-                        <Tag color="green">Peer {idx + 1} link</Tag>
-                        <Tooltip title={t('copy')}>
-                          <Button
-                            size="small"
-                            icon={<CopyOutlined aria-hidden />}
-                            aria-label={t('copy')}
-                            onClick={() => copyText(link, t)}
-                          />
-                        </Tooltip>
-                      </div>
-                      <code className="link-panel-text">{link}</code>
-                    </div>
-                  ),
-              )}
-            </Fragment>
-          ))}
         </>
       )}
     </>

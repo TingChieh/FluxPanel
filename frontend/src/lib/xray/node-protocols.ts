@@ -14,8 +14,5 @@ export const NODE_ELIGIBLE_PROTOCOLS: Readonly<Record<string, true>> = {
   [Protocols.SHADOWSOCKS]: true,
   [Protocols.HYSTERIA]: true,
   [Protocols.WIREGUARD]: true,
-  [Protocols.MTPROTO]: true,
-  [Protocols.AMNEZIAWG]: true,
-  [Protocols.TUIC]: true,
   [Protocols.MASQUE]: true,
 };

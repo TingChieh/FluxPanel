@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/netip"
 	"runtime/debug"
 	"slices"
 	"strings"
@@ -19,7 +18,6 @@ import (
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 	"github.com/TingChieh/FluxPanel/internal/logger"
-	"github.com/TingChieh/FluxPanel/internal/tuic"
 	"github.com/TingChieh/FluxPanel/internal/util/common"
 	"github.com/TingChieh/FluxPanel/internal/util/random"
 	"github.com/TingChieh/FluxPanel/internal/xray"
@@ -287,17 +285,6 @@ func (s *ClientService) Create(inboundSvc *InboundService, payload *ClientCreate
 		clientForInbound := client
 		if ips, ok := client.AllowedIPsByInbound[ibId]; ok {
 			clientForInbound.AllowedIPs = ips
-		} else if !addressesFitAmneziaWGInbound(clientForInbound.AllowedIPs, inbound) {
-			// The shared AllowedIPs value (e.g. from a single-field legacy
-			// caller) came from a different subnet than this inbound's own --
-			// clear it so defaultAmneziaWGClients allocates a fresh, correct
-			// address for THIS inbound instead of persisting an unroutable
-			// peer. Same reasoning as addressesFitAmneziaWGInbound's own doc
-			// comment on the Attach path.
-			clientForInbound.AllowedIPs = nil
-		}
-		if err := validateAmneziaWGClientWrite(inbound, []model.Client{clientForInbound}, ""); err != nil {
-			return false, fmt.Errorf("inbound %d: %w", ibId, err)
 		}
 		settingsPayload, mErr := json.Marshal(map[string][]model.Client{"clients": {clientWithInboundFlow(clientForInbound, inbound)}})
 		if mErr != nil {
@@ -491,44 +478,8 @@ func (s *ClientService) fillProtocolDefaultsAgainstExisting(c *model.Client, ib 
 		if c.Auth == "" {
 			c.Auth = strings.ReplaceAll(uuid.NewString(), "-", "")
 		}
-	case model.MTProto:
-		if c.Secret == "" {
-			c.Secret = model.GenerateFakeTLSSecret(mtprotoDomainFromSettings(ib.Settings))
-		}
-	case model.TUIC:
-		if err := tuic.ValidateRelayEmail(c.Email); err != nil {
-			return err
-		}
-		if c.ID == "" {
-			c.ID = uuid.NewString()
-		}
-		if c.Password == "" {
-			c.Password = strings.ReplaceAll(uuid.NewString(), "-", "")
-		}
 	}
 	return nil
-}
-
-// defaultMtprotoDomain is the FakeTLS fronting domain used when an mtproto
-// inbound carries no fakeTlsDomain of its own; it mirrors the frontend default.
-const defaultMtprotoDomain = "www.cloudflare.com"
-
-// mtprotoDomainFromSettings returns the inbound-level FakeTLS domain, falling
-// back to the default when unset, so a generated client secret always fronts a
-// real hostname.
-func mtprotoDomainFromSettings(settings string) string {
-	domain := ""
-	if settings != "" {
-		var m map[string]any
-		if err := json.Unmarshal([]byte(settings), &m); err == nil {
-			domain, _ = m["fakeTlsDomain"].(string)
-		}
-	}
-	domain = strings.TrimSpace(domain)
-	if domain == "" {
-		return defaultMtprotoDomain
-	}
-	return domain
 }
 
 func clientWithInboundFlow(c model.Client, ib *model.Inbound) model.Client {
@@ -712,17 +663,6 @@ func (s *ClientService) update(inboundSvc *InboundService, id int, updated model
 	if err := validateClientEmail(updated.Email); err != nil {
 		return false, err
 	}
-	if emailErr := tuic.ValidateRelayEmail(updated.Email); emailErr != nil {
-		var attached int64
-		if err := database.GetDB().Model(&model.Inbound{}).
-			Joins("JOIN client_inbounds ci ON ci.inbound_id = inbounds.id").
-			Where("ci.client_id = ? AND inbounds.protocol = ?", id, model.TUIC).Count(&attached).Error; err != nil {
-			return false, err
-		}
-		if attached > 0 {
-			return false, emailErr
-		}
-	}
 	if err := validateClientSubID(updated.SubID); err != nil {
 		return false, err
 	}
@@ -853,27 +793,13 @@ func (s *ClientService) update(inboundSvc *InboundService, id int, updated model
 		}
 		if ips, ok := updated.AllowedIPsByInbound[ibId]; ok {
 			clientForInbound.AllowedIPs = ips
-		} else if tunnelCount > 1 && (inbound.Protocol == model.WireGuard || inbound.Protocol == model.AmneziaWG) {
+		} else if tunnelCount > 1 && inbound.Protocol == model.WireGuard {
 			// One shared peer field set cannot describe several peers: broadcast
 			// it and they all end up with the same keys and tunnel address.
 			clientForInbound.AllowedIPs = nil
 			clientForInbound.PrivateKey = ""
 			clientForInbound.PublicKey = ""
 			clientForInbound.PreSharedKey = ""
-		} else if !addressesFitAmneziaWGInbound(clientForInbound.AllowedIPs, inbound) {
-			// A single shared AllowedIPs field (the common case for a caller
-			// that never sends AllowedIPsByInbound) must never overwrite an
-			// inbound it doesn't belong to -- e.g. a client attached to both
-			// wg and awg saving its wg-labeled address would otherwise get
-			// that same address silently written into the awg peer config
-			// too. Clearing it here makes UpdateInboundClient's own
-			// empty-AllowedIPs carry-forward (see its WireGuard/AmneziaWG
-			// branch) preserve THIS inbound's existing, correct value
-			// instead.
-			clientForInbound.AllowedIPs = nil
-		}
-		if err := validateAmneziaWGClientWrite(inbound, []model.Client{clientForInbound}, existing.Email); err != nil {
-			return false, fmt.Errorf("inbound %d: %w", ibId, err)
 		}
 		settingsPayload, mErr := json.Marshal(map[string][]model.Client{"clients": {clientWithInboundFlow(clientForInbound, inbound)}})
 		if mErr != nil {
@@ -1123,14 +1049,14 @@ func (s *ClientService) hasTunnelAttachment(inboundSvc *InboundService, inboundI
 		if err != nil {
 			continue
 		}
-		if inbound.Protocol == model.WireGuard || inbound.Protocol == model.AmneziaWG {
+		if inbound.Protocol == model.WireGuard {
 			return true
 		}
 	}
 	return false
 }
 
-// tunnelInboundCount reports how many of inboundIds are WireGuard/AmneziaWG,
+// tunnelInboundCount reports how many of inboundIds are WireGuard,
 // i.e. how many independent peers one shared field set would be written to.
 func tunnelInboundCount(inboundIds []int) (int64, error) {
 	if len(inboundIds) == 0 {
@@ -1138,52 +1064,9 @@ func tunnelInboundCount(inboundIds []int) (int64, error) {
 	}
 	var n int64
 	err := database.GetDB().Model(&model.Inbound{}).
-		Where("id IN ? AND protocol IN ?", inboundIds, []model.Protocol{model.WireGuard, model.AmneziaWG}).
+		Where("id IN ? AND protocol = ?", inboundIds, model.WireGuard).
 		Count(&n).Error
 	return n, err
-}
-
-// addressesFitAmneziaWGInbound reports whether every entry in addrs falls
-// inside ib's own configured subnet(s). AmneziaWG only: its kernel interface
-// Address is exactly that subnet, so an address inherited from elsewhere (an
-// identity attached to a WireGuard inbound first, say) produces a peer that
-// can never connect -- Attach allocates fresh instead.
-func addressesFitAmneziaWGInbound(addrs []string, ib *model.Inbound) bool {
-	if ib.Protocol != model.AmneziaWG || len(addrs) == 0 {
-		return true
-	}
-	v4Base, v6Base, err := defaultAmneziaWGSubnetBases(ib.Settings)
-	if err != nil {
-		return false
-	}
-	bases := make([]netip.Prefix, 0, 2)
-	for _, base := range []string{v4Base, v6Base} {
-		if base == "" {
-			continue
-		}
-		prefix, pErr := netip.ParsePrefix(base)
-		if pErr != nil {
-			return false
-		}
-		bases = append(bases, prefix)
-	}
-	for _, a := range addrs {
-		host := wireguardHostAddr(a)
-		if !host.IsValid() {
-			return false
-		}
-		fits := false
-		for _, prefix := range bases {
-			if prefix.Contains(host) {
-				fits = true
-				break
-			}
-		}
-		if !fits {
-			return false
-		}
-	}
-	return true
 }
 
 // Attach applies the client to every requested inbound: one failing inbound no
@@ -1233,12 +1116,7 @@ func (s *ClientService) Attach(inboundSvc *InboundService, id int, inboundIds []
 			return false, fmt.Errorf("inbound %d: %w", ibId, getErr)
 		}
 		copyClient := *clientWire
-		// A forward is a listener on the target inbound's host, set per inbound: carried over, it
-		// would let a node-reported client choose ports on this host.
 		copyClient.ForwardedPorts = nil
-		if !addressesFitAmneziaWGInbound(copyClient.AllowedIPs, inbound) {
-			copyClient.AllowedIPs = nil
-		}
 		if err := s.fillProtocolDefaults(&copyClient, inbound); err != nil {
 			return false, fmt.Errorf("inbound %d: %w", ibId, err)
 		}

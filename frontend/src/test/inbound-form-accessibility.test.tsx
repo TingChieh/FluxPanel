@@ -45,7 +45,7 @@ describe('Inbound screen-reader interaction', () => {
     const dialog = screen.getByRole('dialog', { name: 'Add Inbound' });
     const protocol = within(dialog).getByRole('combobox', { name: 'Protocol' });
     const shadowsocks = within(protocol).getByRole('option', { name: 'shadowsocks' });
-    expect(within(protocol).getByRole('option', { name: 'tuic' })).toBeInTheDocument();
+    expect(within(protocol).getByRole('option', { name: 'hysteria' })).toBeInTheDocument();
     expect(
       within(protocol).getByRole('option', { name: 'vless', selected: true }),
     ).toBeInTheDocument();

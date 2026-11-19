@@ -53,11 +53,6 @@ describe('composeInboundTag transport suffix parity', () => {
       'in-443-tcpudp',
     ],
     [
-      'tuic forced udp',
-      base({ protocol: 'tuic', streamSettings: { network: 'tcp' } }),
-      'in-443-udp',
-    ],
-    [
       'shadowsocks tcp,udp',
       base({ protocol: 'shadowsocks', settings: { network: 'tcp,udp' } }),
       'in-443-tcpudp',

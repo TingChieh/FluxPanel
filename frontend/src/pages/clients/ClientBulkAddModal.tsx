@@ -37,8 +37,6 @@ const MULTI_CLIENT_PROTOCOLS = new Set([
   'trojan',
   'hysteria',
   'wireguard',
-  'amneziawg',
-  'tuic',
   'masque',
 ]);
 

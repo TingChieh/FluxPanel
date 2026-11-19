@@ -8,9 +8,6 @@ type ClientTraffic struct {
 	Enable        bool   `json:"enable" form:"enable" example:"true"`
 	Email         string `json:"email" form:"email" gorm:"unique" example:"user1"`
 	UUID          string `json:"uuid" form:"uuid" gorm:"-" example:"e18c9a96-71bf-48d4-933f-8b9a46d4290c"`
-	TuicTrafficID int    `json:"-" gorm:"-"`
-	TuicUUID      string `json:"-" gorm:"-"`
-	TuicInboundId int    `json:"-" gorm:"-"`
 	SubId         string `json:"subId" form:"subId" gorm:"-" example:"i7tvdpeffi0hvvf1"`
 	Up            int64  `json:"up" form:"up" example:"1048576"`
 	Down          int64  `json:"down" form:"down" example:"2097152"`

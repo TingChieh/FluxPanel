@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
-	"strings"
 	"sync"
 	"testing"
 
@@ -201,34 +200,6 @@ func TestNodeInboundPushDisablingASharedClientRemovesItFromEveryHandler(t *testi
 
 // AmneziaWG has its own in-place reconfigure; deleting and re-adding the inbound
 // rebuilt the device and dropped every peer's session on each pushed client change.
-func TestNodeAmneziaWGPushReconfiguresTheDeviceInPlace(t *testing.T) {
-	setupConflictDB(t)
-	probe := &inboundOpsProbe{}
-	useTestRuntimeManager(t).SetLocalRuntimeOverride(probe)
-
-	settings := awgRelayWindowSettings(t, "hot-awg")
-	seedInboundConflict(t, "hot-awg", "0.0.0.0", 51830, model.AmneziaWG, "", settings)
-	stored := loadInboundByTag(t, "hot-awg")
-	clients, err := (&InboundService{}).GetClients(stored)
-	if err != nil {
-		t.Fatalf("GetClients: %v", err)
-	}
-	if err := (&ClientService{}).SyncInbound(nil, stored.Id, clients); err != nil {
-		t.Fatalf("SyncInbound: %v", err)
-	}
-
-	pushed := *stored
-	pushed.Settings = strings.Replace(settings, `"enable":true`, `"enable":false`, 1)
-	if _, _, err := (&InboundService{FromNodeSync: true}).UpdateInbound(&pushed); err != nil {
-		t.Fatalf("UpdateInbound: %v", err)
-	}
-	if got, want := probe.recorded(), []string{"update-inbound"}; !slices.Equal(got, want) {
-		t.Fatalf("runtime operations = %q, want %q", got, want)
-	}
-}
-
-// A master re-sends every inbound after it restarts; an unchanged one must not
-// touch the core, even for a protocol whose users have no per-user API path.
 func TestNodeInboundUnchangedPushLeavesTheCoreAlone(t *testing.T) {
 	setupConflictDB(t)
 	probe := &inboundOpsProbe{}

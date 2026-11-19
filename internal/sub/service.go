@@ -19,11 +19,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/goccy/go-json"
 
-	"github.com/TingChieh/FluxPanel/internal/amneziawg"
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 	"github.com/TingChieh/FluxPanel/internal/logger"
-	"github.com/TingChieh/FluxPanel/internal/tuic"
 	"github.com/TingChieh/FluxPanel/internal/util/common"
 	"github.com/TingChieh/FluxPanel/internal/util/maskcompat"
 	"github.com/TingChieh/FluxPanel/internal/util/random"
@@ -111,17 +109,6 @@ type SubService struct {
 	hostGroupOrders map[string]hostEntryOrder
 	hostsFirst      bool
 	sharedGroupSni  map[string]string
-	// tuicByInbound and amneziaWGServerByInbound are the typed equivalents of
-	// settingsByInbound: one decode per request, not one per link of a subId.
-	tuicByInbound            map[int]*tuicLinkInstance
-	amneziaWGServerByInbound map[int]*amneziawg.ServerSettings
-}
-
-// tuicLinkInstance indexes a decoded TUIC inbound's clients by email
-// (first occurrence wins, matching the settings-JSON scan it replaces).
-type tuicLinkInstance struct {
-	tuic.Instance
-	byEmail map[string]*tuic.TuicClientSettings
 }
 
 // NewSubService creates a new subscription service with the given configuration.
@@ -165,8 +152,6 @@ func (s *SubService) PrepareForRequest(host string) {
 	s.fullyPrimedInbounds = map[int]bool{}
 	s.settingsByInbound = map[int]map[string]any{}
 	s.socketFronts = nil
-	s.tuicByInbound = map[int]*tuicLinkInstance{}
-	s.amneziaWGServerByInbound = map[int]*amneziawg.ServerSettings{}
 	s.hostsByInbound = nil
 	s.hostGroupOrders = nil
 	s.sharedGroupSni = nil
@@ -249,7 +234,7 @@ func (s *SubService) clientForLink(inbound *model.Inbound, email string) (model.
 // while the shared clients.wg_* columns collapse to whichever tunnel inbound
 // synced last (see TunnelAllowedIPsByInbound / amneziaWGClientAddresses).
 func (s *SubService) clientsForLinkExport(inbound *model.Inbound) ([]model.Client, error) {
-	if inbound.Protocol == model.WireGuard || inbound.Protocol == model.AmneziaWG {
+	if inbound.Protocol == model.WireGuard {
 		return s.inboundService.GetClients(inbound)
 	}
 	if database.GetDB() != nil {
@@ -289,55 +274,6 @@ func (s *SubService) linkSettings(inbound *model.Inbound) map[string]any {
 		s.settingsByInbound[inbound.Id] = out
 	}
 	return out
-}
-
-// tuicInstanceForLink returns the inbound's tuic.Instance decoded once per
-// request, or nil when the settings do not decode.
-func (s *SubService) tuicInstanceForLink(inbound *model.Inbound) *tuicLinkInstance {
-	if inbound.Id > 0 {
-		if cached, ok := s.tuicByInbound[inbound.Id]; ok {
-			return cached
-		}
-	}
-	var out *tuicLinkInstance
-	if inst, ok := tuic.InstanceFromInbound(inbound); ok {
-		out = &tuicLinkInstance{Instance: inst, byEmail: make(map[string]*tuic.TuicClientSettings, len(inst.Clients))}
-		for i := range out.Clients {
-			if _, exists := out.byEmail[out.Clients[i].Email]; !exists {
-				out.byEmail[out.Clients[i].Email] = &out.Clients[i]
-			}
-		}
-	}
-	if inbound.Id > 0 {
-		if s.tuicByInbound == nil {
-			s.tuicByInbound = map[int]*tuicLinkInstance{}
-		}
-		s.tuicByInbound[inbound.Id] = out
-	}
-	return out
-}
-
-// amneziaWGServerForLink returns the inbound's AmneziaWG server block decoded once
-// per request without its clients (those resolve via clientForLink), or nil.
-func (s *SubService) amneziaWGServerForLink(inbound *model.Inbound) *amneziawg.ServerSettings {
-	if inbound.Id > 0 {
-		if cached, ok := s.amneziaWGServerByInbound[inbound.Id]; ok {
-			return cached
-		}
-	}
-	var parsed struct {
-		Server *amneziawg.ServerSettings `json:"server"`
-	}
-	if err := json.Unmarshal([]byte(inbound.Settings), &parsed); err != nil {
-		parsed.Server = nil
-	}
-	if inbound.Id > 0 {
-		if s.amneziaWGServerByInbound == nil {
-			s.amneziaWGServerByInbound = map[int]*amneziawg.ServerSettings{}
-		}
-		s.amneziaWGServerByInbound[inbound.Id] = parsed.Server
-	}
-	return parsed.Server
 }
 
 // loadRemarkSettings populates the per-request remark formatting state so
@@ -430,7 +366,7 @@ func (s *SubService) matchingClients(inbound *model.Inbound, subId string) []mod
 		seen[key] = struct{}{}
 		out = append(out, client)
 	}
-	if len(out) > 0 && (inbound.Protocol == model.WireGuard || inbound.Protocol == model.AmneziaWG) {
+	if len(out) > 0 && inbound.Protocol == model.WireGuard {
 		overlaid, settingsErr := s.overlayInboundTunnelIdentity(inbound, out)
 		if settingsErr != nil {
 			logger.Errorf("SubService - matchingClients: inbound %d tunnel settings: %v", inbound.Id, settingsErr)
@@ -879,7 +815,7 @@ func (s *SubService) loadInboundsBySubId(subId string) ([]*model.Inbound, error)
 		JOIN client_inbounds ON client_inbounds.inbound_id = inbounds.id
 		JOIN clients ON clients.id = client_inbounds.client_id
 		WHERE
-			inbounds.protocol in ('vmess','vless','trojan','shadowsocks','hysteria','wireguard','amneziawg','mtproto','tuic','masque')
+			inbounds.protocol in ('vmess','vless','trojan','shadowsocks','hysteria','wireguard','masque')
 			AND clients.sub_id = ? AND inbounds.enable = ?
 	)`, subId, true).Order("sub_sort_index ASC").Order("id ASC")
 	if cached {
@@ -910,7 +846,7 @@ func (s *SubService) subscriptionSettings(inbound *model.Inbound) (string, error
 		err := database.GetDB().Model(&model.Inbound{}).Select("settings").Where("id = ?", inbound.Id).Row().Scan(&settings)
 		return settings, err
 	}
-	if inbound.Protocol == model.WireGuard || inbound.Protocol == model.AmneziaWG || inbound.Protocol == model.TUIC {
+	if inbound.Protocol == model.WireGuard {
 		return load()
 	}
 	return s.settingsCache.settingsFor(inbound.Id, load)
@@ -1050,85 +986,10 @@ func (s *SubService) GetLink(inbound *model.Inbound, email string) string {
 		return s.genShadowsocksLink(inbound, email)
 	case "hysteria":
 		return s.genHysteriaLink(inbound, email)
-	case "mtproto":
-		return s.genMtprotoLink(inbound, email)
 	case "wireguard":
 		return s.genWireguardLink(inbound, email)
-	case "amneziawg":
-		return s.genAmneziaWGLink(inbound, email)
-	case "tuic":
-		return s.genTuicLink(inbound, email)
 	}
 	return ""
-}
-
-func (s *SubService) genTuicLink(inbound *model.Inbound, email string) string {
-	if inbound.Protocol != model.TUIC {
-		return ""
-	}
-	inst := s.tuicInstanceForLink(inbound)
-	if inst == nil {
-		return ""
-	}
-	client := inst.byEmail[email]
-	if client == nil && len(inst.Clients) > 0 && email == "" {
-		client = &inst.Clients[0]
-	}
-	if client == nil || client.UUID == "" || client.Password == "" {
-		return ""
-	}
-
-	params := make(map[string]string)
-	cc := inst.CongestionControl
-	if cc == "" {
-		cc = "bbr"
-	}
-	params["congestion_control"] = cc
-
-	if len(inst.ALPN) > 0 {
-		params["alpn"] = strings.Join(inst.ALPN, ",")
-	}
-	if inst.SNI != "" {
-		params["sni"] = inst.SNI
-	}
-	if inst.UDPRelayMode != "" {
-		params["udp_relay_mode"] = inst.UDPRelayMode
-	}
-	params["allow_insecure"] = "0"
-
-	stream := unmarshalStreamSettings(inbound.StreamSettings)
-	externalProxies, _ := stream["externalProxy"].([]any)
-	if len(externalProxies) > 0 {
-		links := make([]string, 0, len(externalProxies))
-		for _, externalProxy := range externalProxies {
-			ep, ok := externalProxy.(map[string]any)
-			if !ok {
-				continue
-			}
-			dest, _ := ep["dest"].(string)
-			portF, okPort := ep["port"].(float64)
-			if dest == "" || !okPort {
-				continue
-			}
-			epParams := cloneStringMap(params)
-			if sni, ok := externalProxySNI(ep); ok {
-				epParams["sni"] = sni
-			}
-			if alpn, ok := externalProxyALPN(ep["alpn"]); ok {
-				epParams["alpn"] = alpn
-			}
-			if ai, ok := ep["allowInsecure"].(bool); ok && ai {
-				epParams["allow_insecure"] = "1"
-			}
-			link := fmt.Sprintf("tuic://%s:%s@%s", encodeUserinfo(client.UUID), encodeUserinfo(client.Password), joinHostPort(dest, int(portF)))
-			links = append(links, buildLinkWithParams(link, epParams, s.endpointRemark(inbound, email, ep, "")))
-		}
-		return strings.Join(links, "\n")
-	}
-
-	host := s.resolveInboundAddress(inbound)
-	link := fmt.Sprintf("tuic://%s:%s@%s", encodeUserinfo(client.UUID), encodeUserinfo(client.Password), joinHostPort(host, inbound.Port))
-	return buildLinkWithParams(link, params, s.genRemark(inbound, email, "", ""))
 }
 
 // genWireguardLink builds a per-client wireguard:// share link mirroring the
@@ -1174,165 +1035,6 @@ func (s *SubService) genWireguardLink(inbound *model.Inbound, email string) stri
 	for _, e := range endpoints {
 		link := fmt.Sprintf("wireguard://%s@%s", encodeUserinfo(client.PrivateKey), joinHostPort(e.Address, e.Port))
 		links = append(links, buildLinkWithParams(link, params, s.endpointRemark(inbound, email, e.ep, "")))
-	}
-	return strings.Join(links, "\n")
-}
-
-// amneziaWGHeaderOrDefault mirrors the frontend's amneziaWGHLine: AmneziaWG's
-// H1-H4 magic-header fields always render into the config text, falling back
-// to their protocol-default values (1/2/3/4) when unset rather than being
-// omitted, since a native AmneziaWG client needs all four to be present.
-func amneziaWGHeaderOrDefault(value, fallback string) string {
-	if strings.TrimSpace(value) == "" {
-		return fallback
-	}
-	return value
-}
-
-// amneziaWGConfigText builds the same plain AmneziaWG client .conf text the
-// frontend's genAmneziaWGConfig produces (same field order, same optional-field
-// conditionals) -- this is the payload wrapped into vpn:// links below.
-func amneziaWGConfigText(server *amneziawg.ServerSettings, client *model.Client, host string, port int, remark string) string {
-	lines := []string{
-		"[Interface]",
-		"PrivateKey = " + client.PrivateKey,
-		"Address = " + strings.Join(client.AllowedIPs, ", "),
-	}
-
-	var dns []string
-	if server.PrimaryDNS != "" {
-		dns = append(dns, server.PrimaryDNS)
-	}
-	if server.SecondaryDNS != "" {
-		dns = append(dns, server.SecondaryDNS)
-	}
-	if len(dns) > 0 {
-		lines = append(lines, "DNS = "+strings.Join(dns, ", "))
-	}
-	// Always emitted: a missing MTU line leaves the client on its own 1420
-	// default and fragments the client-to-server direction once S4 passes 20.
-	lines = append(lines, fmt.Sprintf("MTU = %d", amneziawg.EffectiveMTU(server.MTU, server.S4)))
-
-	lines = append(lines,
-		fmt.Sprintf("Jc = %d", server.Jc),
-		fmt.Sprintf("Jmin = %d", server.Jmin),
-		fmt.Sprintf("Jmax = %d", server.Jmax),
-		fmt.Sprintf("S1 = %d", server.S1),
-		fmt.Sprintf("S2 = %d", server.S2),
-	)
-	if server.S3 > 0 {
-		lines = append(lines, fmt.Sprintf("S3 = %d", server.S3))
-	}
-	if server.S4 > 0 {
-		lines = append(lines, fmt.Sprintf("S4 = %d", server.S4))
-	}
-	lines = append(lines,
-		"H1 = "+amneziaWGHeaderOrDefault(server.H1, "1"),
-		"H2 = "+amneziaWGHeaderOrDefault(server.H2, "2"),
-		"H3 = "+amneziaWGHeaderOrDefault(server.H3, "3"),
-		"H4 = "+amneziaWGHeaderOrDefault(server.H4, "4"),
-	)
-	for i, v := range []string{server.I1, server.I2, server.I3, server.I4, server.I5} {
-		if v != "" {
-			lines = append(lines, fmt.Sprintf("I%d = %s", i+1, v))
-		}
-	}
-	optional := []struct{ key, v string }{
-		{"HeaderProtectionKey", server.HeaderProtectionKey},
-		{"ContentPaddingAddition", server.ContentPaddingAddition},
-		{"RekeyAfterTime", server.RekeyAfterTime},
-		{"RekeyTimeout", server.RekeyTimeout},
-		{"RejectAfterTime", server.RejectAfterTime},
-		{"KeepaliveTimeout", server.KeepaliveTimeout},
-		{"MaxHandshakeAttempts", server.MaxHandshakeAttempts},
-	}
-	for _, p := range optional {
-		if p.v != "" {
-			lines = append(lines, p.key+" = "+p.v)
-		}
-	}
-	if server.RandomTrailers {
-		lines = append(lines, "RandomTrailers = on")
-	}
-	if server.DisableCookies {
-		lines = append(lines, "DisableCookies = on")
-	}
-
-	// Peer field order follows wg-quick(8) and the panel's other two AmneziaWG
-	// emitters (genAmneziaWGConfig, buildAmneziaWGClientConfig); all three are
-	// independent implementations, so any drift here is invisible until a user
-	// compares a subscription link against a downloaded .conf.
-	lines = append(lines, "", "# "+remark, "[Peer]", "PublicKey = "+server.PublicKey)
-	if client.PreSharedKey != "" {
-		lines = append(lines, "PresharedKey = "+client.PreSharedKey)
-	}
-	lines = append(lines, "AllowedIPs = 0.0.0.0/0, ::/0", fmt.Sprintf("Endpoint = %s:%d", host, port))
-	if client.KeepAlive != nil {
-		keepAlive := client.KeepAliveText()
-		if (strings.Contains(keepAlive, "-") && client.KeepAlive.Validate(true) == nil) || client.KeepAlive.Seconds() > 0 {
-			lines = append(lines, "PersistentKeepalive = "+keepAlive)
-		}
-	}
-
-	// A control character would split its line, and the split can re-open
-	// [Interface], whose PostUp runs as root wherever awg-quick applies this.
-	for _, line := range lines {
-		if amneziawg.ValidateConfigValue("config line", line) != nil {
-			return ""
-		}
-	}
-	return strings.Join(lines, "\n")
-}
-
-// genAmneziaWGLink builds a per-client vpn://<base64url .conf text> share
-// link matching the real AmneziaVPN app's own share-link scheme (see the
-// frontend's genAmneziaWGLink for the confirmed import-path reasoning).
-// Returns "" when the client or server has no key.
-func (s *SubService) genAmneziaWGLink(inbound *model.Inbound, email string) string {
-	if inbound.Protocol != model.AmneziaWG {
-		return ""
-	}
-	server := s.amneziaWGServerForLink(inbound)
-	if server == nil {
-		return ""
-	}
-
-	resolved, ok := s.clientForLink(inbound, email)
-	if !ok || resolved.PrivateKey == "" {
-		return ""
-	}
-	client := &resolved
-
-	endpoints := s.advertisedEndpoints(inbound)
-	links := make([]string, 0, len(endpoints))
-	for _, e := range endpoints {
-		text := amneziaWGConfigText(server, client, e.Address, e.Port, s.endpointRemark(inbound, email, e.ep, ""))
-		if text == "" {
-			continue
-		}
-		links = append(links, "vpn://"+base64.RawURLEncoding.EncodeToString([]byte(text)))
-	}
-	return strings.Join(links, "\n")
-}
-
-// genMtprotoLink builds one Telegram link per advertised endpoint with the client's FakeTLS secret.
-// It omits remarks because lenient parsers fold a fragment into the last query value.
-func (s *SubService) genMtprotoLink(inbound *model.Inbound, email string) string {
-	if inbound.Protocol != model.MTProto {
-		return ""
-	}
-	resolved, ok := s.clientForLink(inbound, email)
-	if !ok || resolved.Secret == "" {
-		return ""
-	}
-	endpoints := s.advertisedEndpoints(inbound)
-	links := make([]string, 0, len(endpoints))
-	for _, endpoint := range endpoints {
-		links = append(links, buildLinkWithParams("tg://proxy", map[string]string{
-			"server": endpoint.Address,
-			"port":   fmt.Sprintf("%d", endpoint.Port),
-			"secret": resolved.Secret,
-		}, ""))
 	}
 	return strings.Join(links, "\n")
 }

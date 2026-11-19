@@ -108,18 +108,6 @@ func (s *InboundService) applyTrafficMutationBatch(b *trafficMutationBatch) bool
 	needRestart := false
 	for i := range b.localPlans {
 		plan := &b.localPlans[i]
-		if plan.inbound.Protocol == model.MTProto {
-			s.applyLocalMtproto(plan.inbound.Id)
-			continue
-		}
-		if plan.inbound.Protocol == model.AmneziaWG {
-			s.applyLocalAmneziaWG(plan.inbound.Id)
-			continue
-		}
-		if plan.inbound.Protocol == model.TUIC {
-			s.applyLocalTuic(plan.inbound.Id)
-			continue
-		}
 		rt, err := s.runtimeFor(&plan.inbound)
 		if err == nil {
 			switch plan.action {

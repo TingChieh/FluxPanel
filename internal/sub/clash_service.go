@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"github.com/goccy/go-json"
 	yaml "github.com/goccy/go-yaml"
 
-	"github.com/TingChieh/FluxPanel/internal/amneziawg"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 	wgutil "github.com/TingChieh/FluxPanel/internal/util/wireguard"
 )
@@ -470,12 +468,6 @@ func (s *SubClashService) buildProxy(subReq *SubService, inbound *model.Inbound,
 	if inbound.Protocol == model.WireGuard {
 		return s.buildWireguardProxy(subReq, inbound, client, ep)
 	}
-	if inbound.Protocol == model.TUIC {
-		return s.buildTuicProxy(subReq, inbound, client, ep)
-	}
-	if inbound.Protocol == model.AmneziaWG {
-		return s.buildAmneziaWGProxy(subReq, inbound, client, ep)
-	}
 
 	network, _ := stream["network"].(string)
 
@@ -717,230 +709,6 @@ func (s *SubClashService) buildWireguardProxy(subReq *SubService, inbound *model
 		if len(servers) > 0 {
 			proxy["dns"] = servers
 		}
-	}
-
-	return proxy
-}
-
-func (s *SubClashService) buildTuicProxy(subReq *SubService, inbound *model.Inbound, client model.Client, ep map[string]any) map[string]any {
-	inst := subReq.tuicInstanceForLink(inbound)
-	if inst == nil {
-		return nil
-	}
-	uuid := client.ID
-	password := client.Password
-	if c := inst.byEmail[client.Email]; c != nil {
-		if uuid == "" {
-			uuid = c.UUID
-		}
-		if password == "" {
-			password = c.Password
-		}
-	}
-	if uuid == "" || password == "" {
-		return nil
-	}
-	server := inbound.Listen
-	if server == "" || server == "0.0.0.0" || server == "::" {
-		server = subReq.resolveInboundAddress(inbound)
-	}
-	proxy := map[string]any{
-		"name":                  subReq.endpointRemark(inbound, client.Email, ep, "tuic"),
-		"type":                  "tuic",
-		"server":                server,
-		"port":                  inbound.Port,
-		"uuid":                  uuid,
-		"password":              password,
-		"congestion-controller": inst.CongestionControl,
-		"udp-relay-mode":        inst.UDPRelayMode,
-		"reduce-rtt":            inst.ZeroRTTHandshake,
-	}
-	if len(inst.ALPN) > 0 {
-		proxy["alpn"] = inst.ALPN
-	}
-	if inst.SNI != "" {
-		proxy["sni"] = inst.SNI
-	}
-	if sni, ok := externalProxySNI(ep); ok {
-		proxy["sni"] = sni
-	}
-	if alpn, ok := externalProxyALPN(ep["alpn"]); ok {
-		proxy["alpn"] = strings.Split(alpn, ",")
-	}
-	if ai, ok := ep["allowInsecure"].(bool); ok && ai {
-		proxy["skip-cert-verify"] = true
-	}
-	return proxy
-}
-
-// amneziaWGClientAddresses prefers this inbound's own settings entry over the
-// shared clients.wg_allowed_ips column, which for an identity attached to both
-// a wireguard and an amneziawg inbound holds the other one's address.
-func amneziaWGClientAddresses(subReq *SubService, inbound *model.Inbound, client model.Client) []string {
-	if own, ok := subReq.clientForLink(inbound, client.Email); ok && len(own.AllowedIPs) > 0 {
-		return own.AllowedIPs
-	}
-	return client.AllowedIPs
-}
-
-// allBareIPs reports whether every entry is a plain IP address — no port,
-// scheme, and no zone, which mihomo brackets into a udp:// URL it then rejects.
-func allBareIPs(servers []string) bool {
-	for _, s := range servers {
-		addr, err := netip.ParseAddr(s)
-		if err != nil || addr.Zone() != "" {
-			return false
-		}
-	}
-	return true
-}
-
-// buildAmneziaWGProxy emits a mihomo Clash entry for an AmneziaWG inbound:
-// type stays "wireguard", the obfuscation rides in amnezia-wg-option.
-func (s *SubClashService) buildAmneziaWGProxy(subReq *SubService, inbound *model.Inbound, client model.Client, ep map[string]any) map[string]any {
-	if client.PrivateKey == "" {
-		return nil
-	}
-
-	server := subReq.amneziaWGServerForLink(inbound)
-	if server == nil {
-		return nil
-	}
-
-	proxy := map[string]any{
-		"name":        subReq.endpointRemark(inbound, client.Email, ep, ""),
-		"type":        "wireguard",
-		"server":      inbound.Listen,
-		"port":        inbound.Port,
-		"udp":         true,
-		"private-key": client.PrivateKey,
-	}
-
-	if server.PublicKey != "" {
-		proxy["public-key"] = server.PublicKey
-	}
-	if client.PreSharedKey != "" {
-		proxy["pre-shared-key"] = client.PreSharedKey
-	}
-	if ka, ok := keepAliveForScalarExport(client); ok {
-		proxy["persistent-keepalive"] = ka
-	}
-
-	for _, addr := range amneziaWGClientAddresses(subReq, inbound, client) {
-		ip := stripCIDR(addr)
-		if ip == "" {
-			continue
-		}
-		if strings.Contains(ip, ":") {
-			proxy["ipv6"] = ip
-		} else {
-			proxy["ip"] = ip
-		}
-	}
-
-	// Always emitted: mihomo's own 1408 default sits above the interface
-	// amneziawgnet actually runs once s4 passes 12, so the tunnel fragments.
-	proxy["mtu"] = amneziawg.EffectiveMTU(server.MTU, server.S4)
-
-	var dns []string
-	if server.PrimaryDNS != "" {
-		dns = append(dns, server.PrimaryDNS)
-	}
-	if server.SecondaryDNS != "" {
-		dns = append(dns, server.SecondaryDNS)
-	}
-	if len(dns) > 0 {
-		proxy["dns"] = dns
-		// mihomo ignores dns without this flag, but aborts the whole config on
-		// a value its dns.ParseNameServer rejects, so only bare IPs opt in.
-		if allBareIPs(dns) {
-			proxy["remote-dns-resolve"] = true
-		}
-	}
-
-	awg := map[string]any{}
-	if server.Jc != 0 {
-		awg["jc"] = server.Jc
-	}
-	if server.Jmin != 0 {
-		awg["jmin"] = server.Jmin
-	}
-	if server.Jmax != 0 {
-		awg["jmax"] = server.Jmax
-	}
-	if server.S1 != 0 {
-		awg["s1"] = server.S1
-	}
-	if server.S2 != 0 {
-		awg["s2"] = server.S2
-	}
-	if server.S3 != 0 {
-		awg["s3"] = server.S3
-	}
-	if server.S4 != 0 {
-		awg["s4"] = server.S4
-	}
-	if server.H1 != "" {
-		awg["h1"] = server.H1
-	}
-	if server.H2 != "" {
-		awg["h2"] = server.H2
-	}
-	if server.H3 != "" {
-		awg["h3"] = server.H3
-	}
-	if server.H4 != "" {
-		awg["h4"] = server.H4
-	}
-	for i, v := range []string{server.I1, server.I2, server.I3, server.I4, server.I5} {
-		if v != "" {
-			awg[fmt.Sprintf("i%d", i+1)] = v
-		}
-	}
-
-	needsV3 := false
-	if server.HeaderProtectionKey != "" {
-		awg["header-protection-key"] = server.HeaderProtectionKey
-		needsV3 = true
-	}
-	if server.ContentPaddingAddition != "" {
-		awg["content-padding-addition"] = server.ContentPaddingAddition
-		needsV3 = true
-	}
-	if server.RekeyAfterTime != "" {
-		awg["rekey-after-time"] = server.RekeyAfterTime
-		needsV3 = true
-	}
-	if server.RekeyTimeout != "" {
-		awg["rekey-timeout"] = server.RekeyTimeout
-		needsV3 = true
-	}
-	if server.RejectAfterTime != "" {
-		awg["reject-after-time"] = server.RejectAfterTime
-		needsV3 = true
-	}
-	if server.KeepaliveTimeout != "" {
-		awg["keepalive-timeout"] = server.KeepaliveTimeout
-		needsV3 = true
-	}
-	if server.MaxHandshakeAttempts != "" {
-		awg["max-handshake-attempts"] = server.MaxHandshakeAttempts
-		needsV3 = true
-	}
-	if server.RandomTrailers {
-		awg["random-trailers"] = true
-		needsV3 = true
-	}
-	if server.DisableCookies {
-		awg["disable-cookies"] = true
-		needsV3 = true
-	}
-	if needsV3 {
-		awg["version"] = 3
-	}
-
-	if len(awg) > 0 {
-		proxy["amnezia-wg-option"] = awg
 	}
 
 	return proxy

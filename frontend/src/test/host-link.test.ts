@@ -78,15 +78,15 @@ describe('hostToExternalProxyEntry', () => {
 
 describe('withHostEndpoints', () => {
   const inbound = inboundFromDb({
-    protocol: 'mtproto',
+    protocol: 'wireguard',
     port: 4060,
     listen: '127.0.0.1',
-    settings: { clients: [] },
+    settings: { secretKey: 'secret', peers: [], clients: [] },
     streamSettings: {},
     sniffing: {},
   });
 
-  it('projects enabled raw Hosts onto MTProto share endpoints', () => {
+  it('projects enabled raw Hosts onto WireGuard share endpoints', () => {
     const got = withHostEndpoints(
       inbound,
       7,
