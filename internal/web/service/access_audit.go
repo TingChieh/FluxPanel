@@ -485,6 +485,18 @@ var highRiskPorts = map[int]string{
 	6379:  "port:redis",
 }
 
+// hasLabelPrefix reports whether a non-final DNS label of domain starts with
+// prefix, so "tracker1.example.org" matches "tracker" but "reading-tracker.dev" does not.
+func hasLabelPrefix(domain, prefix string) bool {
+	labels := strings.Split(domain, ".")
+	for _, label := range labels[:len(labels)-1] {
+		if strings.HasPrefix(label, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func domainMatchesSuffix(domain, rule string) bool {
 	return domain == rule || strings.HasSuffix(domain, "."+rule)
 }
@@ -506,10 +518,10 @@ func classifyAuditTarget(domain, rootDomain string, port int, cfg AuditConfig) (
 	if strings.HasSuffix(domain, ".onion") || strings.Contains(domain, "tor2web") {
 		return AuditCatRisk, AuditRiskHigh, "builtin:darknet"
 	}
-	if strings.Contains(domain, "stratum.") || strings.Contains(domain, "miningpool") || strings.Contains(domain, "hashpool") {
+	if hasLabelPrefix(domain, "stratum") || strings.Contains(domain, "miningpool") || strings.Contains(domain, "hashpool") {
 		return AuditCatRisk, AuditRiskHigh, "builtin:miner"
 	}
-	if strings.Contains(domain, "tracker.") || strings.Contains(domain, "bittorrent") || strings.Contains(domain, ".torrent") {
+	if hasLabelPrefix(domain, "tracker") || strings.Contains(domain, "bittorrent") || strings.Contains(domain, ".torrent") {
 		return AuditCatRisk, AuditRiskWarn, "builtin:bt-tracker"
 	}
 	if tag, ok := highRiskPorts[port]; ok {

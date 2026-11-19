@@ -504,3 +504,29 @@ func TestAccessAuditBucketsByPanelTimeLocation(t *testing.T) {
 		t.Fatalf("detail for %s = %+v, want 1 hit active at panel hour %d", wantDate, detail, inPanel.Hour())
 	}
 }
+
+// Tracker and mining-pool hosts are named by a whole DNS label; a substring test
+// flagged hosts like reading-tracker.example.workers.dev as BitTorrent trackers.
+func TestClassifyAuditTargetMatchesRiskLabelsNotSubstrings(t *testing.T) {
+	cfg := DefaultAuditConfig()
+	for _, tc := range []struct {
+		domain   string
+		wantRule string
+	}{
+		{"reading-tracker.example.workers.dev", ""},
+		{"tracker.opentrackr.org", "builtin:bt-tracker"},
+		{"open.tracker.cl", "builtin:bt-tracker"},
+		{"tracker1.bt.example.kr", "builtin:bt-tracker"},
+		{"constratum.example.com", ""},
+		{"stratum.pool.example", "builtin:miner"},
+		{"eu1.stratum.example.net", "builtin:miner"},
+	} {
+		t.Run(tc.domain, func(t *testing.T) {
+			_, root, _, _ := parseAuditDestination("tcp:" + tc.domain + ":443")
+			_, _, rule := classifyAuditTarget(tc.domain, root, 443, cfg)
+			if rule != tc.wantRule {
+				t.Fatalf("classifyAuditTarget(%q) rule = %q, want %q", tc.domain, rule, tc.wantRule)
+			}
+		})
+	}
+}
