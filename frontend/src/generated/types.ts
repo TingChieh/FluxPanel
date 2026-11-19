@@ -208,6 +208,7 @@ export interface AuditClientIPView {
   firstSeen: number;
   hitCount: number;
   lastSeen: number;
+  nodeId: number;
   srcIp: string;
   subnet: string;
 }
@@ -217,6 +218,7 @@ export interface AuditClientSummary {
   highRiskHits: number;
   lastSeen: number;
   maxConcurrentSubnets: number;
+  nodeIds: number[];
   topDomains: string[];
   totalHits: number;
   unackedAlerts: number;
@@ -241,6 +243,28 @@ export interface AuditConfigUpdateRequest {
   reevaluate: boolean;
 }
 
+export interface AuditDigestConfig {
+  deliveryNodeId: number;
+  enabled: boolean;
+  lang: string;
+  lastAttemptAt: number;
+  lastError: string;
+  lastSentDate: string;
+  sendAt: string;
+}
+
+export interface AuditDigestConfigUpdate {
+  deliveryNodeId: number;
+  enabled: boolean;
+  lang: string;
+  sendAt: string;
+}
+
+export interface AuditDigestPreview {
+  date: string;
+  text: string;
+}
+
 export interface AuditDomainGroup {
   category: string;
   firstSeen: number;
@@ -252,9 +276,52 @@ export interface AuditDomainGroup {
   subdomains: AuditSubdomainItem[];
 }
 
+export interface AuditExport {
+  daily: AuditExportDaily[];
+  from: string;
+  ips: AuditExportIP[];
+  timeLocation: string;
+  to: string;
+  utcOffset: number;
+}
+
+export interface AuditExportDaily {
+  date: string;
+  domain: string;
+  email: string;
+  firstSeen: number;
+  hitCount: number;
+  lastSeen: number;
+  outbound: string;
+  port: number;
+  rootDomain: string;
+}
+
+export interface AuditExportIP {
+  activeHours: number;
+  date: string;
+  email: string;
+  firstSeen: number;
+  hitCount: number;
+  lastSeen: number;
+  srcIp: string;
+  subnet: string;
+}
+
 export interface AuditIngestResult {
   bytesRead: number;
   linesProcessed: number;
+  nodesFailed: number;
+  nodesSynced: number;
+}
+
+export interface AuditSourceSummary {
+  activeClients: number;
+  lastSyncAt: number;
+  name: string;
+  nodeId: number;
+  syncError: string;
+  totalHits: number;
 }
 
 export interface AuditSubdomainItem {
@@ -263,6 +330,7 @@ export interface AuditSubdomainItem {
   firstSeen: number;
   hitCount: number;
   lastSeen: number;
+  nodeIds: number[];
   outbound: string;
   port: number;
   riskLevel: number;
@@ -276,9 +344,26 @@ export interface AuditSummaryResponse {
   days: number;
   highRiskAlerts: number;
   sharingClients: number;
+  sources: AuditSourceSummary[];
   totalHits: number;
   unackedAlerts: number;
   warnAlerts: number;
+}
+
+export interface AuditTelegramConfig {
+  chatId: string;
+  enabled: boolean;
+  hasBotToken: boolean;
+}
+
+export interface AuditTelegramConfigUpdate {
+  botToken: string;
+  chatId: string;
+  enabled: boolean;
+}
+
+export interface AuditTelegramRelayRequest {
+  text: string;
 }
 
 export interface Client {

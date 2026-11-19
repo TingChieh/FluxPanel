@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -284,6 +285,23 @@ func TestMasterNodeContract(t *testing.T) {
 					}
 					_, err = master.FetchClientIpsByGuid(ctx)
 					return err
+				}, nil},
+				{"audit export is readable with the node's time zone", []string{"FetchAuditExport"}, func() error {
+					exp, err := master.FetchAuditExport(ctx, "2026-11-18", "2026-11-19")
+					if err != nil {
+						return err
+					}
+					if exp.TimeLocation == "" || exp.From != "2026-11-18" || exp.To != "2026-11-19" {
+						return fmt.Errorf("audit export header = %+v, want the node's zone and the requested window", exp)
+					}
+					return nil
+				}, nil},
+				{"a digest relay reaches the node's Telegram sender", []string{"RelayAuditTelegram"}, func() error {
+					// No bot here: only the node's own "not configured" refusal may come back.
+					if err := master.RelayAuditTelegram(ctx, "digest"); err != nil && !strings.Contains(err.Error(), "telegram delivery is not configured") {
+						return err
+					}
+					return nil
 				}, nil},
 				{"host groups, descendants and web cert files are readable", []string{"FetchHostGroups", "GetDescendants", "GetWebCertFiles", "ListInboundOptions", "ListRemoteTags"}, func() error {
 					if _, err := master.FetchHostGroups(ctx); err != nil {

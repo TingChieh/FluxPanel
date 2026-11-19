@@ -46,6 +46,9 @@ const (
 	AuditCatNoise     = "noise"
 	AuditCatOther     = "other"
 
+	auditRuleConcurrentSubnets = "sharing:concurrent-subnets"
+	auditRuleDailySubnets      = "sharing:daily-subnets"
+
 	auditConfigSettingKey = "accessAuditConfig"
 	auditCursorSettingKey = "accessAuditCursor"
 )
@@ -67,10 +70,13 @@ type AuditConfigUpdateRequest struct {
 	Reevaluate bool        `json:"reevaluate" example:"true"`
 }
 
-// AuditIngestResult reports lines consumed during an incremental access-log scan.
+// AuditIngestResult reports lines consumed from the local access log and, for a
+// manual ingest, how many node snapshots were merged or failed.
 type AuditIngestResult struct {
 	LinesProcessed int   `json:"linesProcessed" example:"42"`
 	BytesRead      int64 `json:"bytesRead" example:"4096"`
+	NodesSynced    int   `json:"nodesSynced" example:"2"`
+	NodesFailed    int   `json:"nodesFailed" example:"0"`
 }
 
 // AuditClientSummary summarizes one client's activity and risk signals over the queried window.
@@ -86,6 +92,18 @@ type AuditClientSummary struct {
 	UnackedAlerts        int      `json:"unackedAlerts" example:"0"`
 	TopDomains           []string `json:"topDomains"`
 	LastSeen             int64    `json:"lastSeen" example:"1763540000"`
+	NodeIds              []int    `json:"nodeIds"`
+}
+
+// AuditSourceSummary is one audit source (this panel or a node) in the window,
+// with the outcome of the latest pull for nodes.
+type AuditSourceSummary struct {
+	NodeId        int    `json:"nodeId" example:"0"`
+	Name          string `json:"name" example:"local"`
+	TotalHits     int64  `json:"totalHits" example:"15000"`
+	ActiveClients int    `json:"activeClients" example:"7"`
+	LastSyncAt    int64  `json:"lastSyncAt" example:"1763540000"`
+	SyncError     string `json:"syncError" example:""`
 }
 
 // AuditSummaryResponse is the top-level daily audit overview for all active clients.
@@ -99,6 +117,7 @@ type AuditSummaryResponse struct {
 	UnackedAlerts  int                  `json:"unackedAlerts" example:"1"`
 	SharingClients int                  `json:"sharingClients" example:"0"`
 	Clients        []AuditClientSummary `json:"clients"`
+	Sources        []AuditSourceSummary `json:"sources"`
 }
 
 // AuditCategoryStat aggregates hits and domain counts for one traffic category.
@@ -119,6 +138,7 @@ type AuditSubdomainItem struct {
 	HitCount  int64  `json:"hitCount" example:"120"`
 	FirstSeen int64  `json:"firstSeen" example:"1763510000"`
 	LastSeen  int64  `json:"lastSeen" example:"1763540000"`
+	NodeIds   []int  `json:"nodeIds"`
 }
 
 // AuditDomainGroup collapses subdomains under one eTLD+1 root domain for readable inspection.
@@ -142,6 +162,7 @@ type AuditClientIPView struct {
 	LastSeen    int64  `json:"lastSeen" example:"1763540000"`
 	ActiveHours uint32 `json:"activeHours" example:"1536"`
 	ActiveCount int    `json:"activeCount" example:"2"`
+	NodeId      int    `json:"nodeId" example:"0"`
 }
 
 // AuditClientDetailResponse provides a single client's domains, categories, IPs, and alerts.
@@ -758,15 +779,20 @@ func (s *AccessAuditService) IngestFromPath(logPath string) (AuditIngestResult, 
 		if err := upsertClientIPRows(tx, ipMap); err != nil {
 			return err
 		}
-		if err := recordTargetAlerts(tx, dailyMap); err != nil {
-			return err
-		}
+		pairs := make(map[auditPair]struct{})
 		for dateStr, emails := range touchedClients {
 			for email := range emails {
-				if _, err := evaluateAccountSharing(tx, dateStr, email, cfg); err != nil {
-					return err
-				}
+				pairs[auditPair{date: dateStr, email: email}] = struct{}{}
 			}
+		}
+		srcHints := make(map[dailyAggKey]string, len(dailyMap))
+		for k, v := range dailyMap {
+			if v.lastSrcIP != "" {
+				srcHints[k] = v.lastSrcIP
+			}
+		}
+		if _, err := refreshAuditAlerts(tx, pairs, cfg, srcHints); err != nil {
+			return err
 		}
 		return saveAuditCursor(tx, auditCursor{
 			Path:          logPath,
@@ -800,7 +826,7 @@ func upsertDailyRows(tx *gorm.DB, dailyMap map[dailyAggKey]*dailyAggVal) error {
 			LastSeen:   v.lastSeen,
 		}
 		if err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "date"}, {Name: "email"}, {Name: "domain"}, {Name: "port"}},
+			Columns: []clause.Column{{Name: "node_id"}, {Name: "date"}, {Name: "email"}, {Name: "domain"}, {Name: "port"}},
 			DoUpdates: clause.Assignments(map[string]any{
 				"root_domain": v.rootDomain,
 				"outbound":    v.outbound,
@@ -831,7 +857,7 @@ func upsertClientIPRows(tx *gorm.DB, ipMap map[ipAggKey]*ipAggVal) error {
 			ActiveHours: v.activeHours,
 		}
 		if err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "date"}, {Name: "email"}, {Name: "src_ip"}},
+			Columns: []clause.Column{{Name: "node_id"}, {Name: "date"}, {Name: "email"}, {Name: "src_ip"}},
 			DoUpdates: clause.Assignments(map[string]any{
 				"subnet":       v.subnet,
 				"hit_count":    gorm.Expr("hit_count + ?", v.hits),
@@ -854,16 +880,16 @@ func keyOfAlert(a model.AccessAuditAlert) auditAlertKey {
 	return auditAlertKey{a.Date, a.Email, a.AlertType, a.RuleName, a.Target}
 }
 
-func upsertAuditAlert(tx *gorm.DB, alert model.AccessAuditAlert, replaceCount bool) error {
+// upsertAuditAlert stores alert.HitCount as the total derived from the aggregate
+// tables; reopenOnGrowth re-raises an acknowledged alert whose count went up.
+func upsertAuditAlert(tx *gorm.DB, alert model.AccessAuditAlert, reopenOnGrowth bool) error {
 	updates := map[string]any{
 		"created_at": alert.CreatedAt,
 		"severity":   alert.Severity,
-		"hit_count":  gorm.Expr("hit_count + ?", alert.HitCount),
+		"hit_count":  alert.HitCount,
 		"detail":     alert.Detail,
 	}
-	if replaceCount {
-		updates["hit_count"] = alert.HitCount
-		// A count that grew past what the admin acknowledged is a new escalation.
+	if reopenOnGrowth {
 		updates["acked"] = gorm.Expr("CASE WHEN ? > hit_count THEN ? ELSE acked END", alert.HitCount, false)
 	}
 	if alert.SrcIP != "" {
@@ -898,19 +924,6 @@ func newTargetAlert(date, email, domain string, port int, category string, riskL
 		HitCount:  hits,
 		Detail:    fmt.Sprintf("Matched rule %s on %s", ruleHit, target),
 	}
-}
-
-func recordTargetAlerts(tx *gorm.DB, dailyMap map[dailyAggKey]*dailyAggVal) error {
-	for k, v := range dailyMap {
-		if v.riskLevel == AuditRiskNone || v.ruleHit == "" {
-			continue
-		}
-		alert := newTargetAlert(k.date, k.email, k.domain, k.port, v.category, v.riskLevel, v.ruleHit, v.hits, v.lastSeen, v.lastSrcIP)
-		if err := upsertAuditAlert(tx, alert, false); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func computeSubnetConcurrency(rows []model.AccessAuditClientIP) (uniqueSubnets int, peakHour int, peakSubnets []string, allSubnets []string) {
@@ -980,7 +993,7 @@ func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig)
 			Email:     email,
 			AlertType: AuditAlertAccountSharing,
 			Severity:  AuditRiskHigh,
-			RuleName:  "sharing:concurrent-subnets",
+			RuleName:  auditRuleConcurrentSubnets,
 			Target:    "same-hour subnets",
 			SrcIP:     latestIP,
 			HitCount:  int64(len(peakSubnets)),
@@ -994,7 +1007,7 @@ func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig)
 			Email:     email,
 			AlertType: AuditAlertAccountSharing,
 			Severity:  AuditRiskWarn,
-			RuleName:  "sharing:daily-subnets",
+			RuleName:  auditRuleDailySubnets,
 			Target:    "daily subnets",
 			SrcIP:     latestIP,
 			HitCount:  int64(uniqueSubnets),
@@ -1024,59 +1037,28 @@ func (s *AccessAuditService) ReevaluateRules() error {
 	}
 
 	return db.Transaction(func(tx *gorm.DB) error {
-		produced := make(map[auditAlertKey]struct{})
 		for _, r := range rows {
 			cat, riskLvl, ruleHit := classifyAuditTarget(r.Domain, r.RootDomain, r.Port, cfg)
-			if cat != r.Category || riskLvl != r.RiskLevel || ruleHit != r.RuleHit {
-				if err := tx.Model(&model.AccessAuditDaily{}).Where("id = ?", r.Id).Updates(map[string]any{
-					"category":   cat,
-					"risk_level": riskLvl,
-					"rule_hit":   ruleHit,
-				}).Error; err != nil {
-					return err
-				}
+			if cat == r.Category && riskLvl == r.RiskLevel && ruleHit == r.RuleHit {
+				continue
 			}
-			if riskLvl > AuditRiskNone && ruleHit != "" {
-				alert := newTargetAlert(r.Date, r.Email, r.Domain, r.Port, cat, riskLvl, ruleHit, r.HitCount, r.LastSeen, "")
-				if err := upsertAuditAlert(tx, alert, true); err != nil {
-					return err
-				}
-				produced[keyOfAlert(alert)] = struct{}{}
-			}
-		}
-
-		type dateEmail struct {
-			Date  string
-			Email string
-		}
-		var pairs []dateEmail
-		if err := tx.Model(&model.AccessAuditClientIP{}).Select("DISTINCT date, email").Scan(&pairs).Error; err != nil {
-			return err
-		}
-		for _, p := range pairs {
-			emitted, err := evaluateAccountSharing(tx, p.Date, p.Email, cfg)
-			if err != nil {
+			if err := tx.Model(&model.AccessAuditDaily{}).Where("id = ?", r.Id).Updates(map[string]any{
+				"category":   cat,
+				"risk_level": riskLvl,
+				"rule_hit":   ruleHit,
+			}).Error; err != nil {
 				return err
 			}
-			for _, a := range emitted {
-				produced[keyOfAlert(a)] = struct{}{}
-			}
 		}
-
-		var unacked []model.AccessAuditAlert
-		if err := tx.Where("acked = ?", false).Find(&unacked).Error; err != nil {
+		pairs, err := allAuditPairs(tx)
+		if err != nil {
 			return err
 		}
-		var stale []uint
-		for _, a := range unacked {
-			if _, ok := produced[keyOfAlert(a)]; !ok {
-				stale = append(stale, a.Id)
-			}
+		produced, err := refreshAuditAlerts(tx, pairs, cfg, nil)
+		if err != nil {
+			return err
 		}
-		if len(stale) == 0 {
-			return nil
-		}
-		return tx.Where("id IN ?", stale).Delete(&model.AccessAuditAlert{}).Error
+		return deleteUnackedAlertsExcept(tx, produced)
 	})
 }
 
@@ -1098,13 +1080,15 @@ func resolveDateRange(dateStr string, days int) (endDate, startDate string, clam
 	return end.Format("2006-01-02"), start.Format("2006-01-02"), days
 }
 
-// GetSummary returns an overview across all active clients for the chosen date window.
-func (s *AccessAuditService) GetSummary(dateStr string, days int) (AuditSummaryResponse, error) {
+// GetSummary returns an overview across all active clients for the chosen date
+// window; nodeID narrows clients to one source (AuditAllSources for every source).
+func (s *AccessAuditService) GetSummary(dateStr string, days int, nodeID int) (AuditSummaryResponse, error) {
 	endDate, startDate, clampedDays := resolveDateRange(dateStr, days)
 	resp := AuditSummaryResponse{
 		Date:    endDate,
 		Days:    clampedDays,
 		Clients: []AuditClientSummary{},
+		Sources: []AuditSourceSummary{},
 	}
 	db := database.GetDB()
 	if db == nil {
@@ -1126,10 +1110,32 @@ func (s *AccessAuditService) GetSummary(dateStr string, days int) (AuditSummaryR
 		return resp, err
 	}
 
+	sources, err := summarizeAuditSources(db, dailyRows)
+	if err != nil {
+		return resp, err
+	}
+	resp.Sources = sources
+	if nodeID != AuditAllSources {
+		dailyRows = filterAuditRows(dailyRows, func(r model.AccessAuditDaily) bool { return r.NodeId == nodeID })
+		ipRows = filterAuditRows(ipRows, func(r model.AccessAuditClientIP) bool { return r.NodeId == nodeID })
+		inSource := make(map[string]struct{})
+		for _, r := range dailyRows {
+			inSource[r.Email] = struct{}{}
+		}
+		for _, r := range ipRows {
+			inSource[r.Email] = struct{}{}
+		}
+		alertRows = filterAuditRows(alertRows, func(a model.AccessAuditAlert) bool {
+			_, ok := inSource[a.Email]
+			return ok
+		})
+	}
+
 	type clientAcc struct {
 		summary       AuditClientSummary
 		rootHits      map[string]int64
 		nonNoiseRoots map[string]int64
+		nodes         map[int]struct{}
 	}
 	byClient := make(map[string]*clientAcc)
 	getAcc := func(email string) *clientAcc {
@@ -1140,6 +1146,7 @@ func (s *AccessAuditService) GetSummary(dateStr string, days int) (AuditSummaryR
 			summary:       AuditClientSummary{Email: email, TopDomains: []string{}},
 			rootHits:      make(map[string]int64),
 			nonNoiseRoots: make(map[string]int64),
+			nodes:         make(map[int]struct{}),
 		}
 		byClient[email] = a
 		return a
@@ -1147,6 +1154,7 @@ func (s *AccessAuditService) GetSummary(dateStr string, days int) (AuditSummaryR
 
 	for _, r := range dailyRows {
 		a := getAcc(r.Email)
+		a.nodes[r.NodeId] = struct{}{}
 		a.summary.TotalHits += r.HitCount
 		resp.TotalHits += r.HitCount
 		a.rootHits[r.RootDomain] += r.HitCount
@@ -1165,7 +1173,7 @@ func (s *AccessAuditService) GetSummary(dateStr string, days int) (AuditSummaryR
 
 	ipsByClient := make(map[string][]model.AccessAuditClientIP)
 	for _, r := range ipRows {
-		getAcc(r.Email)
+		getAcc(r.Email).nodes[r.NodeId] = struct{}{}
 		ipsByClient[r.Email] = append(ipsByClient[r.Email], r)
 	}
 
@@ -1189,6 +1197,7 @@ func (s *AccessAuditService) GetSummary(dateStr string, days int) (AuditSummaryR
 
 	for email, acc := range byClient {
 		acc.summary.UniqueRootDomains = len(acc.rootHits)
+		acc.summary.NodeIds = sortedNodeIDs(acc.nodes)
 		acc.summary.TopDomains = topKeysByCount(acc.nonNoiseRoots, 5)
 		if len(acc.summary.TopDomains) == 0 {
 			acc.summary.TopDomains = topKeysByCount(acc.rootHits, 5)
@@ -1260,8 +1269,9 @@ func topKeysByCount(m map[string]int64, limit int) []string {
 	return out
 }
 
-// GetClientDetail returns categorized root domains, source IPs, and alerts for one client.
-func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hideNoise bool) (AuditClientDetailResponse, error) {
+// GetClientDetail returns categorized root domains, source IPs, and alerts for one
+// client; nodeID narrows domains and IPs to one source (AuditAllSources for all).
+func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hideNoise bool, nodeID int) (AuditClientDetailResponse, error) {
 	endDate, startDate, clampedDays := resolveDateRange(dateStr, days)
 	resp := AuditClientDetailResponse{
 		Email:      email,
@@ -1282,6 +1292,10 @@ func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hi
 	if err := db.Where("email = ? AND date >= ? AND date <= ?", email, startDate, endDate).Find(&dailyRows).Error; err != nil {
 		return resp, err
 	}
+	if nodeID != AuditAllSources {
+		dailyRows = filterAuditRows(dailyRows, func(r model.AccessAuditDaily) bool { return r.NodeId == nodeID })
+	}
+	subNodes := make(map[string]map[int]struct{})
 
 	catHits := make(map[string]int64)
 	catDomains := make(map[string]map[string]struct{})
@@ -1331,6 +1345,10 @@ func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hi
 		}
 
 		subKey := fmt.Sprintf("%s:%d", r.Domain, r.Port)
+		if subNodes[subKey] == nil {
+			subNodes[subKey] = make(map[int]struct{})
+		}
+		subNodes[subKey][r.NodeId] = struct{}{}
 		if sub, exists := subByGroup[r.RootDomain][subKey]; exists {
 			sub.HitCount += r.HitCount
 			if r.RiskLevel > sub.RiskLevel {
@@ -1371,6 +1389,7 @@ func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hi
 
 	for root, g := range groups {
 		for _, sub := range subByGroup[root] {
+			sub.NodeIds = sortedNodeIDs(subNodes[fmt.Sprintf("%s:%d", sub.Domain, sub.Port)])
 			g.Subdomains = append(g.Subdomains, *sub)
 		}
 		sort.Slice(g.Subdomains, func(i, j int) bool {
@@ -1395,7 +1414,14 @@ func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hi
 	if err := db.Where("email = ? AND date >= ? AND date <= ?", email, startDate, endDate).Find(&ipRows).Error; err != nil {
 		return resp, err
 	}
-	mergedIPs := make(map[string]*AuditClientIPView)
+	if nodeID != AuditAllSources {
+		ipRows = filterAuditRows(ipRows, func(r model.AccessAuditClientIP) bool { return r.NodeId == nodeID })
+	}
+	type ipSourceKey struct {
+		srcIP  string
+		nodeID int
+	}
+	mergedIPs := make(map[ipSourceKey]*AuditClientIPView)
 	subnetSet := make(map[string]struct{})
 	byDate := make(map[string][]model.AccessAuditClientIP)
 	for _, r := range ipRows {
@@ -1403,7 +1429,7 @@ func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hi
 			subnetSet[r.Subnet] = struct{}{}
 		}
 		byDate[r.Date] = append(byDate[r.Date], r)
-		if existing, ok := mergedIPs[r.SrcIP]; ok {
+		if existing, ok := mergedIPs[ipSourceKey{srcIP: r.SrcIP, nodeID: r.NodeId}]; ok {
 			existing.HitCount += r.HitCount
 			existing.ActiveHours |= r.ActiveHours
 			if r.FirstSeen > 0 && (existing.FirstSeen == 0 || r.FirstSeen < existing.FirstSeen) {
@@ -1413,7 +1439,8 @@ func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hi
 				existing.LastSeen = r.LastSeen
 			}
 		} else {
-			mergedIPs[r.SrcIP] = &AuditClientIPView{
+			mergedIPs[ipSourceKey{srcIP: r.SrcIP, nodeID: r.NodeId}] = &AuditClientIPView{
+				NodeId:      r.NodeId,
 				SrcIP:       r.SrcIP,
 				Subnet:      r.Subnet,
 				HitCount:    r.HitCount,
@@ -1508,4 +1535,61 @@ func (s *AccessAuditService) PruneOldData(retentionDays int) error {
 		}
 		return tx.Where("date < ?", cutoff).Delete(&model.AccessAuditAlert{}).Error
 	})
+}
+
+func filterAuditRows[T any](rows []T, keep func(T) bool) []T {
+	out := rows[:0:0]
+	for _, r := range rows {
+		if keep(r) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+func sortedNodeIDs(set map[int]struct{}) []int {
+	ids := make([]int, 0, len(set))
+	for id := range set {
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
+	return ids
+}
+
+// summarizeAuditSources lists this panel plus every node that is enabled or has
+// rows in the window, with hit totals and the latest pull outcome.
+func summarizeAuditSources(db *gorm.DB, dailyRows []model.AccessAuditDaily) ([]AuditSourceSummary, error) {
+	hits := make(map[int]int64)
+	clients := make(map[int]map[string]struct{})
+	for _, r := range dailyRows {
+		hits[r.NodeId] += r.HitCount
+		if clients[r.NodeId] == nil {
+			clients[r.NodeId] = make(map[string]struct{})
+		}
+		clients[r.NodeId][r.Email] = struct{}{}
+	}
+	var nodes []struct {
+		Id     int
+		Name   string
+		Enable bool
+	}
+	if err := db.Model(&model.Node{}).Select("id", "name", "enable").Order("id").Scan(&nodes).Error; err != nil {
+		return nil, err
+	}
+	statuses := loadAuditNodeSyncStatus(db)
+	out := []AuditSourceSummary{{
+		NodeId: AuditLocalSource, Name: auditLocalSourceName,
+		TotalHits: hits[AuditLocalSource], ActiveClients: len(clients[AuditLocalSource]),
+	}}
+	for _, n := range nodes {
+		if !n.Enable && hits[n.Id] == 0 {
+			continue
+		}
+		st := statuses[n.Id]
+		out = append(out, AuditSourceSummary{
+			NodeId: n.Id, Name: n.Name, TotalHits: hits[n.Id], ActiveClients: len(clients[n.Id]),
+			LastSyncAt: st.LastSyncAt, SyncError: st.LastError,
+		})
+	}
+	return out, nil
 }

@@ -215,6 +215,9 @@ export const EXAMPLES: Record<string, unknown> = {
             "firstSeen": 1763510000,
             "hitCount": 120,
             "lastSeen": 1763540000,
+            "nodeIds": [
+              0
+            ],
             "outbound": "direct",
             "port": 443,
             "riskLevel": 0,
@@ -234,6 +237,7 @@ export const EXAMPLES: Record<string, unknown> = {
         "firstSeen": 1763510000,
         "hitCount": 300,
         "lastSeen": 1763540000,
+        "nodeId": 0,
         "srcIp": "198.51.100.10",
         "subnet": "198.51.100.0/24"
       }
@@ -247,6 +251,7 @@ export const EXAMPLES: Record<string, unknown> = {
     "firstSeen": 1763510000,
     "hitCount": 300,
     "lastSeen": 1763540000,
+    "nodeId": 0,
     "srcIp": "198.51.100.10",
     "subnet": "198.51.100.0/24"
   },
@@ -255,6 +260,9 @@ export const EXAMPLES: Record<string, unknown> = {
     "highRiskHits": 0,
     "lastSeen": 1763540000,
     "maxConcurrentSubnets": 1,
+    "nodeIds": [
+      0
+    ],
     "topDomains": [
       ""
     ],
@@ -298,6 +306,25 @@ export const EXAMPLES: Record<string, unknown> = {
     },
     "reevaluate": true
   },
+  "AuditDigestConfig": {
+    "deliveryNodeId": 1,
+    "enabled": true,
+    "lang": "zh-CN",
+    "lastAttemptAt": 1763600000,
+    "lastError": "",
+    "lastSentDate": "2026-11-20",
+    "sendAt": "09:00"
+  },
+  "AuditDigestConfigUpdate": {
+    "deliveryNodeId": 1,
+    "enabled": true,
+    "lang": "zh-CN",
+    "sendAt": "09:00"
+  },
+  "AuditDigestPreview": {
+    "date": "2026-11-19",
+    "text": "Access audit digest 2026-11-19"
+  },
   "AuditDomainGroup": {
     "category": "ai_dev",
     "firstSeen": 1763510000,
@@ -313,6 +340,9 @@ export const EXAMPLES: Record<string, unknown> = {
         "firstSeen": 1763510000,
         "hitCount": 120,
         "lastSeen": 1763540000,
+        "nodeIds": [
+          0
+        ],
         "outbound": "direct",
         "port": 443,
         "riskLevel": 0,
@@ -320,9 +350,71 @@ export const EXAMPLES: Record<string, unknown> = {
       }
     ]
   },
+  "AuditExport": {
+    "daily": [
+      {
+        "date": "2026-11-19",
+        "domain": "api.github.com",
+        "email": "alice",
+        "firstSeen": 1763510000,
+        "hitCount": 120,
+        "lastSeen": 1763540000,
+        "outbound": "direct",
+        "port": 443,
+        "rootDomain": "github.com"
+      }
+    ],
+    "from": "2026-11-18",
+    "ips": [
+      {
+        "activeHours": 1536,
+        "date": "2026-11-19",
+        "email": "alice",
+        "firstSeen": 1763510000,
+        "hitCount": 300,
+        "lastSeen": 1763540000,
+        "srcIp": "198.51.100.10",
+        "subnet": "198.51.100.0/24"
+      }
+    ],
+    "timeLocation": "Asia/Shanghai",
+    "to": "2026-11-19",
+    "utcOffset": 28800
+  },
+  "AuditExportDaily": {
+    "date": "2026-11-19",
+    "domain": "api.github.com",
+    "email": "alice",
+    "firstSeen": 1763510000,
+    "hitCount": 120,
+    "lastSeen": 1763540000,
+    "outbound": "direct",
+    "port": 443,
+    "rootDomain": "github.com"
+  },
+  "AuditExportIP": {
+    "activeHours": 1536,
+    "date": "2026-11-19",
+    "email": "alice",
+    "firstSeen": 1763510000,
+    "hitCount": 300,
+    "lastSeen": 1763540000,
+    "srcIp": "198.51.100.10",
+    "subnet": "198.51.100.0/24"
+  },
   "AuditIngestResult": {
     "bytesRead": 4096,
-    "linesProcessed": 42
+    "linesProcessed": 42,
+    "nodesFailed": 0,
+    "nodesSynced": 2
+  },
+  "AuditSourceSummary": {
+    "activeClients": 7,
+    "lastSyncAt": 1763540000,
+    "name": "local",
+    "nodeId": 0,
+    "syncError": "",
+    "totalHits": 15000
   },
   "AuditSubdomainItem": {
     "category": "ai_dev",
@@ -330,6 +422,9 @@ export const EXAMPLES: Record<string, unknown> = {
     "firstSeen": 1763510000,
     "hitCount": 120,
     "lastSeen": 1763540000,
+    "nodeIds": [
+      0
+    ],
     "outbound": "direct",
     "port": 443,
     "riskLevel": 0,
@@ -343,6 +438,9 @@ export const EXAMPLES: Record<string, unknown> = {
         "highRiskHits": 0,
         "lastSeen": 1763540000,
         "maxConcurrentSubnets": 1,
+        "nodeIds": [
+          0
+        ],
         "topDomains": [
           ""
         ],
@@ -358,9 +456,32 @@ export const EXAMPLES: Record<string, unknown> = {
     "days": 1,
     "highRiskAlerts": 0,
     "sharingClients": 0,
+    "sources": [
+      {
+        "activeClients": 7,
+        "lastSyncAt": 1763540000,
+        "name": "local",
+        "nodeId": 0,
+        "syncError": "",
+        "totalHits": 15000
+      }
+    ],
     "totalHits": 15000,
     "unackedAlerts": 1,
     "warnAlerts": 1
+  },
+  "AuditTelegramConfig": {
+    "chatId": "123456789",
+    "enabled": true,
+    "hasBotToken": true
+  },
+  "AuditTelegramConfigUpdate": {
+    "botToken": "",
+    "chatId": "123456789",
+    "enabled": true
+  },
+  "AuditTelegramRelayRequest": {
+    "text": "Daily access audit"
   },
   "Client": {
     "adTag": "0123456789abcdef0123456789abcdef",

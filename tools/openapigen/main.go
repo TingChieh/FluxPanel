@@ -72,6 +72,9 @@ func run(root, outDir string) error {
 				"AllSetting",
 				"AllSettingView",
 				"HostGroup",
+				"AuditExport",
+				"AuditExportDaily",
+				"AuditExportIP",
 			),
 		},
 		{
@@ -125,6 +128,13 @@ func run(root, outDir string) error {
 				"AuditDomainGroup",
 				"AuditClientIPView",
 				"AuditClientDetailResponse",
+				"AuditSourceSummary",
+				"AuditTelegramConfig",
+				"AuditTelegramConfigUpdate",
+				"AuditTelegramRelayRequest",
+				"AuditDigestConfig",
+				"AuditDigestConfigUpdate",
+				"AuditDigestPreview",
 			),
 		},
 		{

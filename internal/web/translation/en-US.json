@@ -1973,6 +1973,7 @@
       "last30Days": "Last 30 Days",
       "ingestNow": "Ingest Now",
       "ingestedCount": "Ingested {count} log lines",
+      "ingestedWithNodes": "Ingested {count} log lines; synced {synced} node(s), {failed} failed",
       "stats": {
         "activeClients": "Active Clients",
         "highRiskAlerts": "High-Risk Alerts",
@@ -1982,7 +1983,8 @@
       "tabs": {
         "overview": "Daily Overview",
         "alerts": "Security Alerts",
-        "rules": "Audit Rules"
+        "rules": "Audit Rules",
+        "notifications": "Notifications"
       },
       "columns": {
         "client": "Client",
@@ -2006,6 +2008,7 @@
         "port": "Port",
         "outbound": "Outbound",
         "srcIp": "Source IP",
+        "source": "Source",
         "subnet": "Subnet",
         "hourlyActivity": "24h Activity (00-23)"
       },
@@ -2059,10 +2062,63 @@
         "save": "Save Rules",
         "saveAndReevaluate": "Save & Re-evaluate History"
       },
+      "sources": {
+        "all": "All sources",
+        "local": "This panel",
+        "filter": "Source",
+        "syncedAt": "synced {time}",
+        "neverSynced": "not synced yet",
+        "syncFailed": "{name} audit sync failed: {error}"
+      },
+      "notify": {
+        "telegramTitle": "Telegram bot (this panel)",
+        "telegramHelp": "Messages go out from this panel. A master that cannot reach Telegram can relay its digest through a node that has a bot configured here.",
+        "enabled": "Enabled",
+        "chatId": "Chat ID",
+        "botToken": "Bot token",
+        "botTokenKept": "Saved; leave empty to keep it",
+        "botTokenMissing": "Paste the token from @BotFather",
+        "saveTelegram": "Save",
+        "testTelegram": "Send test message",
+        "digestTitle": "Daily digest",
+        "sendAt": "Send time (panel time zone)",
+        "lang": "Language",
+        "delivery": "Delivery",
+        "deliveryHelp": "Relay through a node when this panel cannot reach Telegram.",
+        "deliveryLocal": "This panel's bot",
+        "deliveryNode": "Relay via {name}",
+        "lastSent": "Last sent on {date}",
+        "lastError": "Last delivery failed: {error}",
+        "saveDigest": "Save",
+        "preview": "Preview",
+        "sendNow": "Send yesterday's digest now",
+        "previewTitle": "Digest preview {date}"
+      },
+      "telegram": {
+        "testMessage": "✅ FluxPanel access-audit Telegram test message"
+      },
+      "digest": {
+        "title": "📊 Access audit digest {date}",
+        "overview": "Active clients {clients} · Requests {hits}",
+        "noActivity": "No activity recorded",
+        "sources": "Sources: {list}",
+        "syncFailed": "⚠️ {name} sync failed: {error}",
+        "noAlerts": "✅ No alerts",
+        "alertsHeader": "⚠️ Alerts: high {high} · warning {warn} (unacknowledged {unacked})",
+        "concurrentSubnets": "{count} subnets in one hour",
+        "dailySubnets": "{count} subnets in the day",
+        "clientsHeader": "👤 Clients",
+        "clientLine": "{email} — {hits} requests · {subnets} subnets · {domains}",
+        "more": "…and {count} more"
+      },
       "toasts": {
         "ack": "Acknowledge alert",
         "ackAll": "Acknowledge all alerts",
-        "saveConfig": "Save audit config"
+        "saveConfig": "Save audit config",
+        "saveTelegram": "Save Telegram settings",
+        "testTelegram": "Send Telegram message",
+        "saveDigest": "Save digest settings",
+        "sendDigest": "Send digest"
       }
     }
   },

@@ -141,7 +141,7 @@ func TestAccessAuditIncrementalIngestAndTruncationRecovery(t *testing.T) {
 		t.Fatalf("post-truncate ingest LinesProcessed = %d, want 1", res4.LinesProcessed)
 	}
 
-	detail, err := svc.GetClientDetail("alice", "2026-11-19", 1, true)
+	detail, err := svc.GetClientDetail("alice", "2026-11-19", 1, true, AuditAllSources)
 	if err != nil {
 		t.Fatalf("GetClientDetail failed: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestAccessAuditAccountSharingDetection(t *testing.T) {
 		t.Fatalf("expected 1 critical account_sharing alert for dave, got %+v", daveAlerts)
 	}
 
-	summary, err := svc.GetSummary("2026-11-19", 1)
+	summary, err := svc.GetSummary("2026-11-19", 1, AuditAllSources)
 	if err != nil {
 		t.Fatalf("GetSummary failed: %v", err)
 	}
@@ -292,14 +292,14 @@ func TestAccessAuditPruneOldData(t *testing.T) {
 		t.Fatalf("PruneOldData failed: %v", err)
 	}
 
-	oldSummary, err := svc.GetSummary(oldISO, 1)
+	oldSummary, err := svc.GetSummary(oldISO, 1, AuditAllSources)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if oldSummary.TotalHits != 0 {
 		t.Fatalf("expected old date %s to be pruned, got TotalHits=%d", oldISO, oldSummary.TotalHits)
 	}
-	todaySummary, err := svc.GetSummary(todayISO, 1)
+	todaySummary, err := svc.GetSummary(todayISO, 1, AuditAllSources)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -349,7 +349,7 @@ func TestAccessAuditIngestDefersPartialTrailingLine(t *testing.T) {
 		t.Fatalf("second ingest LinesProcessed = %d, want 1", res2.LinesProcessed)
 	}
 
-	summary, err := svc.GetSummary("2026-11-19", 1)
+	summary, err := svc.GetSummary("2026-11-19", 1, AuditAllSources)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -496,7 +496,7 @@ func TestAccessAuditBucketsByPanelTimeLocation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	detail, err := svc.GetClientDetail("alice", wantDate, 1, true)
+	detail, err := svc.GetClientDetail("alice", wantDate, 1, true, AuditAllSources)
 	if err != nil {
 		t.Fatal(err)
 	}

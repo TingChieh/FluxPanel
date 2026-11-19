@@ -2639,7 +2639,8 @@ export const sections: readonly Section[] = [
       {
         method: 'GET',
         path: '/panel/api/audit/summary',
-        summary: 'Return aggregated daily access-audit overview across all active clients.',
+        summary:
+          'Return aggregated daily access-audit overview across all active clients and sources.',
         params: [
           {
             name: 'date',
@@ -2652,6 +2653,12 @@ export const sections: readonly Section[] = [
             in: 'query',
             type: 'number',
             desc: 'Window length in days (1-90, default 1).',
+          },
+          {
+            name: 'nodeId',
+            in: 'query',
+            type: 'number',
+            desc: 'Only rows from one source: 0 for this panel, a node id for that node (default: every source).',
           },
         ],
         responseSchema: 'AuditSummaryResponse',
@@ -2679,6 +2686,12 @@ export const sections: readonly Section[] = [
             in: 'query',
             type: 'boolean',
             desc: 'Hide system telemetry/CDN noise domains (default true).',
+          },
+          {
+            name: 'nodeId',
+            in: 'query',
+            type: 'number',
+            desc: 'Only rows from one source: 0 for this panel, a node id for that node (default: every source).',
           },
         ],
         responseSchema: 'AuditClientDetailResponse',
@@ -2737,8 +2750,88 @@ export const sections: readonly Section[] = [
       {
         method: 'POST',
         path: '/panel/api/audit/ingest',
-        summary: 'Trigger an immediate incremental ingest from the configured Xray access log.',
+        summary:
+          "Ingest new local Xray access-log lines now and pull every online node's audit snapshot.",
         responseSchema: 'AuditIngestResult',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/audit/export',
+        summary:
+          "Export this panel's own audit aggregates for a date window (pulled by its master).",
+        params: [
+          { name: 'from', in: 'query', type: 'string', desc: 'First date in YYYY-MM-DD.' },
+          {
+            name: 'to',
+            in: 'query',
+            type: 'string',
+            desc: 'Last date in YYYY-MM-DD (at most 31 days after from).',
+          },
+        ],
+        responseSchema: 'AuditExport',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/audit/telegram',
+        summary: "Return this panel's Telegram delivery setup (the bot token is never returned).",
+        responseSchema: 'AuditTelegramConfig',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/audit/telegram',
+        summary: 'Save the Telegram delivery setup; an empty botToken keeps the stored token.',
+        requestSchema: { $ref: '#/components/schemas/AuditTelegramConfigUpdate' },
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/audit/telegram/test',
+        summary: "Send a test message through this panel's Telegram bot.",
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/audit/telegram/relay',
+        summary:
+          "Send a master's message through this panel's Telegram bot (node-sync tokens allowed).",
+        requestSchema: { $ref: '#/components/schemas/AuditTelegramRelayRequest' },
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/audit/digest',
+        summary: 'Return the daily Telegram digest schedule and the last delivery outcome.',
+        responseSchema: 'AuditDigestConfig',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/audit/digest',
+        summary: 'Save the daily digest schedule (send time, language, delivery node).',
+        requestSchema: { $ref: '#/components/schemas/AuditDigestConfigUpdate' },
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/audit/digest/preview',
+        summary: 'Render the digest for one day without sending it.',
+        params: [
+          {
+            name: 'date',
+            in: 'query',
+            type: 'string',
+            desc: 'Day in YYYY-MM-DD (defaults to yesterday in the panel time zone).',
+          },
+        ],
+        responseSchema: 'AuditDigestPreview',
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/audit/digest/send',
+        summary: 'Send the digest for one day now through the configured delivery.',
+        params: [
+          {
+            name: 'date',
+            in: 'query',
+            type: 'string',
+            desc: 'Day in YYYY-MM-DD (defaults to yesterday in the panel time zone).',
+          },
+        ],
       },
     ],
   },

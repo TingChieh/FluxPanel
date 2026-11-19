@@ -6,7 +6,7 @@ import { HttpUtil } from '@/utils';
 import { renderWithProviders } from './test-utils';
 
 interface SentRequest {
-  url?: string;
+  url: string;
   contentType: string | null;
   body: string;
 }
@@ -17,12 +17,25 @@ const jsonResponse = (obj: unknown) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
+const SOURCES = [
+  { nodeId: 0, name: 'local', totalHits: 10, activeClients: 1, lastSyncAt: 0, syncError: '' },
+  {
+    nodeId: 3,
+    name: 'hk-edge',
+    totalHits: 5,
+    activeClients: 1,
+    lastSyncAt: 1763540000,
+    syncError: '',
+  },
+];
+
 function stubAuditBackend(sent: SentRequest[], summaryUrls: string[] = []) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith('/csrf-token')) return jsonResponse('test-csrf-token');
-    if (url.startsWith('/panel/api/audit/config') && init?.method === 'POST') {
+    if (init?.method === 'POST') {
       sent.push({
+        url,
         contentType: new Headers(init.headers).get('Content-Type'),
         body: String(init.body),
       });
@@ -39,10 +52,24 @@ function stubAuditBackend(sent: SentRequest[], summaryUrls: string[] = []) {
         ignoreNoiseDomains: [],
       });
     }
+    if (url.startsWith('/panel/api/audit/telegram')) {
+      return jsonResponse({ enabled: true, chatId: '4242', hasBotToken: true });
+    }
+    if (url.startsWith('/panel/api/audit/digest')) {
+      return jsonResponse({
+        enabled: true,
+        sendAt: '09:00',
+        lang: 'zh-CN',
+        deliveryNodeId: 3,
+        lastSentDate: '',
+        lastAttemptAt: 0,
+        lastError: '',
+      });
+    }
     if (url.startsWith('/panel/api/audit/summary')) {
       summaryUrls.push(url);
       const date = new URL(url, 'http://panel').searchParams.get('date') ?? '2026-11-19';
-      return jsonResponse({ date, days: 1, clients: [] });
+      return jsonResponse({ date, days: 1, clients: [], sources: SOURCES });
     }
     return jsonResponse([]);
   });
@@ -77,6 +104,7 @@ describe('AuditPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Save & Re-evaluate History/ }));
 
     await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].url).toBe('/panel/api/audit/config');
     expect(sent[0].contentType).toMatch(/^application\/json/);
     expect(JSON.parse(sent[0].body)).toEqual({
       config: {
@@ -106,5 +134,50 @@ describe('AuditPage', () => {
     fireEvent.click(await screen.findByText('Yesterday'));
     await waitFor(() => expect(summaryUrls).toHaveLength(2));
     expect(new URL(summaryUrls[1], 'http://panel').searchParams.get('date')).toBe('2026-11-18');
+  });
+
+  // The token is write-only: an untouched field must send "" so the server keeps
+  // the stored token, and the body must be JSON for ShouldBindJSON.
+  it('saves Telegram settings as JSON without resending the stored token', async () => {
+    const sent: SentRequest[] = [];
+    stubAuditBackend(sent);
+
+    renderWithProviders(<AuditPage />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Notifications' }));
+    const chat = await screen.findByLabelText('Chat ID');
+    await waitFor(() => expect((chat as HTMLInputElement).value).toBe('4242'));
+    fireEvent.change(chat, { target: { value: '777' } });
+    fireEvent.click(screen.getAllByRole('button', { name: /^Save$/ })[0]);
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].url).toBe('/panel/api/audit/telegram');
+    expect(sent[0].contentType).toMatch(/^application\/json/);
+    expect(JSON.parse(sent[0].body)).toEqual({ enabled: true, chatId: '777', botToken: '' });
+  });
+
+  it('narrows the overview to the selected source node', async () => {
+    const summaryUrls: string[] = [];
+    stubAuditBackend([], summaryUrls);
+
+    renderWithProviders(<AuditPage />);
+    const filter = await screen.findByRole('combobox', { name: 'Source' });
+    await waitFor(() => expect(summaryUrls.length).toBeGreaterThan(0));
+    expect(new URL(summaryUrls[0], 'http://panel').searchParams.get('nodeId')).toBeNull();
+
+    fireEvent.mouseDown(filter.closest('.ant-select') ?? filter);
+    const option = await waitFor(() => {
+      const found = Array.from(document.querySelectorAll('.ant-select-item-option')).find(
+        (item) => item.textContent === 'hk-edge',
+      );
+      if (!found) throw new Error('hk-edge option not rendered');
+      return found;
+    });
+    const before = summaryUrls.length;
+    fireEvent.click(option);
+
+    await waitFor(() => expect(summaryUrls.length).toBeGreaterThan(before));
+    expect(
+      new URL(summaryUrls[summaryUrls.length - 1], 'http://panel').searchParams.get('nodeId'),
+    ).toBe('3');
   });
 });

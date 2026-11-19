@@ -837,6 +837,10 @@ export const SCHEMAS: Record<string, unknown> = {
         "format": "int64",
         "type": "integer"
       },
+      "nodeId": {
+        "example": 0,
+        "type": "integer"
+      },
       "srcIp": {
         "example": "198.51.100.10",
         "type": "string"
@@ -852,6 +856,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "firstSeen",
       "hitCount",
       "lastSeen",
+      "nodeId",
       "srcIp",
       "subnet"
     ],
@@ -877,6 +882,12 @@ export const SCHEMAS: Record<string, unknown> = {
       "maxConcurrentSubnets": {
         "example": 1,
         "type": "integer"
+      },
+      "nodeIds": {
+        "items": {
+          "type": "integer"
+        },
+        "type": "array"
       },
       "topDomains": {
         "items": {
@@ -916,6 +927,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "highRiskHits",
       "lastSeen",
       "maxConcurrentSubnets",
+      "nodeIds",
       "topDomains",
       "totalHits",
       "unackedAlerts",
@@ -992,6 +1004,95 @@ export const SCHEMAS: Record<string, unknown> = {
     ],
     "type": "object"
   },
+  "AuditDigestConfig": {
+    "description": "AuditDigestConfig is the daily Telegram digest schedule plus the outcome of\nthe last scheduled delivery.",
+    "properties": {
+      "deliveryNodeId": {
+        "example": 1,
+        "type": "integer"
+      },
+      "enabled": {
+        "example": true,
+        "type": "boolean"
+      },
+      "lang": {
+        "example": "zh-CN",
+        "type": "string"
+      },
+      "lastAttemptAt": {
+        "example": 1763600000,
+        "format": "int64",
+        "type": "integer"
+      },
+      "lastError": {
+        "type": "string"
+      },
+      "lastSentDate": {
+        "example": "2026-11-20",
+        "type": "string"
+      },
+      "sendAt": {
+        "example": "09:00",
+        "type": "string"
+      }
+    },
+    "required": [
+      "deliveryNodeId",
+      "enabled",
+      "lang",
+      "lastAttemptAt",
+      "lastError",
+      "lastSentDate",
+      "sendAt"
+    ],
+    "type": "object"
+  },
+  "AuditDigestConfigUpdate": {
+    "description": "AuditDigestConfigUpdate edits the digest schedule; DeliveryNodeID 0 sends\nthrough this panel's own bot, a node id relays through that node's bot.",
+    "properties": {
+      "deliveryNodeId": {
+        "example": 1,
+        "type": "integer"
+      },
+      "enabled": {
+        "example": true,
+        "type": "boolean"
+      },
+      "lang": {
+        "example": "zh-CN",
+        "type": "string"
+      },
+      "sendAt": {
+        "example": "09:00",
+        "type": "string"
+      }
+    },
+    "required": [
+      "deliveryNodeId",
+      "enabled",
+      "lang",
+      "sendAt"
+    ],
+    "type": "object"
+  },
+  "AuditDigestPreview": {
+    "description": "AuditDigestPreview is the rendered digest for one day.",
+    "properties": {
+      "date": {
+        "example": "2026-11-19",
+        "type": "string"
+      },
+      "text": {
+        "example": "Access audit digest 2026-11-19",
+        "type": "string"
+      }
+    },
+    "required": [
+      "date",
+      "text"
+    ],
+    "type": "object"
+  },
   "AuditDomainGroup": {
     "description": "AuditDomainGroup collapses subdomains under one eTLD+1 root domain for readable inspection.",
     "properties": {
@@ -1044,8 +1145,157 @@ export const SCHEMAS: Record<string, unknown> = {
     ],
     "type": "object"
   },
+  "AuditExport": {
+    "description": "AuditExport is one panel's own access-audit aggregates for a date window,\npulled by its master to merge node traffic into the master's audit.",
+    "properties": {
+      "daily": {
+        "items": {
+          "$ref": "#/components/schemas/AuditExportDaily"
+        },
+        "type": "array"
+      },
+      "from": {
+        "example": "2026-11-18",
+        "type": "string"
+      },
+      "ips": {
+        "items": {
+          "$ref": "#/components/schemas/AuditExportIP"
+        },
+        "type": "array"
+      },
+      "timeLocation": {
+        "example": "Asia/Shanghai",
+        "type": "string"
+      },
+      "to": {
+        "example": "2026-11-19",
+        "type": "string"
+      },
+      "utcOffset": {
+        "example": 28800,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "daily",
+      "from",
+      "ips",
+      "timeLocation",
+      "to",
+      "utcOffset"
+    ],
+    "type": "object"
+  },
+  "AuditExportDaily": {
+    "description": "AuditExportDaily is one client/destination daily row, unclassified so the\nimporting master scores it with its own rules.",
+    "properties": {
+      "date": {
+        "example": "2026-11-19",
+        "type": "string"
+      },
+      "domain": {
+        "example": "api.github.com",
+        "type": "string"
+      },
+      "email": {
+        "example": "alice",
+        "type": "string"
+      },
+      "firstSeen": {
+        "example": 1763510000,
+        "format": "int64",
+        "type": "integer"
+      },
+      "hitCount": {
+        "example": 120,
+        "format": "int64",
+        "type": "integer"
+      },
+      "lastSeen": {
+        "example": 1763540000,
+        "format": "int64",
+        "type": "integer"
+      },
+      "outbound": {
+        "example": "direct",
+        "type": "string"
+      },
+      "port": {
+        "example": 443,
+        "type": "integer"
+      },
+      "rootDomain": {
+        "example": "github.com",
+        "type": "string"
+      }
+    },
+    "required": [
+      "date",
+      "domain",
+      "email",
+      "firstSeen",
+      "hitCount",
+      "lastSeen",
+      "outbound",
+      "port",
+      "rootDomain"
+    ],
+    "type": "object"
+  },
+  "AuditExportIP": {
+    "description": "AuditExportIP is one client/source-IP daily row with its hourly activity bitmap.",
+    "properties": {
+      "activeHours": {
+        "example": 1536,
+        "type": "integer"
+      },
+      "date": {
+        "example": "2026-11-19",
+        "type": "string"
+      },
+      "email": {
+        "example": "alice",
+        "type": "string"
+      },
+      "firstSeen": {
+        "example": 1763510000,
+        "format": "int64",
+        "type": "integer"
+      },
+      "hitCount": {
+        "example": 300,
+        "format": "int64",
+        "type": "integer"
+      },
+      "lastSeen": {
+        "example": 1763540000,
+        "format": "int64",
+        "type": "integer"
+      },
+      "srcIp": {
+        "example": "198.51.100.10",
+        "type": "string"
+      },
+      "subnet": {
+        "example": "198.51.100.0/24",
+        "type": "string"
+      }
+    },
+    "required": [
+      "activeHours",
+      "date",
+      "email",
+      "firstSeen",
+      "hitCount",
+      "lastSeen",
+      "srcIp",
+      "subnet"
+    ],
+    "type": "object"
+  },
   "AuditIngestResult": {
-    "description": "AuditIngestResult reports lines consumed during an incremental access-log scan.",
+    "description": "AuditIngestResult reports lines consumed from the local access log and, for a\nmanual ingest, how many node snapshots were merged or failed.",
     "properties": {
       "bytesRead": {
         "example": 4096,
@@ -1055,11 +1305,60 @@ export const SCHEMAS: Record<string, unknown> = {
       "linesProcessed": {
         "example": 42,
         "type": "integer"
+      },
+      "nodesFailed": {
+        "example": 0,
+        "type": "integer"
+      },
+      "nodesSynced": {
+        "example": 2,
+        "type": "integer"
       }
     },
     "required": [
       "bytesRead",
-      "linesProcessed"
+      "linesProcessed",
+      "nodesFailed",
+      "nodesSynced"
+    ],
+    "type": "object"
+  },
+  "AuditSourceSummary": {
+    "description": "AuditSourceSummary is one audit source (this panel or a node) in the window,\nwith the outcome of the latest pull for nodes.",
+    "properties": {
+      "activeClients": {
+        "example": 7,
+        "type": "integer"
+      },
+      "lastSyncAt": {
+        "example": 1763540000,
+        "format": "int64",
+        "type": "integer"
+      },
+      "name": {
+        "example": "local",
+        "type": "string"
+      },
+      "nodeId": {
+        "example": 0,
+        "type": "integer"
+      },
+      "syncError": {
+        "type": "string"
+      },
+      "totalHits": {
+        "example": 15000,
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "activeClients",
+      "lastSyncAt",
+      "name",
+      "nodeId",
+      "syncError",
+      "totalHits"
     ],
     "type": "object"
   },
@@ -1089,6 +1388,12 @@ export const SCHEMAS: Record<string, unknown> = {
         "format": "int64",
         "type": "integer"
       },
+      "nodeIds": {
+        "items": {
+          "type": "integer"
+        },
+        "type": "array"
+      },
       "outbound": {
         "example": "direct",
         "type": "string"
@@ -1111,6 +1416,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "firstSeen",
       "hitCount",
       "lastSeen",
+      "nodeIds",
       "outbound",
       "port",
       "riskLevel",
@@ -1147,6 +1453,12 @@ export const SCHEMAS: Record<string, unknown> = {
         "example": 0,
         "type": "integer"
       },
+      "sources": {
+        "items": {
+          "$ref": "#/components/schemas/AuditSourceSummary"
+        },
+        "type": "array"
+      },
       "totalHits": {
         "example": 15000,
         "format": "int64",
@@ -1168,9 +1480,68 @@ export const SCHEMAS: Record<string, unknown> = {
       "days",
       "highRiskAlerts",
       "sharingClients",
+      "sources",
       "totalHits",
       "unackedAlerts",
       "warnAlerts"
+    ],
+    "type": "object"
+  },
+  "AuditTelegramConfig": {
+    "description": "AuditTelegramConfig is the Telegram delivery setup as shown to the panel; the\nbot token itself is write-only.",
+    "properties": {
+      "chatId": {
+        "example": "123456789",
+        "type": "string"
+      },
+      "enabled": {
+        "example": true,
+        "type": "boolean"
+      },
+      "hasBotToken": {
+        "example": true,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "chatId",
+      "enabled",
+      "hasBotToken"
+    ],
+    "type": "object"
+  },
+  "AuditTelegramConfigUpdate": {
+    "description": "AuditTelegramConfigUpdate edits the Telegram setup; an empty BotToken keeps\nthe stored one.",
+    "properties": {
+      "botToken": {
+        "type": "string"
+      },
+      "chatId": {
+        "example": "123456789",
+        "type": "string"
+      },
+      "enabled": {
+        "example": true,
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "botToken",
+      "chatId",
+      "enabled"
+    ],
+    "type": "object"
+  },
+  "AuditTelegramRelayRequest": {
+    "description": "AuditTelegramRelayRequest carries a message a master asks this panel to send.",
+    "properties": {
+      "text": {
+        "example": "Daily access audit",
+        "type": "string"
+      }
+    },
+    "required": [
+      "text"
     ],
     "type": "object"
   },

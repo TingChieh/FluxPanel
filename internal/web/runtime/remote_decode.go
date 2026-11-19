@@ -18,6 +18,8 @@ const (
 	maxNodeClientIPs   = 1 << 20
 	// maxNodeMapValues bounds every value of the GUID-keyed trees and maps a node reports.
 	maxNodeMapValues = 1 << 20
+	// maxNodeAuditValues bounds a node's audit export (two days of daily and source-IP rows).
+	maxNodeAuditValues = 1 << 22
 )
 
 var errRemoteListTooLong = json_util.ErrListTooLong

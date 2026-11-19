@@ -1,6 +1,9 @@
 package job
 
 import (
+	"context"
+	"time"
+
 	"github.com/TingChieh/FluxPanel/internal/logger"
 	"github.com/TingChieh/FluxPanel/internal/web/service"
 )
@@ -36,4 +39,32 @@ func (j *AccessAuditPruneJob) Run() {
 	if err := j.auditService.PruneOldData(cfg.RetentionDays); err != nil {
 		logger.Warning("access audit prune failed:", err)
 	}
+}
+
+// AccessAuditNodeSyncJob merges each online node's audit snapshot into this panel.
+type AccessAuditNodeSyncJob struct {
+	auditService service.AccessAuditService
+}
+
+// NewAccessAuditNodeSyncJob creates the periodic node audit pull job.
+func NewAccessAuditNodeSyncJob() *AccessAuditNodeSyncJob {
+	return &AccessAuditNodeSyncJob{}
+}
+
+func (j *AccessAuditNodeSyncJob) Run() {
+	j.auditService.PullNodeAudits(context.Background())
+}
+
+// AccessAuditDigestJob sends the daily Telegram digest once its send time passes.
+type AccessAuditDigestJob struct {
+	auditService service.AccessAuditService
+}
+
+// NewAccessAuditDigestJob creates the minute-level digest schedule check.
+func NewAccessAuditDigestJob() *AccessAuditDigestJob {
+	return &AccessAuditDigestJob{}
+}
+
+func (j *AccessAuditDigestJob) Run() {
+	j.auditService.RunDigestSchedule(context.Background(), time.Now())
 }

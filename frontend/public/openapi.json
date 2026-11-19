@@ -863,6 +863,10 @@
             "format": "int64",
             "type": "integer"
           },
+          "nodeId": {
+            "example": 0,
+            "type": "integer"
+          },
           "srcIp": {
             "example": "198.51.100.10",
             "type": "string"
@@ -878,6 +882,7 @@
           "firstSeen",
           "hitCount",
           "lastSeen",
+          "nodeId",
           "srcIp",
           "subnet"
         ],
@@ -903,6 +908,12 @@
           "maxConcurrentSubnets": {
             "example": 1,
             "type": "integer"
+          },
+          "nodeIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
           },
           "topDomains": {
             "items": {
@@ -942,6 +953,7 @@
           "highRiskHits",
           "lastSeen",
           "maxConcurrentSubnets",
+          "nodeIds",
           "topDomains",
           "totalHits",
           "unackedAlerts",
@@ -1018,6 +1030,95 @@
         ],
         "type": "object"
       },
+      "AuditDigestConfig": {
+        "description": "AuditDigestConfig is the daily Telegram digest schedule plus the outcome of\nthe last scheduled delivery.",
+        "properties": {
+          "deliveryNodeId": {
+            "example": 1,
+            "type": "integer"
+          },
+          "enabled": {
+            "example": true,
+            "type": "boolean"
+          },
+          "lang": {
+            "example": "zh-CN",
+            "type": "string"
+          },
+          "lastAttemptAt": {
+            "example": 1763600000,
+            "format": "int64",
+            "type": "integer"
+          },
+          "lastError": {
+            "type": "string"
+          },
+          "lastSentDate": {
+            "example": "2026-11-20",
+            "type": "string"
+          },
+          "sendAt": {
+            "example": "09:00",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deliveryNodeId",
+          "enabled",
+          "lang",
+          "lastAttemptAt",
+          "lastError",
+          "lastSentDate",
+          "sendAt"
+        ],
+        "type": "object"
+      },
+      "AuditDigestConfigUpdate": {
+        "description": "AuditDigestConfigUpdate edits the digest schedule; DeliveryNodeID 0 sends\nthrough this panel's own bot, a node id relays through that node's bot.",
+        "properties": {
+          "deliveryNodeId": {
+            "example": 1,
+            "type": "integer"
+          },
+          "enabled": {
+            "example": true,
+            "type": "boolean"
+          },
+          "lang": {
+            "example": "zh-CN",
+            "type": "string"
+          },
+          "sendAt": {
+            "example": "09:00",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deliveryNodeId",
+          "enabled",
+          "lang",
+          "sendAt"
+        ],
+        "type": "object"
+      },
+      "AuditDigestPreview": {
+        "description": "AuditDigestPreview is the rendered digest for one day.",
+        "properties": {
+          "date": {
+            "example": "2026-11-19",
+            "type": "string"
+          },
+          "text": {
+            "example": "Access audit digest 2026-11-19",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "text"
+        ],
+        "type": "object"
+      },
       "AuditDomainGroup": {
         "description": "AuditDomainGroup collapses subdomains under one eTLD+1 root domain for readable inspection.",
         "properties": {
@@ -1070,8 +1171,157 @@
         ],
         "type": "object"
       },
+      "AuditExport": {
+        "description": "AuditExport is one panel's own access-audit aggregates for a date window,\npulled by its master to merge node traffic into the master's audit.",
+        "properties": {
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/AuditExportDaily"
+            },
+            "type": "array"
+          },
+          "from": {
+            "example": "2026-11-18",
+            "type": "string"
+          },
+          "ips": {
+            "items": {
+              "$ref": "#/components/schemas/AuditExportIP"
+            },
+            "type": "array"
+          },
+          "timeLocation": {
+            "example": "Asia/Shanghai",
+            "type": "string"
+          },
+          "to": {
+            "example": "2026-11-19",
+            "type": "string"
+          },
+          "utcOffset": {
+            "example": 28800,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "daily",
+          "from",
+          "ips",
+          "timeLocation",
+          "to",
+          "utcOffset"
+        ],
+        "type": "object"
+      },
+      "AuditExportDaily": {
+        "description": "AuditExportDaily is one client/destination daily row, unclassified so the\nimporting master scores it with its own rules.",
+        "properties": {
+          "date": {
+            "example": "2026-11-19",
+            "type": "string"
+          },
+          "domain": {
+            "example": "api.github.com",
+            "type": "string"
+          },
+          "email": {
+            "example": "alice",
+            "type": "string"
+          },
+          "firstSeen": {
+            "example": 1763510000,
+            "format": "int64",
+            "type": "integer"
+          },
+          "hitCount": {
+            "example": 120,
+            "format": "int64",
+            "type": "integer"
+          },
+          "lastSeen": {
+            "example": 1763540000,
+            "format": "int64",
+            "type": "integer"
+          },
+          "outbound": {
+            "example": "direct",
+            "type": "string"
+          },
+          "port": {
+            "example": 443,
+            "type": "integer"
+          },
+          "rootDomain": {
+            "example": "github.com",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "domain",
+          "email",
+          "firstSeen",
+          "hitCount",
+          "lastSeen",
+          "outbound",
+          "port",
+          "rootDomain"
+        ],
+        "type": "object"
+      },
+      "AuditExportIP": {
+        "description": "AuditExportIP is one client/source-IP daily row with its hourly activity bitmap.",
+        "properties": {
+          "activeHours": {
+            "example": 1536,
+            "type": "integer"
+          },
+          "date": {
+            "example": "2026-11-19",
+            "type": "string"
+          },
+          "email": {
+            "example": "alice",
+            "type": "string"
+          },
+          "firstSeen": {
+            "example": 1763510000,
+            "format": "int64",
+            "type": "integer"
+          },
+          "hitCount": {
+            "example": 300,
+            "format": "int64",
+            "type": "integer"
+          },
+          "lastSeen": {
+            "example": 1763540000,
+            "format": "int64",
+            "type": "integer"
+          },
+          "srcIp": {
+            "example": "198.51.100.10",
+            "type": "string"
+          },
+          "subnet": {
+            "example": "198.51.100.0/24",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activeHours",
+          "date",
+          "email",
+          "firstSeen",
+          "hitCount",
+          "lastSeen",
+          "srcIp",
+          "subnet"
+        ],
+        "type": "object"
+      },
       "AuditIngestResult": {
-        "description": "AuditIngestResult reports lines consumed during an incremental access-log scan.",
+        "description": "AuditIngestResult reports lines consumed from the local access log and, for a\nmanual ingest, how many node snapshots were merged or failed.",
         "properties": {
           "bytesRead": {
             "example": 4096,
@@ -1081,11 +1331,60 @@
           "linesProcessed": {
             "example": 42,
             "type": "integer"
+          },
+          "nodesFailed": {
+            "example": 0,
+            "type": "integer"
+          },
+          "nodesSynced": {
+            "example": 2,
+            "type": "integer"
           }
         },
         "required": [
           "bytesRead",
-          "linesProcessed"
+          "linesProcessed",
+          "nodesFailed",
+          "nodesSynced"
+        ],
+        "type": "object"
+      },
+      "AuditSourceSummary": {
+        "description": "AuditSourceSummary is one audit source (this panel or a node) in the window,\nwith the outcome of the latest pull for nodes.",
+        "properties": {
+          "activeClients": {
+            "example": 7,
+            "type": "integer"
+          },
+          "lastSyncAt": {
+            "example": 1763540000,
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "example": "local",
+            "type": "string"
+          },
+          "nodeId": {
+            "example": 0,
+            "type": "integer"
+          },
+          "syncError": {
+            "type": "string"
+          },
+          "totalHits": {
+            "example": 15000,
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "activeClients",
+          "lastSyncAt",
+          "name",
+          "nodeId",
+          "syncError",
+          "totalHits"
         ],
         "type": "object"
       },
@@ -1115,6 +1414,12 @@
             "format": "int64",
             "type": "integer"
           },
+          "nodeIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
           "outbound": {
             "example": "direct",
             "type": "string"
@@ -1137,6 +1442,7 @@
           "firstSeen",
           "hitCount",
           "lastSeen",
+          "nodeIds",
           "outbound",
           "port",
           "riskLevel",
@@ -1173,6 +1479,12 @@
             "example": 0,
             "type": "integer"
           },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/AuditSourceSummary"
+            },
+            "type": "array"
+          },
           "totalHits": {
             "example": 15000,
             "format": "int64",
@@ -1194,9 +1506,68 @@
           "days",
           "highRiskAlerts",
           "sharingClients",
+          "sources",
           "totalHits",
           "unackedAlerts",
           "warnAlerts"
+        ],
+        "type": "object"
+      },
+      "AuditTelegramConfig": {
+        "description": "AuditTelegramConfig is the Telegram delivery setup as shown to the panel; the\nbot token itself is write-only.",
+        "properties": {
+          "chatId": {
+            "example": "123456789",
+            "type": "string"
+          },
+          "enabled": {
+            "example": true,
+            "type": "boolean"
+          },
+          "hasBotToken": {
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "chatId",
+          "enabled",
+          "hasBotToken"
+        ],
+        "type": "object"
+      },
+      "AuditTelegramConfigUpdate": {
+        "description": "AuditTelegramConfigUpdate edits the Telegram setup; an empty BotToken keeps\nthe stored one.",
+        "properties": {
+          "botToken": {
+            "type": "string"
+          },
+          "chatId": {
+            "example": "123456789",
+            "type": "string"
+          },
+          "enabled": {
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "botToken",
+          "chatId",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "AuditTelegramRelayRequest": {
+        "description": "AuditTelegramRelayRequest carries a message a master asks this panel to send.",
+        "properties": {
+          "text": {
+            "example": "Daily access audit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
         ],
         "type": "object"
       },
@@ -14738,7 +15109,7 @@
         "tags": [
           "Access Audit"
         ],
-        "summary": "Return aggregated daily access-audit overview across all active clients.",
+        "summary": "Return aggregated daily access-audit overview across all active clients and sources.",
         "operationId": "get_panel_api_audit_summary",
         "parameters": [
           {
@@ -14755,6 +15126,15 @@
             "in": "query",
             "required": true,
             "description": "Window length in days (1-90, default 1).",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "nodeId",
+            "in": "query",
+            "required": true,
+            "description": "Only rows from one source: 0 for this panel, a node id for that node (default: every source).",
             "schema": {
               "type": "integer"
             }
@@ -14789,6 +15169,9 @@
                         "highRiskHits": 0,
                         "lastSeen": 1763540000,
                         "maxConcurrentSubnets": 1,
+                        "nodeIds": [
+                          0
+                        ],
                         "topDomains": [
                           ""
                         ],
@@ -14804,6 +15187,16 @@
                     "days": 1,
                     "highRiskAlerts": 0,
                     "sharingClients": 0,
+                    "sources": [
+                      {
+                        "activeClients": 7,
+                        "lastSyncAt": 1763540000,
+                        "name": "local",
+                        "nodeId": 0,
+                        "syncError": "",
+                        "totalHits": 15000
+                      }
+                    ],
                     "totalHits": 15000,
                     "unackedAlerts": 1,
                     "warnAlerts": 1
@@ -14857,6 +15250,15 @@
             "description": "Hide system telemetry/CDN noise domains (default true).",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "nodeId",
+            "in": "query",
+            "required": true,
+            "description": "Only rows from one source: 0 for this panel, a node id for that node (default: every source).",
+            "schema": {
+              "type": "integer"
             }
           }
         ],
@@ -14923,6 +15325,9 @@
                             "firstSeen": 1763510000,
                             "hitCount": 120,
                             "lastSeen": 1763540000,
+                            "nodeIds": [
+                              0
+                            ],
                             "outbound": "direct",
                             "port": 443,
                             "riskLevel": 0,
@@ -14942,6 +15347,7 @@
                         "firstSeen": 1763510000,
                         "hitCount": 300,
                         "lastSeen": 1763540000,
+                        "nodeId": 0,
                         "srcIp": "198.51.100.10",
                         "subnet": "198.51.100.0/24"
                       }
@@ -15212,7 +15618,7 @@
         "tags": [
           "Access Audit"
         ],
-        "summary": "Trigger an immediate incremental ingest from the configured Xray access log.",
+        "summary": "Ingest new local Xray access-log lines now and pull every online node's audit snapshot.",
         "operationId": "post_panel_api_audit_ingest",
         "responses": {
           "200": {
@@ -15237,7 +15643,416 @@
                   "success": true,
                   "obj": {
                     "bytesRead": 4096,
-                    "linesProcessed": 42
+                    "linesProcessed": 42,
+                    "nodesFailed": 0,
+                    "nodesSynced": 2
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/audit/export": {
+      "get": {
+        "tags": [
+          "Access Audit"
+        ],
+        "summary": "Export this panel's own audit aggregates for a date window (pulled by its master).",
+        "operationId": "get_panel_api_audit_export",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "description": "First date in YYYY-MM-DD.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "description": "Last date in YYYY-MM-DD (at most 31 days after from).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {
+                      "$ref": "#/components/schemas/AuditExport"
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "daily": [
+                      {
+                        "date": "2026-11-19",
+                        "domain": "api.github.com",
+                        "email": "alice",
+                        "firstSeen": 1763510000,
+                        "hitCount": 120,
+                        "lastSeen": 1763540000,
+                        "outbound": "direct",
+                        "port": 443,
+                        "rootDomain": "github.com"
+                      }
+                    ],
+                    "from": "2026-11-18",
+                    "ips": [
+                      {
+                        "activeHours": 1536,
+                        "date": "2026-11-19",
+                        "email": "alice",
+                        "firstSeen": 1763510000,
+                        "hitCount": 300,
+                        "lastSeen": 1763540000,
+                        "srcIp": "198.51.100.10",
+                        "subnet": "198.51.100.0/24"
+                      }
+                    ],
+                    "timeLocation": "Asia/Shanghai",
+                    "to": "2026-11-19",
+                    "utcOffset": 28800
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/audit/telegram": {
+      "get": {
+        "tags": [
+          "Access Audit"
+        ],
+        "summary": "Return this panel's Telegram delivery setup (the bot token is never returned).",
+        "operationId": "get_panel_api_audit_telegram",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {
+                      "$ref": "#/components/schemas/AuditTelegramConfig"
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "chatId": "123456789",
+                    "enabled": true,
+                    "hasBotToken": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Access Audit"
+        ],
+        "summary": "Save the Telegram delivery setup; an empty botToken keeps the stored token.",
+        "operationId": "post_panel_api_audit_telegram",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditTelegramConfigUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/audit/telegram/test": {
+      "post": {
+        "tags": [
+          "Access Audit"
+        ],
+        "summary": "Send a test message through this panel's Telegram bot.",
+        "operationId": "post_panel_api_audit_telegram_test",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/audit/telegram/relay": {
+      "post": {
+        "tags": [
+          "Access Audit"
+        ],
+        "summary": "Send a master's message through this panel's Telegram bot (node-sync tokens allowed).",
+        "operationId": "post_panel_api_audit_telegram_relay",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditTelegramRelayRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/audit/digest": {
+      "get": {
+        "tags": [
+          "Access Audit"
+        ],
+        "summary": "Return the daily Telegram digest schedule and the last delivery outcome.",
+        "operationId": "get_panel_api_audit_digest",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {
+                      "$ref": "#/components/schemas/AuditDigestConfig"
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "deliveryNodeId": 1,
+                    "enabled": true,
+                    "lang": "zh-CN",
+                    "lastAttemptAt": 1763600000,
+                    "lastError": "",
+                    "lastSentDate": "2026-11-20",
+                    "sendAt": "09:00"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Access Audit"
+        ],
+        "summary": "Save the daily digest schedule (send time, language, delivery node).",
+        "operationId": "post_panel_api_audit_digest",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditDigestConfigUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/audit/digest/preview": {
+      "get": {
+        "tags": [
+          "Access Audit"
+        ],
+        "summary": "Render the digest for one day without sending it.",
+        "operationId": "get_panel_api_audit_digest_preview",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "description": "Day in YYYY-MM-DD (defaults to yesterday in the panel time zone).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {
+                      "$ref": "#/components/schemas/AuditDigestPreview"
+                    }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "obj": {
+                    "date": "2026-11-19",
+                    "text": "Access audit digest 2026-11-19"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/panel/api/audit/digest/send": {
+      "post": {
+        "tags": [
+          "Access Audit"
+        ],
+        "summary": "Send the digest for one day now through the configured delivery.",
+        "operationId": "post_panel_api_audit_digest_send",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "description": "Day in YYYY-MM-DD (defaults to yesterday in the panel time zone).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
                   }
                 }
               }

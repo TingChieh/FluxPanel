@@ -959,6 +959,27 @@ func isNonEmptySlice(v any) bool {
 	return ok && len(s) > 0
 }
 
+// FetchAuditExport pulls the node's own access-audit aggregates for [from, to].
+func (r *Remote) FetchAuditExport(ctx context.Context, from, to string) (*entity.AuditExport, error) {
+	q := url.Values{"from": {from}, "to": {to}}
+	env, err := r.do(ctx, http.MethodGet, "panel/api/audit/export?"+q.Encode(), nil)
+	if err != nil {
+		return nil, err
+	}
+	var exp entity.AuditExport
+	if err := decodeCappedValues(env.Obj, &exp, maxNodeAuditValues); err != nil {
+		return nil, fmt.Errorf("decode audit export: %w", err)
+	}
+	return &exp, nil
+}
+
+// RelayAuditTelegram asks the node to send text through its own Telegram bot,
+// for masters that cannot reach Telegram themselves.
+func (r *Remote) RelayAuditTelegram(ctx context.Context, text string) error {
+	_, err := r.do(ctx, http.MethodPost, "panel/api/audit/telegram/relay", map[string]string{"text": text})
+	return err
+}
+
 func (r *Remote) FetchAllClientIps(ctx context.Context) ([]model.InboundClientIps, error) {
 	env, err := r.do(ctx, http.MethodGet, "panel/api/server/clientIps", nil)
 	if err != nil {

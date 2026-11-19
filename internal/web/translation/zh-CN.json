@@ -1973,6 +1973,7 @@
       "last30Days": "近 30 天",
       "ingestNow": "立即采集",
       "ingestedCount": "已增量采集 {count} 条访问记录",
+      "ingestedWithNodes": "已增量采集 {count} 条访问记录，同步 {synced} 个节点，失败 {failed} 个",
       "stats": {
         "activeClients": "活跃用户",
         "highRiskAlerts": "高危告警",
@@ -1982,7 +1983,8 @@
       "tabs": {
         "overview": "每日用户画像",
         "alerts": "安全告警中心",
-        "rules": "审计规则配置"
+        "rules": "审计规则配置",
+        "notifications": "通知推送"
       },
       "columns": {
         "client": "用户",
@@ -2006,6 +2008,7 @@
         "port": "端口",
         "outbound": "出站",
         "srcIp": "来源 IP",
+        "source": "来源",
         "subnet": "所属网段",
         "hourlyActivity": "24 小时活跃分布 (00-23)"
       },
@@ -2059,10 +2062,63 @@
         "save": "保存规则",
         "saveAndReevaluate": "保存并重算历史数据"
       },
+      "sources": {
+        "all": "全部来源",
+        "local": "本机",
+        "filter": "数据来源",
+        "syncedAt": "同步于 {time}",
+        "neverSynced": "尚未同步",
+        "syncFailed": "{name} 审计同步失败：{error}"
+      },
+      "notify": {
+        "telegramTitle": "Telegram Bot（本面板）",
+        "telegramHelp": "由本面板直接发送。无法访问 Telegram 的主面板，可以把简报交给在此配置了 Bot 的节点转发。",
+        "enabled": "启用",
+        "chatId": "Chat ID",
+        "botToken": "Bot Token",
+        "botTokenKept": "已保存，留空则保持不变",
+        "botTokenMissing": "粘贴 @BotFather 提供的 Token",
+        "saveTelegram": "保存",
+        "testTelegram": "发送测试消息",
+        "digestTitle": "每日审计简报",
+        "sendAt": "发送时间（面板时区）",
+        "lang": "语言",
+        "delivery": "投递方式",
+        "deliveryHelp": "本面板无法访问 Telegram 时，选择经节点转发。",
+        "deliveryLocal": "本面板 Bot",
+        "deliveryNode": "经 {name} 转发",
+        "lastSent": "上次发送：{date}",
+        "lastError": "上次发送失败：{error}",
+        "saveDigest": "保存",
+        "preview": "预览",
+        "sendNow": "立即发送昨日简报",
+        "previewTitle": "简报预览 {date}"
+      },
+      "telegram": {
+        "testMessage": "✅ FluxPanel 访问审计 Telegram 测试消息"
+      },
+      "digest": {
+        "title": "📊 访问审计日报 {date}",
+        "overview": "活跃用户 {clients} · 请求 {hits}",
+        "noActivity": "当日无访问记录",
+        "sources": "来源：{list}",
+        "syncFailed": "⚠️ {name} 同步失败：{error}",
+        "noAlerts": "✅ 无告警",
+        "alertsHeader": "⚠️ 告警：高危 {high} · 注意 {warn}（未确认 {unacked}）",
+        "concurrentSubnets": "同小时 {count} 个网段",
+        "dailySubnets": "全天 {count} 个网段",
+        "clientsHeader": "👤 用户",
+        "clientLine": "{email} — {hits} 次请求 · {subnets} 个网段 · {domains}",
+        "more": "…另有 {count} 项"
+      },
       "toasts": {
         "ack": "确认告警",
         "ackAll": "确认全部告警",
-        "saveConfig": "保存审计配置"
+        "saveConfig": "保存审计配置",
+        "saveTelegram": "保存 Telegram 设置",
+        "testTelegram": "发送 Telegram 消息",
+        "saveDigest": "保存简报设置",
+        "sendDigest": "发送简报"
       }
     }
   },

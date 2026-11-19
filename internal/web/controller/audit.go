@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/TingChieh/FluxPanel/internal/web/service"
@@ -29,12 +30,30 @@ func (a *AuditController) initRouter(g *gin.RouterGroup) {
 	g.GET("/config", a.getConfig)
 	g.POST("/config", a.saveConfig)
 	g.POST("/ingest", a.ingest)
+	g.GET("/export", a.export)
+	g.GET("/telegram", a.getTelegram)
+	g.POST("/telegram", a.saveTelegram)
+	g.POST("/telegram/test", a.testTelegram)
+	g.POST("/telegram/relay", a.relayTelegram)
+	g.GET("/digest", a.getDigest)
+	g.POST("/digest", a.saveDigest)
+	g.GET("/digest/preview", a.previewDigest)
+	g.POST("/digest/send", a.sendDigest)
+}
+
+// auditSourceParam reads the optional nodeId filter; absent or invalid means every source.
+func auditSourceParam(c *gin.Context) int {
+	id, err := strconv.Atoi(c.Query("nodeId"))
+	if err != nil || id < service.AuditLocalSource {
+		return service.AuditAllSources
+	}
+	return id
 }
 
 func (a *AuditController) summary(c *gin.Context) {
 	dateStr := c.Query("date")
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "1"))
-	res, err := a.auditService.GetSummary(dateStr, days)
+	res, err := a.auditService.GetSummary(dateStr, days, auditSourceParam(c))
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
@@ -47,7 +66,7 @@ func (a *AuditController) clientDetail(c *gin.Context) {
 	dateStr := c.Query("date")
 	days, _ := strconv.Atoi(c.DefaultQuery("days", "1"))
 	hideNoise := c.DefaultQuery("hideNoise", "true") != "false"
-	res, err := a.auditService.GetClientDetail(email, dateStr, days, hideNoise)
+	res, err := a.auditService.GetClientDetail(email, dateStr, days, hideNoise, auditSourceParam(c))
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
@@ -103,5 +122,81 @@ func (a *AuditController) ingest(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	pulled := a.auditService.PullNodeAudits(c.Request.Context())
+	res.NodesSynced, res.NodesFailed = pulled.Synced, pulled.Failed
 	jsonObj(c, res, nil)
+}
+
+func (a *AuditController) export(c *gin.Context) {
+	res, err := a.auditService.ExportLocal(c.Query("from"), c.Query("to"))
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	jsonObj(c, res, nil)
+}
+
+func (a *AuditController) getTelegram(c *gin.Context) {
+	jsonObj(c, a.auditService.GetTelegramConfig(), nil)
+}
+
+func (a *AuditController) saveTelegram(c *gin.Context) {
+	var req service.AuditTelegramConfigUpdate
+	if err := c.ShouldBindJSON(&req); err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	jsonMsg(c, I18nWeb(c, "pages.audit.toasts.saveTelegram"), a.auditService.SaveTelegramConfig(req))
+}
+
+func (a *AuditController) testTelegram(c *gin.Context) {
+	err := a.auditService.SendTelegram(c.Request.Context(), I18nWeb(c, "pages.audit.telegram.testMessage"))
+	jsonMsg(c, I18nWeb(c, "pages.audit.toasts.testTelegram"), err)
+}
+
+func (a *AuditController) relayTelegram(c *gin.Context) {
+	var req service.AuditTelegramRelayRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	if req.Text == "" || len(req.Text) > service.MaxAuditTelegramRelayBytes {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), fmt.Errorf("relay text must be 1..%d bytes", service.MaxAuditTelegramRelayBytes))
+		return
+	}
+	jsonMsg(c, I18nWeb(c, "pages.audit.toasts.testTelegram"), a.auditService.SendTelegram(c.Request.Context(), req.Text))
+}
+
+func (a *AuditController) getDigest(c *gin.Context) {
+	jsonObj(c, a.auditService.GetDigestConfig(), nil)
+}
+
+func (a *AuditController) saveDigest(c *gin.Context) {
+	var req service.AuditDigestConfigUpdate
+	if err := c.ShouldBindJSON(&req); err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	jsonMsg(c, I18nWeb(c, "pages.audit.toasts.saveDigest"), a.auditService.SaveDigestConfig(req))
+}
+
+func (a *AuditController) digestDate(c *gin.Context) string {
+	if d := c.Query("date"); d != "" {
+		return d
+	}
+	return a.auditService.PreviousDay()
+}
+
+func (a *AuditController) previewDigest(c *gin.Context) {
+	date := a.digestDate(c)
+	text, err := a.auditService.BuildDigest(date, a.auditService.GetDigestConfig().Lang)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	jsonObj(c, service.AuditDigestPreview{Date: date, Text: text}, nil)
+}
+
+func (a *AuditController) sendDigest(c *gin.Context) {
+	jsonMsg(c, I18nWeb(c, "pages.audit.toasts.sendDigest"), a.auditService.SendDigest(c.Request.Context(), a.digestDate(c)))
 }

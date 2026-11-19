@@ -231,6 +231,7 @@ export const AuditClientIPViewSchema = z.object({
   firstSeen: z.number().int(),
   hitCount: z.number().int(),
   lastSeen: z.number().int(),
+  nodeId: z.number().int(),
   srcIp: z.string(),
   subnet: z.string(),
 });
@@ -241,6 +242,7 @@ export const AuditClientSummarySchema = z.object({
   highRiskHits: z.number().int(),
   lastSeen: z.number().int(),
   maxConcurrentSubnets: z.number().int(),
+  nodeIds: z.array(z.number().int()),
   topDomains: z.array(z.string()),
   totalHits: z.number().int(),
   unackedAlerts: z.number().int(),
@@ -268,6 +270,31 @@ export const AuditConfigUpdateRequestSchema = z.object({
 });
 export type AuditConfigUpdateRequest = z.infer<typeof AuditConfigUpdateRequestSchema>;
 
+export const AuditDigestConfigSchema = z.object({
+  deliveryNodeId: z.number().int(),
+  enabled: z.boolean(),
+  lang: z.string(),
+  lastAttemptAt: z.number().int(),
+  lastError: z.string(),
+  lastSentDate: z.string(),
+  sendAt: z.string(),
+});
+export type AuditDigestConfig = z.infer<typeof AuditDigestConfigSchema>;
+
+export const AuditDigestConfigUpdateSchema = z.object({
+  deliveryNodeId: z.number().int(),
+  enabled: z.boolean(),
+  lang: z.string(),
+  sendAt: z.string(),
+});
+export type AuditDigestConfigUpdate = z.infer<typeof AuditDigestConfigUpdateSchema>;
+
+export const AuditDigestPreviewSchema = z.object({
+  date: z.string(),
+  text: z.string(),
+});
+export type AuditDigestPreview = z.infer<typeof AuditDigestPreviewSchema>;
+
 export const AuditDomainGroupSchema = z.object({
   category: z.string(),
   firstSeen: z.number().int(),
@@ -280,11 +307,58 @@ export const AuditDomainGroupSchema = z.object({
 });
 export type AuditDomainGroup = z.infer<typeof AuditDomainGroupSchema>;
 
+export const AuditExportSchema = z.object({
+  daily: z.array(z.lazy(() => AuditExportDailySchema)),
+  from: z.string(),
+  ips: z.array(z.lazy(() => AuditExportIPSchema)),
+  timeLocation: z.string(),
+  to: z.string(),
+  utcOffset: z.number().int(),
+});
+export type AuditExport = z.infer<typeof AuditExportSchema>;
+
+export const AuditExportDailySchema = z.object({
+  date: z.string(),
+  domain: z.string(),
+  email: z.string(),
+  firstSeen: z.number().int(),
+  hitCount: z.number().int(),
+  lastSeen: z.number().int(),
+  outbound: z.string(),
+  port: z.number().int(),
+  rootDomain: z.string(),
+});
+export type AuditExportDaily = z.infer<typeof AuditExportDailySchema>;
+
+export const AuditExportIPSchema = z.object({
+  activeHours: z.number().int(),
+  date: z.string(),
+  email: z.string(),
+  firstSeen: z.number().int(),
+  hitCount: z.number().int(),
+  lastSeen: z.number().int(),
+  srcIp: z.string(),
+  subnet: z.string(),
+});
+export type AuditExportIP = z.infer<typeof AuditExportIPSchema>;
+
 export const AuditIngestResultSchema = z.object({
   bytesRead: z.number().int(),
   linesProcessed: z.number().int(),
+  nodesFailed: z.number().int(),
+  nodesSynced: z.number().int(),
 });
 export type AuditIngestResult = z.infer<typeof AuditIngestResultSchema>;
+
+export const AuditSourceSummarySchema = z.object({
+  activeClients: z.number().int(),
+  lastSyncAt: z.number().int(),
+  name: z.string(),
+  nodeId: z.number().int(),
+  syncError: z.string(),
+  totalHits: z.number().int(),
+});
+export type AuditSourceSummary = z.infer<typeof AuditSourceSummarySchema>;
 
 export const AuditSubdomainItemSchema = z.object({
   category: z.string(),
@@ -292,6 +366,7 @@ export const AuditSubdomainItemSchema = z.object({
   firstSeen: z.number().int(),
   hitCount: z.number().int(),
   lastSeen: z.number().int(),
+  nodeIds: z.array(z.number().int()),
   outbound: z.string(),
   port: z.number().int(),
   riskLevel: z.number().int(),
@@ -306,11 +381,31 @@ export const AuditSummaryResponseSchema = z.object({
   days: z.number().int(),
   highRiskAlerts: z.number().int(),
   sharingClients: z.number().int(),
+  sources: z.array(z.lazy(() => AuditSourceSummarySchema)),
   totalHits: z.number().int(),
   unackedAlerts: z.number().int(),
   warnAlerts: z.number().int(),
 });
 export type AuditSummaryResponse = z.infer<typeof AuditSummaryResponseSchema>;
+
+export const AuditTelegramConfigSchema = z.object({
+  chatId: z.string(),
+  enabled: z.boolean(),
+  hasBotToken: z.boolean(),
+});
+export type AuditTelegramConfig = z.infer<typeof AuditTelegramConfigSchema>;
+
+export const AuditTelegramConfigUpdateSchema = z.object({
+  botToken: z.string(),
+  chatId: z.string(),
+  enabled: z.boolean(),
+});
+export type AuditTelegramConfigUpdate = z.infer<typeof AuditTelegramConfigUpdateSchema>;
+
+export const AuditTelegramRelayRequestSchema = z.object({
+  text: z.string(),
+});
+export type AuditTelegramRelayRequest = z.infer<typeof AuditTelegramRelayRequestSchema>;
 
 export const ClientSchema = z.object({
   adTag: z.string().optional(),

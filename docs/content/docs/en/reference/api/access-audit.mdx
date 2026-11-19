@@ -8,8 +8,9 @@ _openapi:
     - ./public/openapi.json
   toc:
     - depth: 2
-      title: Return aggregated daily access-audit overview across all active clients.
-      url: '#return-aggregated-daily-access-audit-overview-across-all-active-clients'
+      title: Return aggregated daily access-audit overview across all active clients
+        and sources.
+      url: '#return-aggregated-daily-access-audit-overview-across-all-active-clients-and-sources'
     - depth: 2
       title: Return categorized root domains, source IPs, and alerts for one client.
       url: '#return-categorized-root-domains-source-ips-and-alerts-for-one-client'
@@ -31,14 +32,45 @@ _openapi:
         records.
       url: '#save-access-audit-config-and-optionally-re-evaluate-stored-historical-records'
     - depth: 2
-      title: Trigger an immediate incremental ingest from the configured Xray access
-        log.
-      url: '#trigger-an-immediate-incremental-ingest-from-the-configured-xray-access-log'
+      title: Ingest new local Xray access-log lines now and pull every online node's
+        audit snapshot.
+      url: '#ingest-new-local-xray-access-log-lines-now-and-pull-every-online-nodes-audit-snapshot'
+    - depth: 2
+      title: Export this panel's own audit aggregates for a date window (pulled by its
+        master).
+      url: '#export-this-panels-own-audit-aggregates-for-a-date-window-pulled-by-its-master'
+    - depth: 2
+      title: Return this panel's Telegram delivery setup (the bot token is never
+        returned).
+      url: '#return-this-panels-telegram-delivery-setup-the-bot-token-is-never-returned'
+    - depth: 2
+      title: Save the Telegram delivery setup; an empty botToken keeps the stored
+        token.
+      url: '#save-the-telegram-delivery-setup-an-empty-bottoken-keeps-the-stored-token'
+    - depth: 2
+      title: Send a test message through this panel's Telegram bot.
+      url: '#send-a-test-message-through-this-panels-telegram-bot'
+    - depth: 2
+      title: Send a master's message through this panel's Telegram bot (node-sync
+        tokens allowed).
+      url: '#send-a-masters-message-through-this-panels-telegram-bot-node-sync-tokens-allowed'
+    - depth: 2
+      title: Return the daily Telegram digest schedule and the last delivery outcome.
+      url: '#return-the-daily-telegram-digest-schedule-and-the-last-delivery-outcome'
+    - depth: 2
+      title: Save the daily digest schedule (send time, language, delivery node).
+      url: '#save-the-daily-digest-schedule-send-time-language-delivery-node'
+    - depth: 2
+      title: Render the digest for one day without sending it.
+      url: '#render-the-digest-for-one-day-without-sending-it'
+    - depth: 2
+      title: Send the digest for one day now through the configured delivery.
+      url: '#send-the-digest-for-one-day-now-through-the-configured-delivery'
   structuredData:
     headings:
-      - content: Return aggregated daily access-audit overview across all active
-          clients.
-        id: return-aggregated-daily-access-audit-overview-across-all-active-clients
+      - content: Return aggregated daily access-audit overview across all active clients
+          and sources.
+        id: return-aggregated-daily-access-audit-overview-across-all-active-clients-and-sources
       - content: Return categorized root domains, source IPs, and alerts for one client.
         id: return-categorized-root-domains-source-ips-and-alerts-for-one-client
       - content: List deduplicated sensitive-content, high-risk port, and
@@ -53,9 +85,32 @@ _openapi:
       - content: Save access-audit config and optionally re-evaluate stored historical
           records.
         id: save-access-audit-config-and-optionally-re-evaluate-stored-historical-records
-      - content: Trigger an immediate incremental ingest from the configured Xray access
-          log.
-        id: trigger-an-immediate-incremental-ingest-from-the-configured-xray-access-log
+      - content: Ingest new local Xray access-log lines now and pull every online node's
+          audit snapshot.
+        id: ingest-new-local-xray-access-log-lines-now-and-pull-every-online-nodes-audit-snapshot
+      - content: Export this panel's own audit aggregates for a date window (pulled by
+          its master).
+        id: export-this-panels-own-audit-aggregates-for-a-date-window-pulled-by-its-master
+      - content: Return this panel's Telegram delivery setup (the bot token is never
+          returned).
+        id: return-this-panels-telegram-delivery-setup-the-bot-token-is-never-returned
+      - content: Save the Telegram delivery setup; an empty botToken keeps the stored
+          token.
+        id: save-the-telegram-delivery-setup-an-empty-bottoken-keeps-the-stored-token
+      - content: Send a test message through this panel's Telegram bot.
+        id: send-a-test-message-through-this-panels-telegram-bot
+      - content: Send a master's message through this panel's Telegram bot (node-sync
+          tokens allowed).
+        id: send-a-masters-message-through-this-panels-telegram-bot-node-sync-tokens-allowed
+      - content: Return the daily Telegram digest schedule and the last delivery
+          outcome.
+        id: return-the-daily-telegram-digest-schedule-and-the-last-delivery-outcome
+      - content: Save the daily digest schedule (send time, language, delivery node).
+        id: save-the-daily-digest-schedule-send-time-language-delivery-node
+      - content: Render the digest for one day without sending it.
+        id: render-the-digest-for-one-day-without-sending-it
+      - content: Send the digest for one day now through the configured delivery.
+        id: send-the-digest-for-one-day-now-through-the-configured-delivery
     contents: []
 ---
 
@@ -66,7 +121,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="./public/openapi.json" webhooks={[]} operations={[{"path":"/panel/api/audit/summary","method":"get"},{"path":"/panel/api/audit/client/{email}","method":"get"},{"path":"/panel/api/audit/alerts","method":"get"},{"path":"/panel/api/audit/alerts/ack/{id}","method":"post"},{"path":"/panel/api/audit/alerts/ackAll","method":"post"},{"path":"/panel/api/audit/config","method":"get"},{"path":"/panel/api/audit/config","method":"post"},{"path":"/panel/api/audit/ingest","method":"post"}]} showTitle />
+      <OpenAPIPage document="./public/openapi.json" webhooks={[]} operations={[{"path":"/panel/api/audit/summary","method":"get"},{"path":"/panel/api/audit/client/{email}","method":"get"},{"path":"/panel/api/audit/alerts","method":"get"},{"path":"/panel/api/audit/alerts/ack/{id}","method":"post"},{"path":"/panel/api/audit/alerts/ackAll","method":"post"},{"path":"/panel/api/audit/config","method":"get"},{"path":"/panel/api/audit/config","method":"post"},{"path":"/panel/api/audit/ingest","method":"post"},{"path":"/panel/api/audit/export","method":"get"},{"path":"/panel/api/audit/telegram","method":"get"},{"path":"/panel/api/audit/telegram","method":"post"},{"path":"/panel/api/audit/telegram/test","method":"post"},{"path":"/panel/api/audit/telegram/relay","method":"post"},{"path":"/panel/api/audit/digest","method":"get"},{"path":"/panel/api/audit/digest","method":"post"},{"path":"/panel/api/audit/digest/preview","method":"get"},{"path":"/panel/api/audit/digest/send","method":"post"}]} showTitle />
     </>
   );
 }

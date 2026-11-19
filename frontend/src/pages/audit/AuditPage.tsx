@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
+  Alert,
   Button,
   Card,
   Col,
@@ -11,6 +12,7 @@ import {
   InputNumber,
   Row,
   Segmented,
+  Select,
   Space,
   Statistic,
   Switch,
@@ -39,8 +41,12 @@ import type {
   AuditConfig,
   AuditDomainGroup,
   AuditIngestResult,
+  AuditSourceSummary,
   AuditSummaryResponse,
 } from '@/generated/types';
+import AuditNotifications from './AuditNotifications';
+
+const ALL_SOURCES = -1;
 
 type DatePreset = 'today' | 'yesterday' | '7d' | '30d';
 
@@ -159,6 +165,7 @@ export default function AuditPage() {
   const uid = useId();
   const [messageApi, messageContextHolder] = message.useMessage();
   const [preset, setPreset] = useState<DatePreset>('today');
+  const [source, setSource] = useState<number>(ALL_SOURCES);
   const [loading, setLoading] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [summary, setSummary] = useState<AuditSummaryResponse | null>(null);
@@ -193,8 +200,9 @@ export default function AuditPage() {
     if (preset === 'yesterday') {
       query.set('date', previousDay(serverTodayRef.current ?? formatLocalDate()));
     }
+    if (source !== ALL_SOURCES) query.set('nodeId', String(source));
     return query;
-  }, [preset]);
+  }, [preset, source]);
 
   const acceptSummary = useCallback(
     (next: AuditSummaryResponse) => {
@@ -289,7 +297,15 @@ export default function AuditPage() {
       const res = await HttpUtil.post<AuditIngestResult>('/panel/api/audit/ingest');
       if (res?.success) {
         const count = res.obj?.linesProcessed ?? 0;
-        messageApi.success(t('pages.audit.ingestedCount', { count }));
+        const synced = res.obj?.nodesSynced ?? 0;
+        const failed = res.obj?.nodesFailed ?? 0;
+        if (synced + failed > 0) {
+          messageApi[failed > 0 ? 'warning' : 'success'](
+            t('pages.audit.ingestedWithNodes', { count, synced, failed }),
+          );
+        } else {
+          messageApi.success(t('pages.audit.ingestedCount', { count }));
+        }
         await refreshData();
         if (selectedEmail) await refreshDetail(selectedEmail, hideNoise);
       }
@@ -337,12 +353,32 @@ export default function AuditPage() {
     }
   };
 
+  const sources: AuditSourceSummary[] = summary?.sources ?? [];
+  const sourceName = (nodeId: number) => {
+    if (nodeId === 0) return t('pages.audit.sources.local');
+    return sources.find((s) => s.nodeId === nodeId)?.name ?? `#${nodeId}`;
+  };
+  const sourceTags = (ids: number[] | undefined) => (
+    <Space size={[4, 4]} wrap>
+      {(ids ?? []).map((id) => (
+        <Tag key={id} color={id === 0 ? 'blue' : 'geekblue'}>
+          {sourceName(id)}
+        </Tag>
+      ))}
+    </Space>
+  );
+
   const clientColumns: ColumnsType<AuditClientSummary> = [
     {
       title: t('pages.audit.columns.client'),
       dataIndex: 'email',
       key: 'email',
-      render: (email: string) => <Typography.Text strong>{email}</Typography.Text>,
+      render: (email: string, row) => (
+        <Space orientation="vertical" size={2}>
+          <Typography.Text strong>{email}</Typography.Text>
+          {sourceTags(row.nodeIds)}
+        </Space>
+      ),
     },
     {
       title: t('pages.audit.columns.riskStatus'),
@@ -561,6 +597,13 @@ export default function AuditPage() {
       width: 150,
     },
     {
+      title: t('pages.audit.columns.source'),
+      dataIndex: 'nodeId',
+      key: 'nodeId',
+      width: 120,
+      render: (id: number) => sourceTags([id]),
+    },
+    {
       title: t('pages.audit.columns.subnet'),
       dataIndex: 'subnet',
       key: 'subnet',
@@ -596,6 +639,16 @@ export default function AuditPage() {
         </Col>
         <Col>
           <Space wrap>
+            <Select<number>
+              aria-label={t('pages.audit.sources.filter')}
+              style={{ minWidth: 150 }}
+              value={source}
+              onChange={setSource}
+              options={[
+                { value: ALL_SOURCES, label: t('pages.audit.sources.all') },
+                ...sources.map((s) => ({ value: s.nodeId, label: sourceName(s.nodeId) })),
+              ]}
+            />
             <Segmented<DatePreset>
               value={preset}
               onChange={(val) => setPreset(val)}
@@ -663,6 +716,32 @@ export default function AuditPage() {
           </Card>
         </Col>
       </Row>
+
+      {sources.length > 1 && (
+        <Space wrap style={{ marginBottom: 12 }}>
+          {sources.map((s) => (
+            <Tag
+              key={s.nodeId}
+              color={s.syncError ? 'error' : s.nodeId === 0 ? 'blue' : 'geekblue'}
+            >
+              {sourceName(s.nodeId)} · {s.totalHits}
+              {s.nodeId > 0 &&
+                ` · ${s.lastSyncAt ? t('pages.audit.sources.syncedAt', { time: formatTs(s.lastSyncAt) }) : t('pages.audit.sources.neverSynced')}`}
+            </Tag>
+          ))}
+        </Space>
+      )}
+      {sources
+        .filter((s) => s.syncError)
+        .map((s) => (
+          <Alert
+            key={s.nodeId}
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message={t('pages.audit.sources.syncFailed', { name: s.name, error: s.syncError })}
+          />
+        ))}
 
       <Card size="small">
         <Tabs
@@ -843,6 +922,11 @@ export default function AuditPage() {
                 </Form>
               ),
             },
+            {
+              key: 'notifications',
+              label: t('pages.audit.tabs.notifications'),
+              children: <AuditNotifications sources={sources} />,
+            },
           ]}
         />
       </Card>
@@ -910,6 +994,13 @@ export default function AuditPage() {
                         width: 120,
                       },
                       {
+                        title: t('pages.audit.columns.source'),
+                        dataIndex: 'nodeIds',
+                        key: 'nodeIds',
+                        width: 140,
+                        render: (ids: number[]) => sourceTags(ids),
+                      },
+                      {
                         title: t('pages.audit.columns.hits'),
                         dataIndex: 'hitCount',
                         key: 'hitCount',
@@ -932,7 +1023,7 @@ export default function AuditPage() {
           <div>
             <Typography.Title level={5}>{t('pages.audit.detail.ipsSection')}</Typography.Title>
             <Table<AuditClientIPView>
-              rowKey="srcIp"
+              rowKey={(r) => `${r.srcIp}#${r.nodeId}`}
               size="small"
               loading={detailLoading}
               columns={ipColumns}
