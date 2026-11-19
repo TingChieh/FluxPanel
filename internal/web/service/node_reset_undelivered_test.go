@@ -311,12 +311,38 @@ func TestNodeResetsSettleEachClientOnItsOwn(t *testing.T) {
 	}
 }
 
-// stallingResetRuntime never answers a reset until its context ends.
-type stallingResetRuntime struct{ fakeNodeRuntime }
+// stallingResetRuntime never answers a reset until its context ends or the test
+// releases it.
+type stallingResetRuntime struct {
+	fakeNodeRuntime
+	release chan struct{}
+}
 
-func (*stallingResetRuntime) ResetClientTraffic(ctx context.Context, _ *model.Inbound, _ string) error {
-	<-ctx.Done()
-	return ctx.Err()
+func (r *stallingResetRuntime) ResetClientTraffic(ctx context.Context, _ *model.Inbound, _ string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-r.release:
+		return errors.New("stalled node released by the test")
+	}
+}
+
+// waitNodeResetDeliveryIdle blocks until no delivery holds nodeID's reset lock.
+func waitNodeResetDeliveryIdle(t *testing.T, nodeID int) {
+	t.Helper()
+	lock, ok := nodeResetDeliveryLocks.Load(nodeID)
+	if !ok {
+		return
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for !lock.(*sync.Mutex).TryLock() {
+		if time.Now().After(deadline) {
+			t.Errorf("reset delivery to node %d never released its lock", nodeID)
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	lock.(*sync.Mutex).Unlock()
 }
 
 // A node relays its master's reset to its own sub-nodes inline; one silent sub-node must
@@ -328,7 +354,14 @@ func TestNodeResetDeliveryDoesNotHoldTheRequestBehindASilentNode(t *testing.T) {
 	if err := database.GetDB().Create(node).Error; err != nil {
 		t.Fatalf("create node: %v", err)
 	}
-	mgr.SetRuntimeOverride(node.Id, &stallingResetRuntime{})
+	stalled := &stallingResetRuntime{release: make(chan struct{})}
+	mgr.SetRuntimeOverride(node.Id, stalled)
+	// The stalled delivery outlives the request by design; end it and wait for its
+	// per-node lock, or the next test that reuses this node id waits behind it.
+	t.Cleanup(func() {
+		close(stalled.release)
+		waitNodeResetDeliveryIdle(t, node.Id)
+	})
 	ib := nodeInbound(t, node.Id, 41912, []model.Client{{Email: "held", ID: "11111111-1111-1111-1111-1111111111ab", Enable: true}})
 	if err := (&InboundService{}).AddClientStat(database.GetDB(), ib.Id, &model.Client{Email: "held", Enable: true}); err != nil {
 		t.Fatalf("AddClientStat: %v", err)
