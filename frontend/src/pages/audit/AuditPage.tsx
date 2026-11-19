@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -6,10 +6,12 @@ import {
   Button,
   Card,
   Col,
+  ConfigProvider,
   Drawer,
   Form,
   Input,
   InputNumber,
+  Layout,
   Row,
   Segmented,
   Select,
@@ -33,6 +35,9 @@ import {
 } from '@ant-design/icons';
 
 import { HttpUtil } from '@/utils';
+import { useTheme } from '@/hooks/useTheme';
+import AppSidebar from '@/layouts/AppSidebar';
+import { setMessageInstance } from '@/utils/messageBus';
 import type {
   AccessAuditAlert,
   AuditClientDetailResponse,
@@ -149,8 +154,8 @@ function HourlyHeatmap({ mask }: { mask: number }) {
               height: 14,
               borderRadius: 2,
               backgroundColor: active
-                ? 'var(--ant-color-primary, #1677ff)'
-                : 'rgba(128,128,128,0.18)',
+                ? 'var(--ant-color-primary)'
+                : 'var(--ant-color-fill-secondary)',
               display: 'inline-block',
             }}
           />
@@ -163,7 +168,17 @@ function HourlyHeatmap({ mask }: { mask: number }) {
 export default function AuditPage() {
   const { t } = useTranslation();
   const uid = useId();
+  const { isDark, isUltra, antdThemeConfig } = useTheme();
   const [messageApi, messageContextHolder] = message.useMessage();
+  useEffect(() => {
+    setMessageInstance(messageApi);
+  }, [messageApi]);
+  const pageClass = useMemo(() => {
+    const classes = ['audit-page'];
+    if (isDark) classes.push('is-dark');
+    if (isUltra) classes.push('is-ultra');
+    return classes.join(' ');
+  }, [isDark, isUltra]);
   const [preset, setPreset] = useState<DatePreset>('today');
   const [source, setSource] = useState<number>(ALL_SOURCES);
   const [loading, setLoading] = useState(false);
@@ -625,415 +640,451 @@ export default function AuditPage() {
   ];
 
   return (
-    <div style={{ padding: 16 }}>
+    <ConfigProvider theme={antdThemeConfig}>
       {messageContextHolder}
-      <Row justify="space-between" align="middle" gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col>
-          <Space orientation="vertical" size={0}>
-            <Typography.Title level={4} style={{ margin: 0 }}>
-              <SafetyOutlined aria-hidden style={{ marginRight: 8 }} />
-              {t('pages.audit.title')}
-            </Typography.Title>
-            <Typography.Text type="secondary">{t('pages.audit.subtitle')}</Typography.Text>
-          </Space>
-        </Col>
-        <Col>
-          <Space wrap>
-            <Select<number>
-              aria-label={t('pages.audit.sources.filter')}
-              style={{ minWidth: 150 }}
-              value={source}
-              onChange={setSource}
-              options={[
-                { value: ALL_SOURCES, label: t('pages.audit.sources.all') },
-                ...sources.map((s) => ({ value: s.nodeId, label: sourceName(s.nodeId) })),
-              ]}
-            />
-            <Segmented<DatePreset>
-              value={preset}
-              onChange={(val) => setPreset(val)}
-              options={[
-                { label: t('pages.audit.today'), value: 'today' },
-                { label: t('pages.audit.yesterday'), value: 'yesterday' },
-                { label: t('pages.audit.last7Days'), value: '7d' },
-                { label: t('pages.audit.last30Days'), value: '30d' },
-              ]}
-            />
-            <Button
-              icon={<SyncOutlined aria-hidden spin={ingesting} />}
-              loading={ingesting}
-              onClick={() => void handleIngestNow()}
+      <Layout className={pageClass}>
+        <AppSidebar />
+        <Layout className="content-shell">
+          <Layout.Content id="content-layout" className="content-area">
+            <Row
+              justify="space-between"
+              align="middle"
+              gutter={[12, 12]}
+              style={{ marginBottom: 16 }}
             >
-              {t('pages.audit.ingestNow')}
-            </Button>
-            <Button
-              aria-label={t('refresh')}
-              icon={<ReloadOutlined aria-hidden />}
-              loading={loading}
-              onClick={() => void refreshData()}
-            />
-          </Space>
-        </Col>
-      </Row>
-
-      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
-        <Col xs={12} md={6}>
-          <Card size="small">
-            <Statistic
-              title={t('pages.audit.stats.activeClients')}
-              value={summary?.activeClients ?? 0}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card size="small">
-            <Statistic
-              title={t('pages.audit.stats.highRiskAlerts')}
-              value={summary?.highRiskAlerts ?? 0}
-              styles={{
-                content: { color: (summary?.highRiskAlerts ?? 0) > 0 ? '#cf1322' : undefined },
-              }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card size="small">
-            <Statistic
-              title={t('pages.audit.stats.sharingClients')}
-              value={summary?.sharingClients ?? 0}
-              styles={{
-                content: { color: (summary?.sharingClients ?? 0) > 0 ? '#d4380d' : undefined },
-              }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card size="small">
-            <Statistic
-              title={t('pages.audit.stats.unackedAlerts')}
-              value={summary?.unackedAlerts ?? 0}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      {sources.length > 1 && (
-        <Space wrap style={{ marginBottom: 12 }}>
-          {sources.map((s) => (
-            <Tag
-              key={s.nodeId}
-              color={s.syncError ? 'error' : s.nodeId === 0 ? 'blue' : 'geekblue'}
-            >
-              {sourceName(s.nodeId)} · {s.totalHits}
-              {s.nodeId > 0 &&
-                ` · ${s.lastSyncAt ? t('pages.audit.sources.syncedAt', { time: formatTs(s.lastSyncAt) }) : t('pages.audit.sources.neverSynced')}`}
-            </Tag>
-          ))}
-        </Space>
-      )}
-      {sources
-        .filter((s) => s.syncError)
-        .map((s) => (
-          <Alert
-            key={s.nodeId}
-            type="warning"
-            showIcon
-            style={{ marginBottom: 12 }}
-            message={t('pages.audit.sources.syncFailed', { name: s.name, error: s.syncError })}
-          />
-        ))}
-
-      <Card size="small">
-        <Tabs
-          items={[
-            {
-              key: 'overview',
-              label: t('pages.audit.tabs.overview'),
-              children: (
-                <Table<AuditClientSummary>
-                  rowKey="email"
-                  size="small"
-                  loading={loading}
-                  columns={clientColumns}
-                  dataSource={summary?.clients ?? []}
-                  pagination={{ pageSize: 20 }}
-                  scroll={{ x: 860 }}
-                />
-              ),
-            },
-            {
-              key: 'alerts',
-              label: `${t('pages.audit.tabs.alerts')} (${summary?.unackedAlerts ?? 0})`,
-              children: (
-                <div>
-                  <Space style={{ marginBottom: 12 }}>
-                    <Switch
-                      aria-label={t('pages.audit.alerts.onlyUnacked')}
-                      checked={onlyUnacked}
-                      onChange={setOnlyUnacked}
-                    />
-                    <span>{t('pages.audit.alerts.onlyUnacked')}</span>
-                    <Button
-                      size="small"
-                      icon={<CheckOutlined aria-hidden />}
-                      onClick={() => void handleAckAll()}
-                    >
-                      {t('pages.audit.alerts.ackAll')}
-                    </Button>
-                  </Space>
-                  <Table<AccessAuditAlert>
-                    rowKey="id"
-                    size="small"
-                    loading={loading}
-                    columns={alertColumns}
-                    dataSource={alerts}
-                    pagination={{ pageSize: 20 }}
-                    scroll={{ x: 960 }}
-                  />
-                </div>
-              ),
-            },
-            {
-              key: 'rules',
-              label: t('pages.audit.tabs.rules'),
-              children: (
-                <Form layout="vertical" style={{ maxWidth: 720 }}>
-                  <Row gutter={16}>
-                    <Col xs={24} sm={8}>
-                      <Form.Item htmlFor={`${uid}-enabled`} label={t('pages.audit.rules.enabled')}>
-                        <Switch
-                          id={`${uid}-enabled`}
-                          checked={config.enabled}
-                          onChange={(checked) =>
-                            setConfig((prev) => ({ ...prev, enabled: checked }))
-                          }
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={8}>
-                      <Form.Item
-                        htmlFor={`${uid}-retention`}
-                        label={t('pages.audit.rules.retentionDays')}
-                      >
-                        <InputNumber
-                          id={`${uid}-retention`}
-                          min={1}
-                          max={365}
-                          value={config.retentionDays}
-                          onChange={(v) =>
-                            setConfig((prev) => ({ ...prev, retentionDays: Number(v || 30) }))
-                          }
-                          style={{ width: '100%' }}
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row gutter={16}>
-                    <Col xs={24} sm={12}>
-                      <Form.Item
-                        htmlFor={`${uid}-concurrent`}
-                        label={t('pages.audit.rules.maxConcurrentSubnets')}
-                        help={t('pages.audit.rules.maxConcurrentSubnetsHelp')}
-                      >
-                        <InputNumber
-                          id={`${uid}-concurrent`}
-                          min={2}
-                          max={50}
-                          value={config.maxConcurrentSubnets}
-                          onChange={(v) =>
-                            setConfig((prev) => ({ ...prev, maxConcurrentSubnets: Number(v || 3) }))
-                          }
-                          style={{ width: '100%' }}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                      <Form.Item
-                        htmlFor={`${uid}-daily`}
-                        label={t('pages.audit.rules.maxDailySubnets')}
-                        help={t('pages.audit.rules.maxDailySubnetsHelp')}
-                      >
-                        <InputNumber
-                          id={`${uid}-daily`}
-                          min={2}
-                          max={100}
-                          value={config.maxDailySubnets}
-                          onChange={(v) =>
-                            setConfig((prev) => ({ ...prev, maxDailySubnets: Number(v || 4) }))
-                          }
-                          style={{ width: '100%' }}
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Form.Item
-                    htmlFor={`${uid}-domains`}
-                    label={t('pages.audit.rules.sensitiveDomains')}
-                  >
-                    <Input.TextArea
-                      id={`${uid}-domains`}
-                      rows={5}
-                      value={domainsText}
-                      onChange={(e) => setDomainsText(e.target.value)}
-                      placeholder={t('pages.audit.rules.sensitiveDomainsPlaceholder')}
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    htmlFor={`${uid}-keywords`}
-                    label={t('pages.audit.rules.sensitiveKeywords')}
-                  >
-                    <Input.TextArea
-                      id={`${uid}-keywords`}
-                      rows={4}
-                      value={keywordsText}
-                      onChange={(e) => setKeywordsText(e.target.value)}
-                      placeholder={t('pages.audit.rules.sensitiveKeywordsPlaceholder')}
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    htmlFor={`${uid}-noise`}
-                    label={t('pages.audit.rules.ignoreNoiseDomains')}
-                  >
-                    <Input.TextArea
-                      id={`${uid}-noise`}
-                      rows={3}
-                      value={noiseText}
-                      onChange={(e) => setNoiseText(e.target.value)}
-                      placeholder={t('pages.audit.rules.ignoreNoiseDomainsPlaceholder')}
-                    />
-                  </Form.Item>
-                  <Space wrap>
-                    <Button
-                      type="primary"
-                      icon={<SaveOutlined aria-hidden />}
-                      loading={savingConfig}
-                      onClick={() => void handleSaveConfig(false)}
-                    >
-                      {t('pages.audit.rules.save')}
-                    </Button>
-                    <Button
-                      icon={<SyncOutlined aria-hidden />}
-                      loading={savingConfig}
-                      onClick={() => void handleSaveConfig(true)}
-                    >
-                      {t('pages.audit.rules.saveAndReevaluate')}
-                    </Button>
-                  </Space>
-                </Form>
-              ),
-            },
-            {
-              key: 'notifications',
-              label: t('pages.audit.tabs.notifications'),
-              children: <AuditNotifications sources={sources} />,
-            },
-          ]}
-        />
-      </Card>
-
-      <Drawer
-        open={!!selectedEmail}
-        onClose={() => setSelectedEmail(null)}
-        size={880}
-        title={t('pages.audit.detail.title', { email: selectedEmail || '' })}
-        extra={
-          <Space>
-            <Switch
-              aria-label={t('pages.audit.detail.hideNoise')}
-              checked={hideNoise}
-              onChange={setHideNoise}
-            />
-            <span>{t('pages.audit.detail.hideNoise')}</span>
-            {detail && detail.noiseHits > 0 && (
-              <Tag>{t('pages.audit.detail.noiseFiltered', { count: detail.noiseHits })}</Tag>
-            )}
-          </Space>
-        }
-      >
-        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-          <Space wrap>
-            {(detail?.categories || []).map((c) => (
-              <Tag key={c.category} color={categoryColor(c.category)}>
-                {categoryLabel(t, c.category)}: {c.hitCount} ({c.domainCount})
-              </Tag>
-            ))}
-          </Space>
-
-          <div>
-            <Typography.Title level={5}>{t('pages.audit.detail.domainsSection')}</Typography.Title>
-            <Table<AuditDomainGroup>
-              rowKey="rootDomain"
-              size="small"
-              loading={detailLoading}
-              columns={domainColumns}
-              dataSource={detail?.domains ?? []}
-              pagination={{ pageSize: 15 }}
-              expandable={{
-                expandedRowRender: (group) => (
-                  <Table
-                    rowKey={(r) => `${r.domain}:${r.port}`}
-                    size="small"
-                    pagination={false}
-                    dataSource={group.subdomains}
-                    columns={[
-                      {
-                        title: t('pages.audit.columns.domain'),
-                        dataIndex: 'domain',
-                        key: 'domain',
-                      },
-                      {
-                        title: t('pages.audit.columns.port'),
-                        dataIndex: 'port',
-                        key: 'port',
-                        width: 80,
-                      },
-                      {
-                        title: t('pages.audit.columns.outbound'),
-                        dataIndex: 'outbound',
-                        key: 'outbound',
-                        width: 120,
-                      },
-                      {
-                        title: t('pages.audit.columns.source'),
-                        dataIndex: 'nodeIds',
-                        key: 'nodeIds',
-                        width: 140,
-                        render: (ids: number[]) => sourceTags(ids),
-                      },
-                      {
-                        title: t('pages.audit.columns.hits'),
-                        dataIndex: 'hitCount',
-                        key: 'hitCount',
-                        width: 80,
-                      },
-                      {
-                        title: t('pages.audit.columns.lastSeen'),
-                        dataIndex: 'lastSeen',
-                        key: 'lastSeen',
-                        width: 170,
-                        render: (ts: number) => formatTs(ts),
-                      },
+              <Col>
+                <Space orientation="vertical" size={0}>
+                  <Typography.Title level={4} style={{ margin: 0 }}>
+                    <SafetyOutlined aria-hidden style={{ marginRight: 8 }} />
+                    {t('pages.audit.title')}
+                  </Typography.Title>
+                  <Typography.Text type="secondary">{t('pages.audit.subtitle')}</Typography.Text>
+                </Space>
+              </Col>
+              <Col>
+                <Space wrap>
+                  <Select<number>
+                    aria-label={t('pages.audit.sources.filter')}
+                    style={{ minWidth: 150 }}
+                    value={source}
+                    onChange={setSource}
+                    options={[
+                      { value: ALL_SOURCES, label: t('pages.audit.sources.all') },
+                      ...sources.map((s) => ({ value: s.nodeId, label: sourceName(s.nodeId) })),
                     ]}
                   />
-                ),
-              }}
-            />
-          </div>
+                  <Segmented<DatePreset>
+                    value={preset}
+                    onChange={(val) => setPreset(val)}
+                    options={[
+                      { label: t('pages.audit.today'), value: 'today' },
+                      { label: t('pages.audit.yesterday'), value: 'yesterday' },
+                      { label: t('pages.audit.last7Days'), value: '7d' },
+                      { label: t('pages.audit.last30Days'), value: '30d' },
+                    ]}
+                  />
+                  <Button
+                    icon={<SyncOutlined aria-hidden spin={ingesting} />}
+                    loading={ingesting}
+                    onClick={() => void handleIngestNow()}
+                  >
+                    {t('pages.audit.ingestNow')}
+                  </Button>
+                  <Button
+                    aria-label={t('refresh')}
+                    icon={<ReloadOutlined aria-hidden />}
+                    loading={loading}
+                    onClick={() => void refreshData()}
+                  />
+                </Space>
+              </Col>
+            </Row>
 
-          <div>
-            <Typography.Title level={5}>{t('pages.audit.detail.ipsSection')}</Typography.Title>
-            <Table<AuditClientIPView>
-              rowKey={(r) => `${r.srcIp}#${r.nodeId}`}
-              size="small"
-              loading={detailLoading}
-              columns={ipColumns}
-              dataSource={detail?.sourceIps ?? []}
-              pagination={false}
-              scroll={{ x: 640 }}
-            />
-          </div>
-        </Space>
-      </Drawer>
-    </div>
+            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+              <Col xs={12} md={6}>
+                <Card size="small">
+                  <Statistic
+                    title={t('pages.audit.stats.activeClients')}
+                    value={summary?.activeClients ?? 0}
+                  />
+                </Card>
+              </Col>
+              <Col xs={12} md={6}>
+                <Card size="small">
+                  <Statistic
+                    title={t('pages.audit.stats.highRiskAlerts')}
+                    value={summary?.highRiskAlerts ?? 0}
+                    styles={{
+                      content: {
+                        color:
+                          (summary?.highRiskAlerts ?? 0) > 0 ? 'var(--ant-color-error)' : undefined,
+                      },
+                    }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={12} md={6}>
+                <Card size="small">
+                  <Statistic
+                    title={t('pages.audit.stats.sharingClients')}
+                    value={summary?.sharingClients ?? 0}
+                    styles={{
+                      content: {
+                        color:
+                          (summary?.sharingClients ?? 0) > 0
+                            ? 'var(--ant-color-warning)'
+                            : undefined,
+                      },
+                    }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={12} md={6}>
+                <Card size="small">
+                  <Statistic
+                    title={t('pages.audit.stats.unackedAlerts')}
+                    value={summary?.unackedAlerts ?? 0}
+                  />
+                </Card>
+              </Col>
+            </Row>
+
+            {sources.length > 1 && (
+              <Space wrap style={{ marginBottom: 12 }}>
+                {sources.map((s) => (
+                  <Tag
+                    key={s.nodeId}
+                    color={s.syncError ? 'error' : s.nodeId === 0 ? 'blue' : 'geekblue'}
+                  >
+                    {sourceName(s.nodeId)} · {s.totalHits}
+                    {s.nodeId > 0 &&
+                      ` · ${s.lastSyncAt ? t('pages.audit.sources.syncedAt', { time: formatTs(s.lastSyncAt) }) : t('pages.audit.sources.neverSynced')}`}
+                  </Tag>
+                ))}
+              </Space>
+            )}
+            {sources
+              .filter((s) => s.syncError)
+              .map((s) => (
+                <Alert
+                  key={s.nodeId}
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                  message={t('pages.audit.sources.syncFailed', {
+                    name: s.name,
+                    error: s.syncError,
+                  })}
+                />
+              ))}
+
+            <Card size="small">
+              <Tabs
+                items={[
+                  {
+                    key: 'overview',
+                    label: t('pages.audit.tabs.overview'),
+                    children: (
+                      <Table<AuditClientSummary>
+                        rowKey="email"
+                        size="small"
+                        loading={loading}
+                        columns={clientColumns}
+                        dataSource={summary?.clients ?? []}
+                        pagination={{ pageSize: 20 }}
+                        scroll={{ x: 860 }}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'alerts',
+                    label: `${t('pages.audit.tabs.alerts')} (${summary?.unackedAlerts ?? 0})`,
+                    children: (
+                      <div>
+                        <Space style={{ marginBottom: 12 }}>
+                          <Switch
+                            aria-label={t('pages.audit.alerts.onlyUnacked')}
+                            checked={onlyUnacked}
+                            onChange={setOnlyUnacked}
+                          />
+                          <span>{t('pages.audit.alerts.onlyUnacked')}</span>
+                          <Button
+                            size="small"
+                            icon={<CheckOutlined aria-hidden />}
+                            onClick={() => void handleAckAll()}
+                          >
+                            {t('pages.audit.alerts.ackAll')}
+                          </Button>
+                        </Space>
+                        <Table<AccessAuditAlert>
+                          rowKey="id"
+                          size="small"
+                          loading={loading}
+                          columns={alertColumns}
+                          dataSource={alerts}
+                          pagination={{ pageSize: 20 }}
+                          scroll={{ x: 960 }}
+                        />
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'rules',
+                    label: t('pages.audit.tabs.rules'),
+                    children: (
+                      <Form layout="vertical" style={{ maxWidth: 720 }}>
+                        <Row gutter={16}>
+                          <Col xs={24} sm={8}>
+                            <Form.Item
+                              htmlFor={`${uid}-enabled`}
+                              label={t('pages.audit.rules.enabled')}
+                            >
+                              <Switch
+                                id={`${uid}-enabled`}
+                                checked={config.enabled}
+                                onChange={(checked) =>
+                                  setConfig((prev) => ({ ...prev, enabled: checked }))
+                                }
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} sm={8}>
+                            <Form.Item
+                              htmlFor={`${uid}-retention`}
+                              label={t('pages.audit.rules.retentionDays')}
+                            >
+                              <InputNumber
+                                id={`${uid}-retention`}
+                                min={1}
+                                max={365}
+                                value={config.retentionDays}
+                                onChange={(v) =>
+                                  setConfig((prev) => ({ ...prev, retentionDays: Number(v || 30) }))
+                                }
+                                style={{ width: '100%' }}
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                        <Row gutter={16}>
+                          <Col xs={24} sm={12}>
+                            <Form.Item
+                              htmlFor={`${uid}-concurrent`}
+                              label={t('pages.audit.rules.maxConcurrentSubnets')}
+                              help={t('pages.audit.rules.maxConcurrentSubnetsHelp')}
+                            >
+                              <InputNumber
+                                id={`${uid}-concurrent`}
+                                min={2}
+                                max={50}
+                                value={config.maxConcurrentSubnets}
+                                onChange={(v) =>
+                                  setConfig((prev) => ({
+                                    ...prev,
+                                    maxConcurrentSubnets: Number(v || 3),
+                                  }))
+                                }
+                                style={{ width: '100%' }}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} sm={12}>
+                            <Form.Item
+                              htmlFor={`${uid}-daily`}
+                              label={t('pages.audit.rules.maxDailySubnets')}
+                              help={t('pages.audit.rules.maxDailySubnetsHelp')}
+                            >
+                              <InputNumber
+                                id={`${uid}-daily`}
+                                min={2}
+                                max={100}
+                                value={config.maxDailySubnets}
+                                onChange={(v) =>
+                                  setConfig((prev) => ({
+                                    ...prev,
+                                    maxDailySubnets: Number(v || 4),
+                                  }))
+                                }
+                                style={{ width: '100%' }}
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                        <Form.Item
+                          htmlFor={`${uid}-domains`}
+                          label={t('pages.audit.rules.sensitiveDomains')}
+                        >
+                          <Input.TextArea
+                            id={`${uid}-domains`}
+                            rows={5}
+                            value={domainsText}
+                            onChange={(e) => setDomainsText(e.target.value)}
+                            placeholder={t('pages.audit.rules.sensitiveDomainsPlaceholder')}
+                          />
+                        </Form.Item>
+                        <Form.Item
+                          htmlFor={`${uid}-keywords`}
+                          label={t('pages.audit.rules.sensitiveKeywords')}
+                        >
+                          <Input.TextArea
+                            id={`${uid}-keywords`}
+                            rows={4}
+                            value={keywordsText}
+                            onChange={(e) => setKeywordsText(e.target.value)}
+                            placeholder={t('pages.audit.rules.sensitiveKeywordsPlaceholder')}
+                          />
+                        </Form.Item>
+                        <Form.Item
+                          htmlFor={`${uid}-noise`}
+                          label={t('pages.audit.rules.ignoreNoiseDomains')}
+                        >
+                          <Input.TextArea
+                            id={`${uid}-noise`}
+                            rows={3}
+                            value={noiseText}
+                            onChange={(e) => setNoiseText(e.target.value)}
+                            placeholder={t('pages.audit.rules.ignoreNoiseDomainsPlaceholder')}
+                          />
+                        </Form.Item>
+                        <Space wrap>
+                          <Button
+                            type="primary"
+                            icon={<SaveOutlined aria-hidden />}
+                            loading={savingConfig}
+                            onClick={() => void handleSaveConfig(false)}
+                          >
+                            {t('pages.audit.rules.save')}
+                          </Button>
+                          <Button
+                            icon={<SyncOutlined aria-hidden />}
+                            loading={savingConfig}
+                            onClick={() => void handleSaveConfig(true)}
+                          >
+                            {t('pages.audit.rules.saveAndReevaluate')}
+                          </Button>
+                        </Space>
+                      </Form>
+                    ),
+                  },
+                  {
+                    key: 'notifications',
+                    label: t('pages.audit.tabs.notifications'),
+                    children: <AuditNotifications sources={sources} />,
+                  },
+                ]}
+              />
+            </Card>
+
+            <Drawer
+              open={!!selectedEmail}
+              onClose={() => setSelectedEmail(null)}
+              size={880}
+              title={t('pages.audit.detail.title', { email: selectedEmail || '' })}
+              extra={
+                <Space>
+                  <Switch
+                    aria-label={t('pages.audit.detail.hideNoise')}
+                    checked={hideNoise}
+                    onChange={setHideNoise}
+                  />
+                  <span>{t('pages.audit.detail.hideNoise')}</span>
+                  {detail && detail.noiseHits > 0 && (
+                    <Tag>{t('pages.audit.detail.noiseFiltered', { count: detail.noiseHits })}</Tag>
+                  )}
+                </Space>
+              }
+            >
+              <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+                <Space wrap>
+                  {(detail?.categories || []).map((c) => (
+                    <Tag key={c.category} color={categoryColor(c.category)}>
+                      {categoryLabel(t, c.category)}: {c.hitCount} ({c.domainCount})
+                    </Tag>
+                  ))}
+                </Space>
+
+                <div>
+                  <Typography.Title level={5}>
+                    {t('pages.audit.detail.domainsSection')}
+                  </Typography.Title>
+                  <Table<AuditDomainGroup>
+                    rowKey="rootDomain"
+                    size="small"
+                    loading={detailLoading}
+                    columns={domainColumns}
+                    dataSource={detail?.domains ?? []}
+                    pagination={{ pageSize: 15 }}
+                    expandable={{
+                      expandedRowRender: (group) => (
+                        <Table
+                          rowKey={(r) => `${r.domain}:${r.port}`}
+                          size="small"
+                          pagination={false}
+                          dataSource={group.subdomains}
+                          columns={[
+                            {
+                              title: t('pages.audit.columns.domain'),
+                              dataIndex: 'domain',
+                              key: 'domain',
+                            },
+                            {
+                              title: t('pages.audit.columns.port'),
+                              dataIndex: 'port',
+                              key: 'port',
+                              width: 80,
+                            },
+                            {
+                              title: t('pages.audit.columns.outbound'),
+                              dataIndex: 'outbound',
+                              key: 'outbound',
+                              width: 120,
+                            },
+                            {
+                              title: t('pages.audit.columns.source'),
+                              dataIndex: 'nodeIds',
+                              key: 'nodeIds',
+                              width: 140,
+                              render: (ids: number[]) => sourceTags(ids),
+                            },
+                            {
+                              title: t('pages.audit.columns.hits'),
+                              dataIndex: 'hitCount',
+                              key: 'hitCount',
+                              width: 80,
+                            },
+                            {
+                              title: t('pages.audit.columns.lastSeen'),
+                              dataIndex: 'lastSeen',
+                              key: 'lastSeen',
+                              width: 170,
+                              render: (ts: number) => formatTs(ts),
+                            },
+                          ]}
+                        />
+                      ),
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <Typography.Title level={5}>
+                    {t('pages.audit.detail.ipsSection')}
+                  </Typography.Title>
+                  <Table<AuditClientIPView>
+                    rowKey={(r) => `${r.srcIp}#${r.nodeId}`}
+                    size="small"
+                    loading={detailLoading}
+                    columns={ipColumns}
+                    dataSource={detail?.sourceIps ?? []}
+                    pagination={false}
+                    scroll={{ x: 640 }}
+                  />
+                </div>
+              </Space>
+            </Drawer>
+          </Layout.Content>
+        </Layout>
+      </Layout>
+    </ConfigProvider>
   );
 }

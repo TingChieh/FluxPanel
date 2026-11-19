@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import AuditPage from '@/pages/audit/AuditPage';
@@ -33,7 +34,7 @@ function stubAuditBackend(sent: SentRequest[], summaryUrls: string[] = []) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith('/csrf-token')) return jsonResponse('test-csrf-token');
-    if (init?.method === 'POST') {
+    if (init?.method === 'POST' && url.startsWith('/panel/api/audit/')) {
       sent.push({
         url,
         contentType: new Headers(init.headers).get('Content-Type'),
@@ -76,6 +77,14 @@ function stubAuditBackend(sent: SentRequest[], summaryUrls: string[] = []) {
   vi.stubGlobal('fetch', fetchMock);
 }
 
+function renderAuditPage() {
+  renderWithProviders(
+    <MemoryRouter initialEntries={['/audit']}>
+      <AuditPage />
+    </MemoryRouter>,
+  );
+}
+
 describe('AuditPage', () => {
   // setup.components.ts stubs HttpUtil globally; the real encoder is what this test pins.
   beforeAll(() => {
@@ -93,7 +102,7 @@ describe('AuditPage', () => {
     const sent: SentRequest[] = [];
     stubAuditBackend(sent);
 
-    renderWithProviders(<AuditPage />);
+    renderAuditPage();
     fireEvent.click(await screen.findByRole('tab', { name: 'Audit Rules' }));
     fireEvent.change(
       await screen.findByLabelText('Sensitive / Restricted Domains (one per line)'),
@@ -127,7 +136,7 @@ describe('AuditPage', () => {
     const summaryUrls: string[] = [];
     stubAuditBackend([], summaryUrls);
 
-    renderWithProviders(<AuditPage />);
+    renderAuditPage();
     await waitFor(() => expect(summaryUrls).toHaveLength(1));
     expect(new URL(summaryUrls[0], 'http://panel').searchParams.get('date')).toBeNull();
 
@@ -142,7 +151,7 @@ describe('AuditPage', () => {
     const sent: SentRequest[] = [];
     stubAuditBackend(sent);
 
-    renderWithProviders(<AuditPage />);
+    renderAuditPage();
     fireEvent.click(await screen.findByRole('tab', { name: 'Notifications' }));
     const chat = await screen.findByLabelText('Chat ID');
     await waitFor(() => expect((chat as HTMLInputElement).value).toBe('4242'));
@@ -159,7 +168,7 @@ describe('AuditPage', () => {
     const summaryUrls: string[] = [];
     stubAuditBackend([], summaryUrls);
 
-    renderWithProviders(<AuditPage />);
+    renderAuditPage();
     const filter = await screen.findByRole('combobox', { name: 'Source' });
     await waitFor(() => expect(summaryUrls.length).toBeGreaterThan(0));
     expect(new URL(summaryUrls[0], 'http://panel').searchParams.get('nodeId')).toBeNull();
