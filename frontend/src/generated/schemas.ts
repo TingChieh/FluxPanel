@@ -974,6 +974,18 @@ export const SCHEMAS: Record<string, unknown> = {
           "type": "string"
         },
         "type": "array"
+      },
+      "trustedClients": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "trustedTargets": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
       }
     },
     "required": [
@@ -983,7 +995,9 @@ export const SCHEMAS: Record<string, unknown> = {
       "maxDailySubnets",
       "retentionDays",
       "sensitiveDomains",
-      "sensitiveKeywords"
+      "sensitiveKeywords",
+      "trustedClients",
+      "trustedTargets"
     ],
     "type": "object"
   },
@@ -1542,6 +1556,19 @@ export const SCHEMAS: Record<string, unknown> = {
     },
     "required": [
       "text"
+    ],
+    "type": "object"
+  },
+  "AuditTrustRequest": {
+    "description": "AuditTrustRequest picks how an alert is trusted: target, host or client.",
+    "properties": {
+      "scope": {
+        "example": "host",
+        "type": "string"
+      }
+    },
+    "required": [
+      "scope"
     ],
     "type": "object"
   },

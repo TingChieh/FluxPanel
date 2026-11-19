@@ -27,6 +27,7 @@ func (a *AuditController) initRouter(g *gin.RouterGroup) {
 	g.GET("/alerts", a.alerts)
 	g.POST("/alerts/ack/:id", a.ackAlert)
 	g.POST("/alerts/ackAll", a.ackAllAlerts)
+	g.POST("/alerts/trust/:id", a.trustAlert)
 	g.GET("/config", a.getConfig)
 	g.POST("/config", a.saveConfig)
 	g.POST("/ingest", a.ingest)
@@ -199,4 +200,18 @@ func (a *AuditController) previewDigest(c *gin.Context) {
 
 func (a *AuditController) sendDigest(c *gin.Context) {
 	jsonMsg(c, I18nWeb(c, "pages.audit.toasts.sendDigest"), a.auditService.SendDigest(c.Request.Context(), a.digestDate(c)))
+}
+
+func (a *AuditController) trustAlert(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	var req service.AuditTrustRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	jsonMsg(c, I18nWeb(c, "pages.audit.toasts.trust"), a.auditService.TrustAlert(uint(id), req.Scope))
 }

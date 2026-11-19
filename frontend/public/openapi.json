@@ -1000,6 +1000,18 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "trustedClients": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "trustedTargets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -1009,7 +1021,9 @@
           "maxDailySubnets",
           "retentionDays",
           "sensitiveDomains",
-          "sensitiveKeywords"
+          "sensitiveKeywords",
+          "trustedClients",
+          "trustedTargets"
         ],
         "type": "object"
       },
@@ -1568,6 +1582,19 @@
         },
         "required": [
           "text"
+        ],
+        "type": "object"
+      },
+      "AuditTrustRequest": {
+        "description": "AuditTrustRequest picks how an alert is trusted: target, host or client.",
+        "properties": {
+          "scope": {
+            "example": "host",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope"
         ],
         "type": "object"
       },
@@ -15525,6 +15552,57 @@
         }
       }
     },
+    "/panel/api/audit/alerts/trust/{id}": {
+      "post": {
+        "tags": [
+          "Access Audit"
+        ],
+        "summary": "Turn an alert into a trust rule (exact target, whole host, or client exempt from sharing checks) and re-evaluate history.",
+        "operationId": "post_panel_api_audit_alerts_trust_id",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Alert ID.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditTrustRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/panel/api/audit/config": {
       "get": {
         "tags": [
@@ -15565,6 +15643,12 @@
                       ""
                     ],
                     "sensitiveKeywords": [
+                      ""
+                    ],
+                    "trustedClients": [
+                      ""
+                    ],
+                    "trustedTargets": [
                       ""
                     ]
                   }

@@ -62,6 +62,8 @@ type AuditConfig struct {
 	SensitiveDomains     []string `json:"sensitiveDomains"`
 	SensitiveKeywords    []string `json:"sensitiveKeywords"`
 	IgnoreNoiseDomains   []string `json:"ignoreNoiseDomains"`
+	TrustedTargets       []string `json:"trustedTargets"`
+	TrustedClients       []string `json:"trustedClients"`
 }
 
 // AuditConfigUpdateRequest carries config edits and an optional historical re-scan flag.
@@ -214,6 +216,8 @@ func DefaultAuditConfig() AuditConfig {
 		SensitiveDomains:     []string{},
 		SensitiveKeywords:    []string{},
 		IgnoreNoiseDomains:   []string{},
+		TrustedTargets:       []string{},
+		TrustedClients:       []string{},
 	}
 }
 
@@ -233,6 +237,8 @@ func normalizeAuditConfig(cfg AuditConfig) AuditConfig {
 	cfg.SensitiveDomains = cleanRuleList(cfg.SensitiveDomains)
 	cfg.SensitiveKeywords = cleanRuleList(cfg.SensitiveKeywords)
 	cfg.IgnoreNoiseDomains = cleanRuleList(cfg.IgnoreNoiseDomains)
+	cfg.TrustedTargets = cleanRuleList(cfg.TrustedTargets)
+	cfg.TrustedClients = cleanClientList(cfg.TrustedClients)
 	return cfg
 }
 
@@ -502,7 +508,17 @@ func domainMatchesSuffix(domain, rule string) bool {
 }
 
 func classifyAuditTarget(domain, rootDomain string, port int, cfg AuditConfig) (category string, riskLevel int, ruleHit string) {
-	// 1. User-configured sensitive domains & keywords take highest priority.
+	if !isTrustedTarget(cfg, domain, port) {
+		if category, riskLevel, ruleHit = riskOfAuditTarget(domain, rootDomain, port, cfg); riskLevel > AuditRiskNone {
+			return category, riskLevel, ruleHit
+		}
+	}
+	return categoryOfAuditTarget(domain, rootDomain, cfg), AuditRiskNone, ""
+}
+
+// riskOfAuditTarget applies the admin's sensitive rules, then the built-in risk
+// signals; trusted targets never reach it.
+func riskOfAuditTarget(domain, rootDomain string, port int, cfg AuditConfig) (category string, riskLevel int, ruleHit string) {
 	for _, rule := range cfg.SensitiveDomains {
 		if domainMatchesSuffix(domain, rule) || domainMatchesSuffix(rootDomain, rule) {
 			return AuditCatSensitive, AuditRiskHigh, "domain:" + rule
@@ -514,7 +530,7 @@ func classifyAuditTarget(domain, rootDomain string, port int, cfg AuditConfig) (
 		}
 	}
 
-	// 2. Built-in high-risk signals (darknet gateways, mining/BT markers, abuse ports).
+	// Built-in high-risk signals: darknet gateways, mining/BT markers, abuse ports.
 	if strings.HasSuffix(domain, ".onion") || strings.Contains(domain, "tor2web") {
 		return AuditCatRisk, AuditRiskHigh, "builtin:darknet"
 	}
@@ -531,33 +547,35 @@ func classifyAuditTarget(domain, rootDomain string, port int, cfg AuditConfig) (
 		}
 		return AuditCatRisk, lvl, tag
 	}
+	return "", AuditRiskNone, ""
+}
 
-	// 3. Noise suppression (custom ignore list + built-in telemetry/CDN roots).
+// categoryOfAuditTarget folds noise (custom ignore list, built-in telemetry and
+// CDN roots) and otherwise picks a readable traffic category.
+func categoryOfAuditTarget(domain, rootDomain string, cfg AuditConfig) string {
 	for _, rule := range cfg.IgnoreNoiseDomains {
 		if domainMatchesSuffix(domain, rule) || domainMatchesSuffix(rootDomain, rule) {
-			return AuditCatNoise, AuditRiskNone, ""
+			return AuditCatNoise
 		}
 	}
 	if _, ok := builtInNoiseRoots[domain]; ok {
-		return AuditCatNoise, AuditRiskNone, ""
+		return AuditCatNoise
 	}
 	if _, ok := builtInNoiseRoots[rootDomain]; ok {
-		return AuditCatNoise, AuditRiskNone, ""
+		return AuditCatNoise
 	}
 	for _, sub := range builtInNoiseSubstrings {
 		if strings.Contains(domain, sub) {
-			return AuditCatNoise, AuditRiskNone, ""
+			return AuditCatNoise
 		}
 	}
-
-	// 4. General traffic categories for readable daily summaries.
 	if cat, ok := builtInCategoryRoots[domain]; ok {
-		return cat, AuditRiskNone, ""
+		return cat
 	}
 	if cat, ok := builtInCategoryRoots[rootDomain]; ok {
-		return cat, AuditRiskNone, ""
+		return cat
 	}
-	return AuditCatOther, AuditRiskNone, ""
+	return AuditCatOther
 }
 
 // IngestNow incrementally parses the configured Xray access log into audit tables.
@@ -980,7 +998,7 @@ func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig)
 	if err := tx.Where("date = ? AND email = ?", dateStr, email).Find(&ipRows).Error; err != nil {
 		return nil, err
 	}
-	if len(ipRows) == 0 {
+	if len(ipRows) == 0 || isTrustedClient(cfg, email) {
 		return nil, nil
 	}
 
@@ -1035,7 +1053,7 @@ func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig)
 }
 
 // ReevaluateRules re-classifies stored daily rows against the current AuditConfig, refreshes
-// alerts, and drops unacknowledged alerts the current rules no longer produce.
+// alerts, and drops every alert (acknowledged or not) the current rules no longer produce.
 func (s *AccessAuditService) ReevaluateRules() error {
 	db := database.GetDB()
 	if db == nil {
@@ -1070,7 +1088,7 @@ func (s *AccessAuditService) ReevaluateRules() error {
 		if err != nil {
 			return err
 		}
-		return deleteUnackedAlertsExcept(tx, produced)
+		return deleteAlertsExcept(tx, produced)
 	})
 }
 

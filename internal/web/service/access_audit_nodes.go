@@ -344,13 +344,13 @@ func allAuditPairs(tx *gorm.DB) (map[auditPair]struct{}, error) {
 	return pairs, nil
 }
 
-func deleteUnackedAlertsExcept(tx *gorm.DB, keep map[auditAlertKey]struct{}) error {
-	var unacked []model.AccessAuditAlert
-	if err := tx.Where("acked = ?", false).Find(&unacked).Error; err != nil {
+func deleteAlertsExcept(tx *gorm.DB, keep map[auditAlertKey]struct{}) error {
+	var all []model.AccessAuditAlert
+	if err := tx.Find(&all).Error; err != nil {
 		return err
 	}
 	var stale []uint
-	for _, a := range unacked {
+	for _, a := range all {
 		if _, ok := keep[keyOfAlert(a)]; !ok {
 			stale = append(stale, a.Id)
 		}

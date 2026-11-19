@@ -30,7 +30,23 @@ const SOURCES = [
   },
 ];
 
+const SSH_ALERT = {
+  id: 7,
+  createdAt: 1763540000,
+  date: '2026-11-19',
+  email: 'ops',
+  alertType: 'high_risk_port',
+  severity: 1,
+  ruleName: 'port:ssh',
+  target: 'box.example.net:22',
+  srcIp: '198.51.100.1',
+  hitCount: 3,
+  detail: 'Matched rule port:ssh on box.example.net:22',
+  acked: false,
+};
+
 function stubAuditBackend(sent: SentRequest[], summaryUrls: string[] = []) {
+  let trusted: string[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith('/csrf-token')) return jsonResponse('test-csrf-token');
@@ -40,6 +56,7 @@ function stubAuditBackend(sent: SentRequest[], summaryUrls: string[] = []) {
         contentType: new Headers(init.headers).get('Content-Type'),
         body: String(init.body),
       });
+      if (url === `/panel/api/audit/alerts/trust/${SSH_ALERT.id}`) trusted = ['box.example.net'];
       return jsonResponse(null);
     }
     if (url.startsWith('/panel/api/audit/config')) {
@@ -51,7 +68,12 @@ function stubAuditBackend(sent: SentRequest[], summaryUrls: string[] = []) {
         sensitiveDomains: [],
         sensitiveKeywords: [],
         ignoreNoiseDomains: [],
+        trustedTargets: trusted,
+        trustedClients: [],
       });
+    }
+    if (url.startsWith('/panel/api/audit/alerts')) {
+      return jsonResponse(trusted.length ? [] : [SSH_ALERT]);
     }
     if (url.startsWith('/panel/api/audit/telegram')) {
       return jsonResponse({ enabled: true, chatId: '4242', hasBotToken: true });
@@ -124,6 +146,8 @@ describe('AuditPage', () => {
         sensitiveDomains: ['restricted.example', 'news.blocked.test'],
         sensitiveKeywords: [],
         ignoreNoiseDomains: [],
+        trustedTargets: [],
+        trustedClients: [],
       },
       reevaluate: true,
     });
@@ -188,5 +212,28 @@ describe('AuditPage', () => {
     expect(
       new URL(summaryUrls[summaryUrls.length - 1], 'http://panel').searchParams.get('nodeId'),
     ).toBe('3');
+  });
+
+  // A one-click trust must reach the handler as JSON and show up in the rules
+  // the admin edits, or the next "Save rules" would silently drop it again.
+  it('trusts a host from an alert row and reloads the trusted targets', async () => {
+    const sent: SentRequest[] = [];
+    stubAuditBackend(sent);
+
+    renderAuditPage();
+    fireEvent.click(await screen.findByRole('tab', { name: /Security Alerts/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Trust/ }));
+    fireEvent.click(await screen.findByText('Trust this host on any port'));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0].url).toBe('/panel/api/audit/alerts/trust/7');
+    expect(sent[0].contentType).toMatch(/^application\/json/);
+    expect(JSON.parse(sent[0].body)).toEqual({ scope: 'host' });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Audit Rules' }));
+    const trustedTargets = await screen.findByLabelText('Trusted targets (one per line)');
+    await waitFor(() =>
+      expect((trustedTargets as HTMLTextAreaElement).value).toBe('box.example.net'),
+    );
   });
 });

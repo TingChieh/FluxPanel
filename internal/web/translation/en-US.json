@@ -2059,6 +2059,12 @@
         "sensitiveKeywordsPlaceholder": "keyword1\nkeyword2",
         "ignoreNoiseDomains": "Extra Noise Domains to Hide (one per line)",
         "ignoreNoiseDomainsPlaceholder": "telemetry.example.com",
+        "trustedTargets": "Trusted targets (one per line)",
+        "trustedTargetsHelp": "Domain suffix, IP or CIDR, optionally with :port. Matching traffic never counts as risky or sensitive.",
+        "trustedTargetsPlaceholder": "myserver.example.com:22\n198.51.100.0/24\nnas.lan:445",
+        "trustedClients": "Trusted clients (one per line)",
+        "trustedClientsHelp": "These clients are never checked for account sharing, e.g. someone who roams between networks.",
+        "trustedClientsPlaceholder": "alice",
         "save": "Save Rules",
         "saveAndReevaluate": "Save & Re-evaluate History"
       },
@@ -2094,6 +2100,12 @@
         "sendNow": "Send yesterday's digest now",
         "previewTitle": "Digest preview {date}"
       },
+      "trust": {
+        "action": "Trust",
+        "target": "Trust only {target}",
+        "host": "Trust this host on any port",
+        "client": "Trust {email} (skip sharing checks)"
+      },
       "telegram": {
         "testMessage": "✅ FluxPanel access-audit Telegram test message"
       },
@@ -2118,7 +2130,8 @@
         "saveTelegram": "Save Telegram settings",
         "testTelegram": "Send Telegram message",
         "saveDigest": "Save digest settings",
-        "sendDigest": "Send digest"
+        "sendDigest": "Send digest",
+        "trust": "Trust alert"
       }
     }
   },

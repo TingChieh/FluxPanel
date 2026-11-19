@@ -2736,6 +2736,14 @@ export const sections: readonly Section[] = [
         summary: 'Acknowledge all currently unacknowledged audit alerts.',
       },
       {
+        method: 'POST',
+        path: '/panel/api/audit/alerts/trust/:id',
+        summary:
+          'Turn an alert into a trust rule (exact target, whole host, or client exempt from sharing checks) and re-evaluate history.',
+        params: [{ name: 'id', in: 'path', type: 'number', desc: 'Alert ID.' }],
+        requestSchema: { $ref: '#/components/schemas/AuditTrustRequest' },
+      },
+      {
         method: 'GET',
         path: '/panel/api/audit/config',
         summary: 'Return current access-audit thresholds and custom domain/keyword rules.',

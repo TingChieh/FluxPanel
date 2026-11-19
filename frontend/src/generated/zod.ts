@@ -261,6 +261,8 @@ export const AuditConfigSchema = z.object({
   retentionDays: z.number().int(),
   sensitiveDomains: z.array(z.string()),
   sensitiveKeywords: z.array(z.string()),
+  trustedClients: z.array(z.string()),
+  trustedTargets: z.array(z.string()),
 });
 export type AuditConfig = z.infer<typeof AuditConfigSchema>;
 
@@ -406,6 +408,11 @@ export const AuditTelegramRelayRequestSchema = z.object({
   text: z.string(),
 });
 export type AuditTelegramRelayRequest = z.infer<typeof AuditTelegramRelayRequestSchema>;
+
+export const AuditTrustRequestSchema = z.object({
+  scope: z.string(),
+});
+export type AuditTrustRequest = z.infer<typeof AuditTrustRequestSchema>;
 
 export const ClientSchema = z.object({
   adTag: z.string().optional(),

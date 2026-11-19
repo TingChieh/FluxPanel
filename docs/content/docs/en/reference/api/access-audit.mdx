@@ -25,6 +25,10 @@ _openapi:
       title: Acknowledge all currently unacknowledged audit alerts.
       url: '#acknowledge-all-currently-unacknowledged-audit-alerts'
     - depth: 2
+      title: Turn an alert into a trust rule (exact target, whole host, or client
+        exempt from sharing checks) and re-evaluate history.
+      url: '#turn-an-alert-into-a-trust-rule-exact-target-whole-host-or-client-exempt-from-sharing-checks-and-re-evaluate-history'
+    - depth: 2
       title: Return current access-audit thresholds and custom domain/keyword rules.
       url: '#return-current-access-audit-thresholds-and-custom-domainkeyword-rules'
     - depth: 2
@@ -80,6 +84,9 @@ _openapi:
         id: acknowledge-a-single-audit-alert-by-id
       - content: Acknowledge all currently unacknowledged audit alerts.
         id: acknowledge-all-currently-unacknowledged-audit-alerts
+      - content: Turn an alert into a trust rule (exact target, whole host, or client
+          exempt from sharing checks) and re-evaluate history.
+        id: turn-an-alert-into-a-trust-rule-exact-target-whole-host-or-client-exempt-from-sharing-checks-and-re-evaluate-history
       - content: Return current access-audit thresholds and custom domain/keyword rules.
         id: return-current-access-audit-thresholds-and-custom-domainkeyword-rules
       - content: Save access-audit config and optionally re-evaluate stored historical
@@ -121,7 +128,7 @@ export default function Layout(props) {
   return (
     <>
       {props.children}
-      <OpenAPIPage document="./public/openapi.json" webhooks={[]} operations={[{"path":"/panel/api/audit/summary","method":"get"},{"path":"/panel/api/audit/client/{email}","method":"get"},{"path":"/panel/api/audit/alerts","method":"get"},{"path":"/panel/api/audit/alerts/ack/{id}","method":"post"},{"path":"/panel/api/audit/alerts/ackAll","method":"post"},{"path":"/panel/api/audit/config","method":"get"},{"path":"/panel/api/audit/config","method":"post"},{"path":"/panel/api/audit/ingest","method":"post"},{"path":"/panel/api/audit/export","method":"get"},{"path":"/panel/api/audit/telegram","method":"get"},{"path":"/panel/api/audit/telegram","method":"post"},{"path":"/panel/api/audit/telegram/test","method":"post"},{"path":"/panel/api/audit/telegram/relay","method":"post"},{"path":"/panel/api/audit/digest","method":"get"},{"path":"/panel/api/audit/digest","method":"post"},{"path":"/panel/api/audit/digest/preview","method":"get"},{"path":"/panel/api/audit/digest/send","method":"post"}]} showTitle />
+      <OpenAPIPage document="./public/openapi.json" webhooks={[]} operations={[{"path":"/panel/api/audit/summary","method":"get"},{"path":"/panel/api/audit/client/{email}","method":"get"},{"path":"/panel/api/audit/alerts","method":"get"},{"path":"/panel/api/audit/alerts/ack/{id}","method":"post"},{"path":"/panel/api/audit/alerts/ackAll","method":"post"},{"path":"/panel/api/audit/alerts/trust/{id}","method":"post"},{"path":"/panel/api/audit/config","method":"get"},{"path":"/panel/api/audit/config","method":"post"},{"path":"/panel/api/audit/ingest","method":"post"},{"path":"/panel/api/audit/export","method":"get"},{"path":"/panel/api/audit/telegram","method":"get"},{"path":"/panel/api/audit/telegram","method":"post"},{"path":"/panel/api/audit/telegram/test","method":"post"},{"path":"/panel/api/audit/telegram/relay","method":"post"},{"path":"/panel/api/audit/digest","method":"get"},{"path":"/panel/api/audit/digest","method":"post"},{"path":"/panel/api/audit/digest/preview","method":"get"},{"path":"/panel/api/audit/digest/send","method":"post"}]} showTitle />
     </>
   );
 }

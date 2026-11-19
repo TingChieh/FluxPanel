@@ -2059,6 +2059,12 @@
         "sensitiveKeywordsPlaceholder": "keyword1\nkeyword2",
         "ignoreNoiseDomains": "额外折叠噪声域名（每行一个）",
         "ignoreNoiseDomainsPlaceholder": "telemetry.example.com",
+        "trustedTargets": "信任的目标（每行一个）",
+        "trustedTargetsHelp": "域名后缀、IP 或 CIDR，可带 :端口。命中的访问不再算作风险或敏感内容。",
+        "trustedTargetsPlaceholder": "myserver.example.com:22\n198.51.100.0/24\nnas.lan:445",
+        "trustedClients": "信任的用户（每行一个）",
+        "trustedClientsHelp": "这些用户不做账号共享检测，例如经常在多个网络之间切换的人。",
+        "trustedClientsPlaceholder": "alice",
         "save": "保存规则",
         "saveAndReevaluate": "保存并重算历史数据"
       },
@@ -2094,6 +2100,12 @@
         "sendNow": "立即发送昨日简报",
         "previewTitle": "简报预览 {date}"
       },
+      "trust": {
+        "action": "信任",
+        "target": "只信任 {target}",
+        "host": "信任此主机（任意端口）",
+        "client": "信任 {email}（不检测账号共享）"
+      },
       "telegram": {
         "testMessage": "✅ FluxPanel 访问审计 Telegram 测试消息"
       },
@@ -2118,7 +2130,8 @@
         "saveTelegram": "保存 Telegram 设置",
         "testTelegram": "发送 Telegram 消息",
         "saveDigest": "保存简报设置",
-        "sendDigest": "发送简报"
+        "sendDigest": "发送简报",
+        "trust": "信任告警"
       }
     }
   },

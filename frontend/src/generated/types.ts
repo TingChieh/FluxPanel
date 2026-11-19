@@ -236,6 +236,8 @@ export interface AuditConfig {
   retentionDays: number;
   sensitiveDomains: string[];
   sensitiveKeywords: string[];
+  trustedClients: string[];
+  trustedTargets: string[];
 }
 
 export interface AuditConfigUpdateRequest {
@@ -364,6 +366,10 @@ export interface AuditTelegramConfigUpdate {
 
 export interface AuditTelegramRelayRequest {
   text: string;
+}
+
+export interface AuditTrustRequest {
+  scope: string;
 }
 
 export interface Client {

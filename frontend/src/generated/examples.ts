@@ -286,6 +286,12 @@ export const EXAMPLES: Record<string, unknown> = {
     ],
     "sensitiveKeywords": [
       ""
+    ],
+    "trustedClients": [
+      ""
+    ],
+    "trustedTargets": [
+      ""
     ]
   },
   "AuditConfigUpdateRequest": {
@@ -301,6 +307,12 @@ export const EXAMPLES: Record<string, unknown> = {
         ""
       ],
       "sensitiveKeywords": [
+        ""
+      ],
+      "trustedClients": [
+        ""
+      ],
+      "trustedTargets": [
         ""
       ]
     },
@@ -482,6 +494,9 @@ export const EXAMPLES: Record<string, unknown> = {
   },
   "AuditTelegramRelayRequest": {
     "text": "Daily access audit"
+  },
+  "AuditTrustRequest": {
+    "scope": "host"
   },
   "Client": {
     "adTag": "0123456789abcdef0123456789abcdef",

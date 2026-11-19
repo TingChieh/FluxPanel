@@ -135,6 +135,7 @@ func run(root, outDir string) error {
 				"AuditDigestConfig",
 				"AuditDigestConfigUpdate",
 				"AuditDigestPreview",
+				"AuditTrustRequest",
 			),
 		},
 		{

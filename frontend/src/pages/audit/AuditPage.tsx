@@ -8,6 +8,7 @@ import {
   Col,
   ConfigProvider,
   Drawer,
+  Dropdown,
   Form,
   Input,
   InputNumber,
@@ -200,10 +201,14 @@ export default function AuditPage() {
     sensitiveDomains: [],
     sensitiveKeywords: [],
     ignoreNoiseDomains: [],
+    trustedTargets: [],
+    trustedClients: [],
   });
   const [domainsText, setDomainsText] = useState('');
   const [keywordsText, setKeywordsText] = useState('');
   const [noiseText, setNoiseText] = useState('');
+  const [trustedTargetsText, setTrustedTargetsText] = useState('');
+  const [trustedClientsText, setTrustedClientsText] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
 
   // The server buckets days in the panel's timeLocation, so "today" is whatever date it reports.
@@ -277,19 +282,24 @@ export default function AuditPage() {
     };
   }, [fetchData, acceptSummary]);
 
+  const applyConfig = useCallback((next: AuditConfig) => {
+    setConfig(next);
+    setDomainsText((next.sensitiveDomains || []).join('\n'));
+    setKeywordsText((next.sensitiveKeywords || []).join('\n'));
+    setNoiseText((next.ignoreNoiseDomains || []).join('\n'));
+    setTrustedTargetsText((next.trustedTargets || []).join('\n'));
+    setTrustedClientsText((next.trustedClients || []).join('\n'));
+  }, []);
+
   useEffect(() => {
     let active = true;
     void HttpUtil.get<AuditConfig>('/panel/api/audit/config').then((res) => {
-      if (!active || !res?.success || !res.obj) return;
-      setConfig(res.obj);
-      setDomainsText((res.obj.sensitiveDomains || []).join('\n'));
-      setKeywordsText((res.obj.sensitiveKeywords || []).join('\n'));
-      setNoiseText((res.obj.ignoreNoiseDomains || []).join('\n'));
+      if (active && res?.success && res.obj) applyConfig(res.obj);
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [applyConfig]);
 
   useEffect(() => {
     if (!selectedEmail) return;
@@ -337,6 +347,19 @@ export default function AuditPage() {
     }
   };
 
+  const handleTrustAlert = async (id: number, scope: 'target' | 'host' | 'client') => {
+    const res = await HttpUtil.post(
+      `/panel/api/audit/alerts/trust/${id}`,
+      { scope },
+      { headers: { 'Content-Type': 'application/json' } },
+    );
+    if (!res?.success) return;
+    const cfgRes = await HttpUtil.get<AuditConfig>('/panel/api/audit/config');
+    if (cfgRes?.success && cfgRes.obj) applyConfig(cfgRes.obj);
+    await refreshData();
+    if (selectedEmail) await refreshDetail(selectedEmail, hideNoise);
+  };
+
   const handleAckAll = async () => {
     const res = await HttpUtil.post('/panel/api/audit/alerts/ackAll');
     if (res?.success) {
@@ -352,6 +375,8 @@ export default function AuditPage() {
         sensitiveDomains: splitLines(domainsText),
         sensitiveKeywords: splitLines(keywordsText),
         ignoreNoiseDomains: splitLines(noiseText),
+        trustedTargets: splitLines(trustedTargetsText),
+        trustedClients: splitLines(trustedClientsText),
       };
       const res = await HttpUtil.post(
         '/panel/api/audit/config',
@@ -549,19 +574,43 @@ export default function AuditPage() {
     {
       title: t('pages.audit.columns.actions'),
       key: 'ack',
-      width: 110,
-      render: (_, row) =>
-        row.acked ? (
-          <Tag>{t('pages.audit.columns.acked')}</Tag>
-        ) : (
-          <Button
-            size="small"
-            icon={<CheckOutlined aria-hidden />}
-            onClick={() => void handleAckAlert(row.id)}
-          >
-            {t('pages.audit.columns.ack')}
-          </Button>
-        ),
+      width: 210,
+      render: (_, row) => {
+        const trustItems =
+          row.alertType === 'account_sharing'
+            ? [{ key: 'client', label: t('pages.audit.trust.client', { email: row.email }) }]
+            : [
+                { key: 'target', label: t('pages.audit.trust.target', { target: row.target }) },
+                { key: 'host', label: t('pages.audit.trust.host') },
+              ];
+        return (
+          <Space size={4} wrap>
+            {row.acked ? (
+              <Tag>{t('pages.audit.columns.acked')}</Tag>
+            ) : (
+              <Button
+                size="small"
+                icon={<CheckOutlined aria-hidden />}
+                onClick={() => void handleAckAlert(row.id)}
+              >
+                {t('pages.audit.columns.ack')}
+              </Button>
+            )}
+            <Dropdown
+              trigger={['click']}
+              menu={{
+                items: trustItems,
+                onClick: ({ key }) =>
+                  void handleTrustAlert(row.id, key as 'target' | 'host' | 'client'),
+              }}
+            >
+              <Button size="small" icon={<SafetyOutlined aria-hidden />}>
+                {t('pages.audit.trust.action')}
+              </Button>
+            </Dropdown>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -944,6 +993,32 @@ export default function AuditPage() {
                             value={noiseText}
                             onChange={(e) => setNoiseText(e.target.value)}
                             placeholder={t('pages.audit.rules.ignoreNoiseDomainsPlaceholder')}
+                          />
+                        </Form.Item>
+                        <Form.Item
+                          htmlFor={`${uid}-trusted-targets`}
+                          label={t('pages.audit.rules.trustedTargets')}
+                          help={t('pages.audit.rules.trustedTargetsHelp')}
+                        >
+                          <Input.TextArea
+                            id={`${uid}-trusted-targets`}
+                            rows={4}
+                            value={trustedTargetsText}
+                            onChange={(e) => setTrustedTargetsText(e.target.value)}
+                            placeholder={t('pages.audit.rules.trustedTargetsPlaceholder')}
+                          />
+                        </Form.Item>
+                        <Form.Item
+                          htmlFor={`${uid}-trusted-clients`}
+                          label={t('pages.audit.rules.trustedClients')}
+                          help={t('pages.audit.rules.trustedClientsHelp')}
+                        >
+                          <Input.TextArea
+                            id={`${uid}-trusted-clients`}
+                            rows={3}
+                            value={trustedClientsText}
+                            onChange={(e) => setTrustedClientsText(e.target.value)}
+                            placeholder={t('pages.audit.rules.trustedClientsPlaceholder')}
                           />
                         </Form.Item>
                         <Space wrap>
