@@ -12,7 +12,6 @@ import (
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/dbtest"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
-	"github.com/TingChieh/FluxPanel/internal/testpg"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -22,11 +21,6 @@ import (
 // for a single test, mirroring the harness used by the other service tests.
 func setupClientIpTestDB(t *testing.T) {
 	t.Helper()
-	cleanup, err := testpg.IsolatePackage("client_ip_sync")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(cleanup)
 	dbDir := t.TempDir()
 	t.Setenv("XUI_DB_FOLDER", dbDir)
 	dbtest.InitDB(t, filepath.Join(dbDir, "x-ui.db"))

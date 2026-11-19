@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -18,34 +17,8 @@ import (
 
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
-	"github.com/TingChieh/FluxPanel/internal/testpg"
 	"github.com/TingChieh/FluxPanel/internal/web/service"
 )
-
-func TestSubHosts_Postgres(t *testing.T) {
-	if os.Getenv("XUI_DB_TYPE") != "postgres" || os.Getenv("XUI_DB_DSN") == "" {
-		t.Skip("requires a disposable PostgreSQL database")
-	}
-	for _, scenario := range []struct {
-		name string
-		run  func(*testing.T)
-	}{
-		{"global", TestSub_GlobalHostOrder},
-		{"filters", TestSub_HostOrderFiltersAndFallbacks},
-		{"base64", TestSub_HostOrderBase64AndInfoNode},
-		{"balancer", TestSub_HostOrderBalancerSlots},
-		{"deleted binding", TestSub_ClientHostRule_DeletedHostClosesOnlyItsInbound},
-	} {
-		t.Run(scenario.name, func(t *testing.T) {
-			cleanup, err := testpg.IsolatePackage("host_order")
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Cleanup(cleanup)
-			scenario.run(t)
-		})
-	}
-}
 
 func TestSub_HostOrderBalancerSlots(t *testing.T) {
 	seedSubDB(t)

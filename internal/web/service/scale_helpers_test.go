@@ -9,7 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/TingChieh/FluxPanel/internal/config"
+	"github.com/google/uuid"
+
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/dbtest"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
@@ -20,19 +21,24 @@ import (
 	"gorm.io/gorm"
 )
 
-// setupScaleDB opens package-isolated PostgreSQL or opt-in SQLite (XUI_SCALE_TEST); otherwise it skips.
+func makeScaleClients(n int) []model.Client {
+	out := make([]model.Client, n)
+	for i := range n {
+		out[i] = model.Client{
+			ID:     uuid.NewString(),
+			Email:  fmt.Sprintf("user-%07d@scale", i),
+			SubID:  fmt.Sprintf("sub-%07d", i),
+			Enable: true,
+		}
+	}
+	return out
+}
+
+// setupScaleDB opens opt-in SQLite (XUI_SCALE_TEST); otherwise it skips.
 // XUI_SCALE_DB_PATH preserves SQLite for manual smoke runs instead of temporary-file cleanup.
 func setupScaleDB(t testing.TB) {
 	t.Helper()
 	xuilogger.InitLogger(logging.ERROR)
-
-	if os.Getenv("XUI_DB_TYPE") == "postgres" && strings.TrimSpace(os.Getenv("XUI_DB_DSN")) != "" {
-		if err := database.InitDB(""); err != nil {
-			t.Fatalf("InitDB(postgres): %v", err)
-		}
-		t.Cleanup(func() { _ = database.CloseDB() })
-		return
-	}
 
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("XUI_SCALE_TEST"))) {
 	case "1", "true", "yes":
@@ -44,7 +50,7 @@ func setupScaleDB(t testing.TB) {
 		return
 	}
 
-	t.Skip("set XUI_SCALE_TEST=1 (sqlite) or XUI_DB_TYPE=postgres + XUI_DB_DSN (postgres) to run the scale benchmark")
+	t.Skip("set XUI_SCALE_TEST=1 to run the scale benchmark")
 }
 
 // scaleSizes returns the default size ladder unless XUI_SCALE_SIZES overrides
@@ -183,17 +189,8 @@ func sampleEmails(emails []string, k int) []string {
 	return out
 }
 
-// resetScaleTables uses PostgreSQL TRUNCATE ... CASCADE with identity restart.
-// SQLite deletes table by table, then clears its autoincrement counters.
 func resetScaleTables(t testing.TB, db *gorm.DB, tables ...string) {
 	t.Helper()
-	if config.GetDBKind() == "postgres" {
-		stmt := "TRUNCATE TABLE " + strings.Join(tables, ", ") + " RESTART IDENTITY CASCADE"
-		if err := db.Exec(stmt).Error; err != nil {
-			t.Fatalf("truncate: %v", err)
-		}
-		return
-	}
 	for _, tbl := range tables {
 		if err := db.Exec("DELETE FROM " + tbl).Error; err != nil {
 			t.Fatalf("delete %s: %v", tbl, err)

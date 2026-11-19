@@ -177,22 +177,6 @@ func GetUpdateStatusFilePath() string {
 	return filepath.Join(GetDBFolderPath(), "update-status.json")
 }
 
-// GetDBKind returns the configured database backend: "sqlite" (default) or "postgres".
-func GetDBKind() string {
-	v := strings.ToLower(strings.TrimSpace(os.Getenv("XUI_DB_TYPE")))
-	switch v {
-	case "postgres", "postgresql", "pg":
-		return "postgres"
-	default:
-		return "sqlite"
-	}
-}
-
-// GetDBDSN returns the PostgreSQL DSN from XUI_DB_DSN. Empty for sqlite.
-func GetDBDSN() string {
-	return strings.TrimSpace(os.Getenv("XUI_DB_DSN"))
-}
-
 // GetNodeTokenEncryptionMode returns off, migration, or required. Explicit
 // policy prevents a missing key from silently downgrading encrypted storage.
 func GetNodeTokenEncryptionMode() string {

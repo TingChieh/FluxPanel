@@ -25,15 +25,10 @@ export default function BackupModal({
   onBusy,
 }: BackupModalProps) {
   const { t } = useTranslation();
-  const isPostgres = window.X_UI_DB_TYPE === 'postgres';
   const [keepHostSettings, setKeepHostSettings] = useState(true);
 
   function exportDb() {
     window.location.href = (window.X_UI_BASE_PATH || '') + 'panel/api/server/getDb';
-  }
-
-  function exportMigration() {
-    window.location.href = (window.X_UI_BASE_PATH || '') + 'panel/api/server/getMigration';
   }
 
   function importDb() {
@@ -69,20 +64,11 @@ export default function BackupModal({
 
   return (
     <Modal open={open} title={t('pages.index.backupTitle')} footer={null} onCancel={onClose}>
-      {isPostgres && (
-        <div className="backup-description" style={{ marginBottom: 16 }}>
-          {t('pages.index.backupPostgresNote')}
-        </div>
-      )}
       <div className="backup-list">
         <div className="backup-item">
           <div className="backup-meta">
             <div className="backup-title">{t('pages.index.exportDatabase')}</div>
-            <div className="backup-description">
-              {isPostgres
-                ? t('pages.index.exportDatabasePgDesc')
-                : t('pages.index.exportDatabaseDesc')}
-            </div>
+            <div className="backup-description">{t('pages.index.exportDatabaseDesc')}</div>
           </div>
           <Button
             type="primary"
@@ -92,29 +78,10 @@ export default function BackupModal({
           />
         </div>
 
-        {isPostgres && (
-          <div className="backup-item">
-            <div className="backup-meta">
-              <div className="backup-title">{t('pages.index.migrationDownload')}</div>
-              <div className="backup-description">{t('pages.index.migrationDownloadPgDesc')}</div>
-            </div>
-            <Button
-              type="primary"
-              aria-label={t('pages.index.migrationDownload')}
-              onClick={exportMigration}
-              icon={<DownloadOutlined aria-hidden />}
-            />
-          </div>
-        )}
-
         <div className="backup-item">
           <div className="backup-meta">
             <div className="backup-title">{t('pages.index.importDatabase')}</div>
-            <div className="backup-description">
-              {isPostgres
-                ? t('pages.index.importDatabasePgDesc')
-                : t('pages.index.importDatabaseDesc')}
-            </div>
+            <div className="backup-description">{t('pages.index.importDatabaseDesc')}</div>
           </div>
           <Button
             type="primary"

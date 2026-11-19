@@ -91,11 +91,6 @@ func TestVlessManagedFallbackConflictDoesNotChangeRulesOrInbound(t *testing.T) {
 	testVlessManagedFallbackConflict(t)
 }
 
-func TestVlessManagedFallbackConflictPostgres(t *testing.T) {
-	durablePostgresDB(t)
-	testVlessManagedFallbackConflict(t)
-}
-
 func testVlessManagedFallbackConflict(t *testing.T) {
 	t.Helper()
 	useTestRuntimeManager(t).SetLocalRuntimeOverride(&fakeNodeRuntime{})

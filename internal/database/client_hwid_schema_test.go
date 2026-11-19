@@ -1,16 +1,12 @@
 package database
 
 import (
-	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 func assertClientHwidSchema(t *testing.T, db *gorm.DB) {
@@ -39,24 +35,4 @@ func TestClientHwidSchemaSQLite(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = CloseDB() })
 	assertClientHwidSchema(t, GetDB())
-}
-
-func TestClientHwidSchemaPostgres(t *testing.T) {
-	dsn := strings.TrimSpace(os.Getenv("XUI_TEST_PG_DSN"))
-	if dsn == "" {
-		t.Skip("set XUI_TEST_PG_DSN to a reachable Postgres to run this test")
-	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Discard})
-	if err != nil {
-		t.Fatalf("open postgres: %v", err)
-	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		t.Fatalf("postgres db handle: %v", err)
-	}
-	t.Cleanup(func() { _ = sqlDB.Close() })
-	if err := db.AutoMigrate(&model.ClientRecord{}, &model.ClientHwid{}); err != nil {
-		t.Fatalf("automigrate postgres: %v", err)
-	}
-	assertClientHwidSchema(t, db)
 }

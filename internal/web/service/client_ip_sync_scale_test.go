@@ -10,7 +10,6 @@ import (
 
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
-	"github.com/TingChieh/FluxPanel/internal/testpg"
 )
 
 type clientIpPGStats struct {
@@ -87,11 +86,6 @@ func logClientIpPGContext(t *testing.T) {
 func TestClientIpSyncScale(t *testing.T) {
 	for _, n := range scaleSizes(t, 1000, 10000, 20000) {
 		t.Run(fmt.Sprintf("N=%d", n), func(t *testing.T) {
-			cleanup, err := testpg.IsolatePackage("client_ip_sync_scale")
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Cleanup(cleanup)
 			setupScaleDB(t)
 			db := database.GetDB()
 			resetScaleTables(t, db, "inbound_client_ips", "node_client_ips")

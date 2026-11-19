@@ -136,6 +136,32 @@ func RestoreSQLite(dumpPath, dstPath string) error {
 	return sqlDB.Close()
 }
 
+// PrepareSQLiteForMigration verifies required panel tables exist and upgrades
+// the uploaded SQLite file's schema before replacing the active database.
+func PrepareSQLiteForMigration(dbPath string) error {
+	gdb, err := gorm.Open(sqlite.Open(dbPath+"?_busy_timeout=10000"), &gorm.Config{Logger: logger.Discard})
+	if err != nil {
+		return err
+	}
+	sqlDB, err := gdb.DB()
+	if err != nil {
+		return err
+	}
+	defer sqlDB.Close()
+
+	for _, table := range []string{"users", "settings", "inbounds"} {
+		if !sqliteTableExists(sqlDB, table) {
+			return fmt.Errorf("not a 3x-ui panel database: required table %q is missing", table)
+		}
+	}
+	for _, m := range allModels() {
+		if err := gdb.AutoMigrate(m); err != nil && !isIgnorableDuplicateColumnErr(gdb, err, m) {
+			return fmt.Errorf("upgrade panel schema for %T: %w", m, err)
+		}
+	}
+	return nil
+}
+
 // replayDump runs the script on one connection that cannot open a second database
 // file: ATTACH and VACUUM INTO both attach, and a dump only rebuilds its own tables.
 func replayDump(sqlDB *sql.DB, script string) error {

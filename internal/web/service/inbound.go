@@ -1392,15 +1392,13 @@ func (s *InboundService) delInbound(id int) (bool, func(), error) {
 			needRestart = true
 		}
 	}
-	if !database.IsPostgres() {
-		var count int64
-		if err := db.Model(&model.Inbound{}).Count(&count).Error; err != nil {
+	var count int64
+	if err := db.Model(&model.Inbound{}).Count(&count).Error; err != nil {
+		return needRestart, nodePush, err
+	}
+	if count == 0 {
+		if err := db.Exec("DELETE FROM sqlite_sequence WHERE name = ?", "inbounds").Error; err != nil {
 			return needRestart, nodePush, err
-		}
-		if count == 0 {
-			if err := db.Exec("DELETE FROM sqlite_sequence WHERE name = ?", "inbounds").Error; err != nil {
-				return needRestart, nodePush, err
-			}
 		}
 	}
 	return needRestart, nodePush, nil

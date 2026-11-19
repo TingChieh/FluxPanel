@@ -67,7 +67,7 @@ func globalTrafficRow(t *testing.T, db *gorm.DB, guid, email string) model.Clien
 }
 
 func TestGlobalTrafficHeartbeatBounds(t *testing.T) {
-	db := initGlobalHeartbeatDB(t)
+	db := initTrafficTestDB(t)
 	clock := globalTrafficClock(t, db, true)
 	seedClientRow(t, "bounds", 1, 10, 20, 0)
 	writes := countGlobalTrafficWrites(t, db)
@@ -107,7 +107,7 @@ func TestGlobalTrafficHeartbeatBounds(t *testing.T) {
 }
 
 func TestGlobalTrafficHeartbeatNullableAndBatch(t *testing.T) {
-	db := initGlobalHeartbeatDB(t)
+	db := initTrafficTestDB(t)
 	clock := globalTrafficClock(t, db, true)
 	var payload []*xray.ClientTraffic
 	for i := range 405 {
@@ -149,7 +149,7 @@ func TestGlobalTrafficHeartbeatNullableAndBatch(t *testing.T) {
 }
 
 func TestGlobalTrafficHeartbeatLongIdleAndRecovery(t *testing.T) {
-	db := initGlobalHeartbeatDB(t)
+	db := initTrafficTestDB(t)
 	clock := globalTrafficClock(t, db, true)
 	seedClientRow(t, "active", 1, 1, 2, 100)
 	seedClientRow(t, "absent", 1, 1, 2, 100)
@@ -216,7 +216,7 @@ func TestGlobalTrafficHeartbeatLongIdleAndRecovery(t *testing.T) {
 func TestGlobalTrafficHeartbeatConcurrentPairs(t *testing.T) {
 	for _, queued := range []bool{true, false} {
 		t.Run(fmt.Sprintf("queued=%v", queued), func(t *testing.T) {
-			db := initGlobalHeartbeatDB(t)
+			db := initTrafficTestDB(t)
 			globalTrafficClock(t, db, queued)
 			seedClientRow(t, "concurrent", 1, 1, 2, 0)
 			var wg sync.WaitGroup
@@ -265,7 +265,7 @@ func TestGlobalTrafficHeartbeatConcurrentPairs(t *testing.T) {
 }
 
 func TestGlobalTrafficHeartbeatQuotaAndLifecycle(t *testing.T) {
-	db := initGlobalHeartbeatDB(t)
+	db := initTrafficTestDB(t)
 	globalTrafficClock(t, db, true)
 	svc := &InboundService{}
 	ib := &model.Inbound{
@@ -346,7 +346,7 @@ func TestGlobalTrafficHeartbeatQuotaAndLifecycle(t *testing.T) {
 }
 
 func TestGlobalTrafficHeartbeatForwarding(t *testing.T) {
-	db := initGlobalHeartbeatDB(t)
+	db := initTrafficTestDB(t)
 	clock := globalTrafficClock(t, db, true)
 	seedClientRow(t, "forward", 1, 10, 20, 0)
 	if err := db.Create(&model.NodeClientTraffic{NodeId: 7, Email: "forward"}).Error; err != nil {

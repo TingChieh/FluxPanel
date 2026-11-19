@@ -16,39 +16,23 @@ import (
 	"github.com/op/go-logging"
 	"gorm.io/gorm"
 
-	"github.com/TingChieh/FluxPanel/internal/config"
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/dbtest"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 	xuilogger "github.com/TingChieh/FluxPanel/internal/logger"
-	"github.com/TingChieh/FluxPanel/internal/testpg"
 )
 
-// setupScaleJobDB mirrors the service package's scale gating: Postgres via
-// XUI_DB_TYPE/XUI_DB_DSN, SQLite via XUI_SCALE_TEST=1, skip otherwise.
 func setupScaleJobDB(t *testing.T) {
 	t.Helper()
 	loggerInitOnce.Do(func() { xuilogger.InitLogger(logging.ERROR) })
 	t.Setenv("XUI_LOG_FOLDER", t.TempDir())
 
-	if os.Getenv("XUI_DB_TYPE") == "postgres" && strings.TrimSpace(os.Getenv("XUI_DB_DSN")) != "" {
-		cleanup, err := testpg.IsolatePackage("job_ip_scale")
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(cleanup)
-		t.Cleanup(func() { _ = database.CloseDB() })
-		if err := database.InitDB(""); err != nil {
-			t.Fatalf("InitDB(postgres): %v", err)
-		}
-		return
-	}
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("XUI_SCALE_TEST"))) {
 	case "1", "true", "yes":
 		dbtest.InitDB(t, filepath.Join(t.TempDir(), "scale.db"))
 		return
 	}
-	t.Skip("set XUI_SCALE_TEST=1 (sqlite) or XUI_DB_TYPE=postgres + XUI_DB_DSN (postgres) to run the scale benchmark")
+	t.Skip("set XUI_SCALE_TEST=1 to run the scale benchmark")
 }
 
 func scaleJobSizes(t *testing.T, def ...int) []int {
@@ -77,18 +61,12 @@ func scaleJobSizes(t *testing.T, def ...int) []int {
 
 func resetScaleJobTables(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	if config.GetDBKind() == "postgres" {
-		if err := db.Exec("TRUNCATE TABLE inbounds, clients, client_inbounds RESTART IDENTITY CASCADE").Error; err != nil {
-			t.Fatalf("truncate: %v", err)
+	for _, tbl := range []string{"inbounds", "clients", "client_inbounds"} {
+		if err := db.Exec("DELETE FROM " + tbl).Error; err != nil {
+			t.Fatalf("delete %s: %v", tbl, err)
 		}
-	} else {
-		for _, tbl := range []string{"inbounds", "clients", "client_inbounds"} {
-			if err := db.Exec("DELETE FROM " + tbl).Error; err != nil {
-				t.Fatalf("delete %s: %v", tbl, err)
-			}
-		}
-		db.Exec("DELETE FROM sqlite_sequence")
 	}
+	db.Exec("DELETE FROM sqlite_sequence")
 	if err := db.Where("1 = 1").Delete(&model.InboundClientIps{}).Error; err != nil {
 		t.Fatalf("clear inbound client ips: %v", err)
 	}
@@ -261,43 +239,11 @@ type scannerScaleStats struct {
 
 func captureScannerScaleStats(t *testing.T) scannerScaleStats {
 	t.Helper()
-	var result scannerScaleStats
-	if config.GetDBKind() != "postgres" {
-		return result
-	}
-	db := database.GetDB()
-	if err := db.Raw(`SELECT COALESCE(sum(calls),0) AS calls, COALESCE(sum(rows),0) AS rows,
-		COALESCE(sum(total_exec_time),0) AS total_exec_time,
-		COALESCE(sum(wal_records),0) AS wal_records, COALESCE(sum(wal_fpi),0) AS wal_fpi, COALESCE(sum(wal_bytes),0) AS wal_bytes,
-		COALESCE(sum(shared_blks_hit),0) AS shared_blks_hit, COALESCE(sum(shared_blks_read),0) AS shared_blks_read,
-		COALESCE(sum(shared_blks_dirtied),0) AS shared_blks_dirtied
-		FROM public.pg_stat_statements
-		WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
-		AND (query ILIKE '%inbound_client_ips%' OR query ILIKE '%node_client_ips%')
-		AND query NOT ILIKE '%pg_stat_statements%'`).Scan(&result).Error; err != nil {
-		t.Fatal(err)
-	}
-	var info struct {
-		StatsReset string
-		Dealloc    int64
-	}
-	if err := db.Raw("SELECT stats_reset::text AS stats_reset, dealloc FROM public.pg_stat_statements_info").Scan(&info).Error; err != nil {
-		t.Fatal(err)
-	}
-	result.StatsReset, result.Dealloc = info.StatsReset, info.Dealloc
-	return result
+	return scannerScaleStats{}
 }
 
-func logScannerScaleStats(t *testing.T, before, after scannerScaleStats) {
+func logScannerScaleStats(t *testing.T, _, _ scannerScaleStats) {
 	t.Helper()
-	if config.GetDBKind() != "postgres" {
-		return
-	}
-	t.Logf("PG own-db IP statements delta calls=%d rows=%d total_exec_time_ms=%.3f wal_records=%d wal_fpi=%d wal_bytes=%d shared_blks_hit=%d shared_blks_read=%d shared_blks_dirtied=%d stats_reset=%q->%q dealloc=%d->%d",
-		after.Calls-before.Calls, after.Rows-before.Rows, after.TotalExecTime-before.TotalExecTime,
-		after.WALRecords-before.WALRecords, after.WALFpi-before.WALFpi, after.WALBytes-before.WALBytes,
-		after.SharedBlksHit-before.SharedBlksHit, after.SharedBlksRead-before.SharedBlksRead, after.SharedBlksDirtied-before.SharedBlksDirtied,
-		before.StatsReset, after.StatsReset, before.Dealloc, after.Dealloc)
 }
 
 type scannerScaleCounts [9]atomic.Int64

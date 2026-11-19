@@ -14,7 +14,6 @@ import (
 	"github.com/op/go-logging"
 	"gorm.io/gorm"
 
-	"github.com/TingChieh/FluxPanel/internal/config"
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/dbtest"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
@@ -71,18 +70,12 @@ func scaleSubSizes(t *testing.T, def ...int) []int {
 
 func resetScaleSubTables(t *testing.T, db *gorm.DB) {
 	t.Helper()
-	if config.GetDBKind() == "postgres" {
-		if err := db.Exec("TRUNCATE TABLE inbounds, clients, client_inbounds, client_traffics RESTART IDENTITY CASCADE").Error; err != nil {
-			t.Fatalf("truncate: %v", err)
+	for _, tbl := range []string{"inbounds", "clients", "client_inbounds", "client_traffics"} {
+		if err := db.Exec("DELETE FROM " + tbl).Error; err != nil {
+			t.Fatalf("delete %s: %v", tbl, err)
 		}
-	} else {
-		for _, tbl := range []string{"inbounds", "clients", "client_inbounds", "client_traffics"} {
-			if err := db.Exec("DELETE FROM " + tbl).Error; err != nil {
-				t.Fatalf("delete %s: %v", tbl, err)
-			}
-		}
-		db.Exec("DELETE FROM sqlite_sequence")
 	}
+	db.Exec("DELETE FROM sqlite_sequence")
 	if err := db.Where("1 = 1").Delete(&model.ClientExternalLink{}).Error; err != nil {
 		t.Fatalf("clear client_external_links: %v", err)
 	}

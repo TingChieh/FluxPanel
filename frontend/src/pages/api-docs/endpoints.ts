@@ -569,13 +569,12 @@ export const sections: readonly Section[] = [
         method: 'GET',
         path: '/panel/api/server/getDb',
         summary:
-          'Stream a full database backup as an attachment: the SQLite .db file on SQLite panels, or a pg_dump custom-format archive (.dump) on PostgreSQL panels. Use as a manual backup.',
+          'Stream a full SQLite database backup (.db) as an attachment. Use as a manual backup.',
       },
       {
         method: 'GET',
         path: '/panel/api/server/getMigration',
-        summary:
-          'Stream a cross-engine migration file as an attachment: a .dump (SQL text) on SQLite, or a .db SQLite database built from the live data on PostgreSQL.',
+        summary: 'Stream a portable SQLite SQL text dump (.dump) as an attachment.',
       },
       {
         method: 'GET',
@@ -773,7 +772,7 @@ export const sections: readonly Section[] = [
         method: 'POST',
         path: '/panel/api/server/importDB',
         summary:
-          'Restore the panel DB from an uploaded backup (multipart form, field name "db"). SQLite panels accept a SQLite database (.db) or a SQLite migration dump (.dump); PostgreSQL panels accept a pg_dump archive (.dump), a SQLite database (.db), or a SQLite migration dump. The panel restarts after restore. Destructive.',
+          'Restore the panel DB from an uploaded backup (multipart form, field name "db"). Accepts a SQLite database (.db) or a SQLite migration dump (.dump). The panel restarts after restore. Destructive.',
         params: [
           {
             name: 'db',
