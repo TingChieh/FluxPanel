@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/TingChieh/FluxPanel/internal/crypto/nodetoken"
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/dbtest"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
@@ -386,5 +387,43 @@ func TestResolveEnforce(t *testing.T) {
 				t.Fatalf("resolveEnforce(%v, %v, %v, %v) = %v, want %v", tc.f2bEnabled, tc.hasLimit, tc.f2bInstalled, tc.needsBinary, got, tc.want)
 			}
 		})
+	}
+}
+
+// With settings encrypted at rest a SQL LIKE over the column can never match, so
+// the fallback must still find a client that is only listed in the JSON.
+func TestGetInboundByEmailFallbackWorksWithEncryptedSettings(t *testing.T) {
+	dbDir := t.TempDir()
+	t.Setenv("XUI_DB_FOLDER", dbDir)
+	dbtest.InitDB(t, filepath.Join(dbDir, "x-ui.db"))
+	ring := &nodetoken.Keyring{ActiveID: "k1", Keys: map[string][32]byte{"k1": {1, 2, 3}}}
+	codec, err := nodetoken.NewCodec(nodetoken.ModeRequired, ring)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodetoken.Init(codec)
+	t.Cleanup(func() {
+		off, _ := nodetoken.NewCodec(nodetoken.ModeOff, nil)
+		nodetoken.Init(off)
+	})
+
+	inbound := &model.Inbound{
+		UserId:   1,
+		Tag:      "vless-limit-encrypted",
+		Enable:   true,
+		Port:     43003,
+		Protocol: model.VLESS,
+		Settings: `{"clients":[{"email":"alice@example.test","id":"11111111-1111-1111-1111-111111111111","limitIp":2}],"decryption":"none"}`,
+	}
+	if err := database.GetDB().Create(inbound).Error; err != nil {
+		t.Fatalf("create inbound: %v", err)
+	}
+
+	got, err := (&CheckClientIpJob{}).getInboundByEmail("alice@example.test")
+	if err != nil {
+		t.Fatalf("getInboundByEmail: %v", err)
+	}
+	if got.Id != inbound.Id {
+		t.Fatalf("inbound id = %d, want %d", got.Id, inbound.Id)
 	}
 }

@@ -356,3 +356,27 @@ func TestMigrationRequirements_NormalizesShareAddressFields(t *testing.T) {
 		t.Fatalf("invalid address share fields = (%q, %q), want (node, empty)", gotInvalidAddress.ShareAddrStrategy, gotInvalidAddress.ShareAddr)
 	}
 }
+
+// An inbound whose settings cannot be parsed may still list any email, so the
+// sweep must delete nothing rather than treat its clients as orphans.
+func TestMigrationRemoveOrphanedTrafficsKeepsRowsWhenSettingsUnreadable(t *testing.T) {
+	setupConflictDB(t)
+	db := database.GetDB()
+	inboundSvc := &InboundService{}
+
+	broken := mkInbound(t, 30011, model.VLESS, `{"clients":[]}`)
+	if err := db.Model(&model.Inbound{}).Where("id = ?", broken.Id).Update("settings", `{"clients":[{"email":"maybe-live@example.com"`).Error; err != nil {
+		t.Fatalf("corrupt settings: %v", err)
+	}
+	mkTraffic(t, broken.Id, "maybe-live@example.com", 10, 20, 0, 0, true)
+
+	inboundSvc.MigrationRemoveOrphanedTraffics()
+
+	var got int64
+	if err := db.Model(xray.ClientTraffic{}).Where("email = ?", "maybe-live@example.com").Count(&got).Error; err != nil {
+		t.Fatal(err)
+	}
+	if got != 1 {
+		t.Fatalf("client_traffics rows for maybe-live@example.com = %d, want 1 (kept)", got)
+	}
+}

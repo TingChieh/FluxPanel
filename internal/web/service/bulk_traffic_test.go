@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -331,5 +332,34 @@ func TestTrafficReset_RestoresClientDisabledByGlobalUsage(t *testing.T) {
 				assertEnableEverywhere(t, svc, inboundSvc, ib.Id, email, true)
 			}
 		})
+	}
+}
+
+// A scoped sweep cannot prove an unreadable sibling inbound no longer lists the
+// email, so it must fail and roll back instead of dropping the usage row.
+func TestDelDepletedScopedFailsClosedOnUnreadableSibling(t *testing.T) {
+	setupBulkDB(t)
+	svc := &ClientService{}
+	inboundSvc := &InboundService{}
+	db := database.GetDB()
+
+	depleted := model.Client{Email: "dep@x", ID: "11111111-1111-1111-1111-111111111111", SubID: "sd", Enable: true}
+	keep := model.Client{Email: "keep@x", ID: "22222222-2222-2222-2222-222222222222", SubID: "sk", Enable: true}
+	ibA := mkInbound(t, 21011, model.VLESS, clientsSettings(t, []model.Client{depleted, keep}))
+	if err := svc.SyncInbound(nil, ibA.Id, []model.Client{depleted, keep}); err != nil {
+		t.Fatalf("seed A: %v", err)
+	}
+	ibB := mkInbound(t, 21012, model.VLESS, clientsSettings(t, []model.Client{depleted}))
+	if err := db.Model(&model.Inbound{}).Where("id = ?", ibB.Id).Update("settings", `{"clients":[{"email":"dep@x"`).Error; err != nil {
+		t.Fatalf("corrupt B: %v", err)
+	}
+	mkTraffic(t, ibA.Id, "dep@x", 100, 0, 100, 0, true)
+
+	err := inboundSvc.DelDepletedClients(ibA.Id)
+	if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("inbound %d settings", ibB.Id)) {
+		t.Fatalf("DelDepletedClients error = %v, want it to name unreadable inbound %d", err, ibB.Id)
+	}
+	if rows := countTrafficRows(t, db, "dep@x"); rows != 1 {
+		t.Fatalf("dep@x has %d client_traffics rows, want 1 (rolled back)", rows)
 	}
 }

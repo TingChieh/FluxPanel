@@ -1055,23 +1055,13 @@ func (s *InboundService) DelDepletedClients(id int) (err error) {
 				rowEmails = append(rowEmails, r.Email)
 			}
 		}
-		emailExpr := database.JSONFieldText("client.value", "email")
-		stillQuery := fmt.Sprintf(
-			"SELECT DISTINCT %s %s WHERE LOWER(%s) IN ? OR %s IN ?",
-			emailExpr,
-			database.JSONClientsFromInbound(),
-			emailExpr,
-			emailExpr,
-		)
-		stillSet := make(map[string]struct{}, len(rowEmails))
-		for _, batch := range chunkStrings(emailSpellings(rowEmails), sqlInChunk) {
-			var stillReferenced []string
-			if err := tx.Raw(stillQuery, batch, batch).Scan(&stillReferenced).Error; err != nil {
-				return err
-			}
-			for _, e := range stillReferenced {
-				stillSet[strings.ToLower(e)] = struct{}{}
-			}
+		referenced, err := s.referencedClientEmails(tx)
+		if err != nil {
+			return err
+		}
+		stillSet := make(map[string]struct{}, len(referenced))
+		for _, e := range referenced {
+			stillSet[strings.ToLower(e)] = struct{}{}
 		}
 		toDelete := make([]string, 0, len(rowEmails))
 		for _, e := range rowEmails {

@@ -19,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/goccy/go-json"
 
+	"github.com/TingChieh/FluxPanel/internal/crypto/nodetoken"
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 	"github.com/TingChieh/FluxPanel/internal/logger"
@@ -844,7 +845,10 @@ func (s *SubService) subscriptionSettings(inbound *model.Inbound) (string, error
 	load := func() (string, error) {
 		var settings string
 		err := database.GetDB().Model(&model.Inbound{}).Select("settings").Where("id = ?", inbound.Id).Row().Scan(&settings)
-		return settings, err
+		if err != nil {
+			return "", err
+		}
+		return model.DecryptInboundSettings(settings)
 	}
 	if inbound.Protocol == model.WireGuard {
 		return load()
@@ -3360,22 +3364,22 @@ func nodeKeyOf(nodeID *int) int {
 func (s *SubService) socketFront(key socketFrontKey) *model.Inbound {
 	if s.socketFronts == nil {
 		s.socketFronts = map[socketFrontKey]*model.Inbound{}
-		var fronts []struct {
-			NodeID         *int
-			Listen         string
-			Port           int
-			StreamSettings string
-			Settings       string
-		}
-		// Parsed here, not with SQL JSON functions, so the lookup works on PostgreSQL too and one
-		// inbound with unreadable settings cannot hide every front.
-		if err := database.GetDB().Model(model.Inbound{}).
+		var fronts []model.Inbound
+		// Parsed here, not with SQL JSON functions, so encrypted settings and
+		// any DB backend work identically.
+		q := database.GetDB().Model(model.Inbound{}).
 			Select("node_id, listen, port, stream_settings, settings").
-			Where("settings LIKE ?", "%fallbacks%").
-			Order("id ASC").Scan(&fronts).Error; err != nil {
+			Order("id ASC")
+		if !nodetoken.Enabled() {
+			q = q.Where("settings LIKE ?", "%fallbacks%")
+		}
+		if err := q.Find(&fronts).Error; err != nil {
 			return nil
 		}
 		for _, front := range fronts {
+			if !strings.Contains(front.Settings, "fallbacks") {
+				continue
+			}
 			var parsed struct {
 				Fallbacks []any `json:"fallbacks"`
 			}

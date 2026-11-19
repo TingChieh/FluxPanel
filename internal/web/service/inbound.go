@@ -369,6 +369,16 @@ func (s *InboundService) GetInboundOptions(userId int) ([]InboundOption, error) 
 	}
 	out := make([]InboundOption, 0, len(rows))
 	for _, r := range rows {
+		decSettings, derr := model.DecryptInboundSettings(r.Settings)
+		if derr != nil {
+			return nil, derr
+		}
+		decStream, derr := model.DecryptInboundStreamSettings(r.StreamSettings)
+		if derr != nil {
+			return nil, derr
+		}
+		r.Settings = decSettings
+		r.StreamSettings = decStream
 		wgPublicKey, wgMtu, wgDns := inboundWireguardHints(r.Protocol, r.Settings)
 		netHint, secHint := inboundStreamHints(r.Protocol, r.StreamSettings, r.Settings)
 		shareAddrStrategy := r.ShareAddrStrategy
@@ -507,16 +517,49 @@ func (s *InboundService) ListClientsForInbound(inboundId int) ([]model.Client, e
 	return s.clientService.ListForInbound(nil, inboundId)
 }
 
+// referencedClientEmails lists every client email in inbound settings JSON. An
+// unreadable row is an error, so callers that delete by absence fail closed.
+func (s *InboundService) referencedClientEmails(tx *gorm.DB) ([]string, error) {
+	var inbounds []model.Inbound
+	if err := tx.Select("id", "settings").Find(&inbounds).Error; err != nil {
+		return nil, err
+	}
+	var emails []string
+	for i := range inbounds {
+		if trimmed := strings.TrimSpace(inbounds[i].Settings); trimmed == "" || trimmed == "null" {
+			continue
+		}
+		clients, err := s.GetClients(&inbounds[i])
+		if err != nil {
+			return nil, fmt.Errorf("inbound %d settings: %w", inbounds[i].Id, err)
+		}
+		for _, c := range clients {
+			emails = append(emails, c.Email)
+		}
+	}
+	return emails, nil
+}
+
 func (s *InboundService) GetAllEmails() ([]string, error) {
 	db := database.GetDB()
-	var emails []string
-	query := fmt.Sprintf(
-		"SELECT DISTINCT %s %s",
-		database.JSONFieldText("client.value", "email"),
-		database.JSONClientsFromInbound(),
-	)
-	if err := db.Raw(query).Scan(&emails).Error; err != nil {
+	var inbounds []model.Inbound
+	if err := db.Select("id", "settings").Find(&inbounds).Error; err != nil {
 		return nil, err
+	}
+	seen := make(map[string]struct{})
+	var emails []string
+	for i := range inbounds {
+		clients, err := s.GetClients(&inbounds[i])
+		if err != nil {
+			continue
+		}
+		for _, c := range clients {
+			if _, ok := seen[c.Email]; ok {
+				continue
+			}
+			seen[c.Email] = struct{}{}
+			emails = append(emails, c.Email)
+		}
 	}
 	return emails, nil
 }

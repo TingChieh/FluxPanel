@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -18,18 +17,49 @@ import (
 
 func (s *InboundService) MigrationRemoveOrphanedTraffics() {
 	db := database.GetDB()
-	query := fmt.Sprintf(
-		"DELETE FROM client_traffics WHERE email NOT IN (SELECT email FROM clients) AND email NOT IN (SELECT %s %s)",
-		database.JSONFieldText("client.value", "email"),
-		database.JSONClientsFromInbound(),
-	)
-	result := db.Exec(query)
-	if result.Error != nil {
-		logger.Warning("MigrationRemoveOrphanedTraffics failed:", result.Error)
+	valid := make(map[string]struct{})
+	var recordEmails []string
+	if err := db.Model(&model.ClientRecord{}).Pluck("email", &recordEmails).Error; err != nil {
+		logger.Warning("MigrationRemoveOrphanedTraffics failed:", err)
 		return
 	}
-	if result.RowsAffected > 0 {
-		logger.Infof("MigrationRemoveOrphanedTraffics: removed %d orphaned client_traffics row(s)", result.RowsAffected)
+	for _, e := range recordEmails {
+		valid[e] = struct{}{}
+	}
+	settingsEmails, err := s.referencedClientEmails(db)
+	if err != nil {
+		logger.Warning("MigrationRemoveOrphanedTraffics skipped:", err)
+		return
+	}
+	for _, e := range settingsEmails {
+		valid[e] = struct{}{}
+	}
+	var traffics []xray.ClientTraffic
+	if err := db.Select("id", "email").Find(&traffics).Error; err != nil {
+		logger.Warning("MigrationRemoveOrphanedTraffics failed:", err)
+		return
+	}
+	var orphanIDs []int
+	for _, tr := range traffics {
+		if _, ok := valid[tr.Email]; !ok {
+			orphanIDs = append(orphanIDs, tr.Id)
+		}
+	}
+	if len(orphanIDs) == 0 {
+		return
+	}
+	var removed int64
+	for start := 0; start < len(orphanIDs); start += sqlInChunk {
+		end := min(start+sqlInChunk, len(orphanIDs))
+		res := db.Where("id IN ?", orphanIDs[start:end]).Delete(&xray.ClientTraffic{})
+		if res.Error != nil {
+			logger.Warning("MigrationRemoveOrphanedTraffics failed:", res.Error)
+			return
+		}
+		removed += res.RowsAffected
+	}
+	if removed > 0 {
+		logger.Infof("MigrationRemoveOrphanedTraffics: removed %d orphaned client_traffics row(s)", removed)
 	}
 }
 
@@ -171,48 +201,56 @@ func (s *InboundService) MigrationRequirements() (err error) {
 	}
 
 	// Migrate old MultiDomain to External Proxy
-	var externalProxy []struct {
-		Id             int
-		Port           int
-		StreamSettings string // text column on both DBs; safer than []byte for cross-DB scan
-	}
-	externalProxyQuery := `select id, port, stream_settings
-	from inbounds
-	WHERE protocol in ('vmess','vless','trojan')
-	  AND json_extract(stream_settings, '$.security') = 'tls'
-	  AND json_extract(stream_settings, '$.tlsSettings.settings.domains') IS NOT NULL`
-	err = tx.Raw(externalProxyQuery).Scan(&externalProxy).Error
-	if err != nil || len(externalProxy) == 0 {
+	var candidates []model.Inbound
+	if err = tx.Select("id", "port", "stream_settings").
+		Where("protocol IN ?", []string{"vmess", "vless", "trojan"}).
+		Find(&candidates).Error; err != nil {
 		return
 	}
 
-	for _, ep := range externalProxy {
-		var reverses any
+	for _, ep := range candidates {
 		var stream map[string]any
-		_ = json.Unmarshal([]byte(ep.StreamSettings), &stream)
-		if tlsSettings, ok := stream["tlsSettings"].(map[string]any); ok {
-			if settings, ok := tlsSettings["settings"].(map[string]any); ok {
-				if domains, ok := settings["domains"].([]any); ok {
-					for _, domain := range domains {
-						if domainMap, ok := domain.(map[string]any); ok {
-							domainMap["forceTls"] = "same"
-							domainMap["port"] = ep.Port
-							domainMap["dest"] = domainMap["domain"].(string)
-							delete(domainMap, "domain")
-						}
-					}
+		if json.Unmarshal([]byte(ep.StreamSettings), &stream) != nil {
+			continue
+		}
+		if sec, _ := stream["security"].(string); sec != "tls" {
+			continue
+		}
+		tlsSettings, ok := stream["tlsSettings"].(map[string]any)
+		if !ok {
+			continue
+		}
+		settings, ok := tlsSettings["settings"].(map[string]any)
+		if !ok {
+			continue
+		}
+		domains, hasDomains := settings["domains"]
+		if !hasDomains || domains == nil {
+			continue
+		}
+		if domainList, ok := domains.([]any); ok {
+			for _, domain := range domainList {
+				if domainMap, ok := domain.(map[string]any); ok {
+					domainMap["forceTls"] = "same"
+					domainMap["port"] = ep.Port
+					domainMap["dest"] = domainMap["domain"].(string)
+					delete(domainMap, "domain")
 				}
-				reverses = settings["domains"]
-				delete(settings, "domains")
 			}
 		}
-		stream["externalProxy"] = reverses
+		stream["externalProxy"] = settings["domains"]
+		delete(settings, "domains")
 		newStream, marshalErr := json.MarshalIndent(stream, " ", "  ")
 		if marshalErr != nil {
 			err = marshalErr
 			return
 		}
-		if err = tx.Model(model.Inbound{}).Where("id = ?", ep.Id).Update("stream_settings", newStream).Error; err != nil {
+		storedStream, encErr := model.EncryptInboundStreamSettings(string(newStream))
+		if encErr != nil {
+			err = encErr
+			return
+		}
+		if err = tx.Model(model.Inbound{}).Where("id = ?", ep.Id).Update("stream_settings", storedStream).Error; err != nil {
 			return
 		}
 	}
@@ -271,7 +309,11 @@ func (s *InboundService) MigrationRestoreVisionFlow() {
 			continue
 		}
 		err = db.Transaction(func(tx *gorm.DB) error {
-			if e := tx.Model(&model.Inbound{}).Where("id = ?", ib.Id).Update("settings", restored).Error; e != nil {
+			stored, encErr := model.EncryptInboundSettings(restored)
+			if encErr != nil {
+				return encErr
+			}
+			if e := tx.Model(&model.Inbound{}).Where("id = ?", ib.Id).Update("settings", stored).Error; e != nil {
 				return e
 			}
 			return s.clientService.SyncInbound(tx, ib.Id, clients)

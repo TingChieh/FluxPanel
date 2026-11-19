@@ -157,6 +157,22 @@ func migrateNodeClientTrafficAccColumns() error {
 	return nil
 }
 
+func updateInboundSettingsCol(q *gorm.DB, id int, raw string) error {
+	stored, err := model.EncryptInboundSettings(raw)
+	if err != nil {
+		return err
+	}
+	return q.Model(&model.Inbound{}).Where("id = ?", id).Update("settings", stored).Error
+}
+
+func updateInboundStreamSettingsCol(q *gorm.DB, id int, raw string) error {
+	stored, err := model.EncryptInboundStreamSettings(raw)
+	if err != nil {
+		return err
+	}
+	return q.Model(&model.Inbound{}).Where("id = ?", id).Update("stream_settings", stored).Error
+}
+
 func migrateNodeSkipClientIpSyncColumn() error {
 	migrator := db.Migrator()
 	if !migrator.HasTable(&model.Node{}) || migrator.HasColumn(&model.Node{}, "skip_client_ip_sync") {
@@ -587,8 +603,7 @@ func seedWireguardPeersToClients() error {
 			if err != nil {
 				return err
 			}
-			if err := tx.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-				Update("settings", string(newSettings)).Error; err != nil {
+			if err := updateInboundSettingsCol(tx, inbound.Id, string(newSettings)); err != nil {
 				return err
 			}
 		}
@@ -945,8 +960,7 @@ func migrateShadowsocksRemovedCiphers() error {
 			log.Printf("migrateShadowsocksRemovedCiphers: skip inbound %d (marshal failed): %v", inbound.Id, err)
 			continue
 		}
-		if err := db.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-			Update("settings", string(newSettings)).Error; err != nil {
+		if err := updateInboundSettingsCol(db, inbound.Id, string(newSettings)); err != nil {
 			return err
 		}
 		migrated++
@@ -978,8 +992,7 @@ func migrateShadowsocks2022ChachaInbounds() error {
 		if err != nil {
 			return err
 		}
-		if err := db.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-			Update("settings", string(newSettings)).Error; err != nil {
+		if err := updateInboundSettingsCol(db, inbound.Id, string(newSettings)); err != nil {
 			return err
 		}
 		log.Printf("Inbound %q: switched %s to 2022-blake3-aes-256-gcm; its share links changed", inbound.Tag, method)
@@ -1009,8 +1022,7 @@ func repairShadowsocks2022ServerKeys() error {
 		if err != nil {
 			return err
 		}
-		if err := db.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-			Update("settings", string(newSettings)).Error; err != nil {
+		if err := updateInboundSettingsCol(db, inbound.Id, string(newSettings)); err != nil {
 			return err
 		}
 		log.Printf("Inbound %q: replaced a %s server key of the wrong size; its share links changed", inbound.Tag, method)
@@ -1067,8 +1079,7 @@ func migrateVmessRemovedSecurities() error {
 			log.Printf("migrateVmessRemovedSecurities: skip inbound %d (marshal failed): %v", inbound.Id, err)
 			continue
 		}
-		if err := db.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-			Update("settings", string(newSettings)).Error; err != nil {
+		if err := updateInboundSettingsCol(db, inbound.Id, string(newSettings)); err != nil {
 			return err
 		}
 		migrated++
@@ -1227,8 +1238,7 @@ func dedupeInboundSettingsClients() error {
 			log.Printf("dedupeInboundSettingsClients: skip inbound %d (marshal failed): %v", inbound.Id, err)
 			continue
 		}
-		if err := db.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-			Update("settings", string(newSettings)).Error; err != nil {
+		if err := updateInboundSettingsCol(db, inbound.Id, string(newSettings)); err != nil {
 			return err
 		}
 		repaired++
@@ -1629,8 +1639,7 @@ func resetIpLimitsWithoutFail2ban() error {
 				log.Printf("ResetIpLimitNoFail2ban: skip inbound %d (marshal failed): %v", inbound.Id, err)
 				continue
 			}
-			if err := tx.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-				Update("settings", string(newSettings)).Error; err != nil {
+			if err := updateInboundSettingsCol(tx, inbound.Id, string(newSettings)); err != nil {
 				return err
 			}
 		}
@@ -2028,8 +2037,7 @@ func migrateXdnsFinalmaskShape() error {
 		}
 		for _, inbound := range inbounds {
 			if updated, changed := upgradeFinalmasksJSON(inbound.StreamSettings, streamFinalmask, false, maskcompat.UpgradeLegacyXdns); changed {
-				if err := tx.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-					Update("stream_settings", updated).Error; err != nil {
+				if err := updateInboundStreamSettingsCol(tx, inbound.Id, updated); err != nil {
 					return err
 				}
 			}
@@ -2492,8 +2500,7 @@ func normalizeInboundClientTgId() error {
 				log.Printf("InboundClientTgIdFix: skip inbound %d (marshal failed): %v", inbound.Id, err)
 				continue
 			}
-			if err := tx.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-				Update("settings", string(newSettings)).Error; err != nil {
+			if err := updateInboundSettingsCol(tx, inbound.Id, string(newSettings)); err != nil {
 				return err
 			}
 		}
@@ -2544,8 +2551,7 @@ func normalizeInboundClientSubId() error {
 				log.Printf("InboundClientSubIdFix: skip inbound %d (marshal failed): %v", inbound.Id, err)
 				continue
 			}
-			if err := tx.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-				Update("settings", string(newSettings)).Error; err != nil {
+			if err := updateInboundSettingsCol(tx, inbound.Id, string(newSettings)); err != nil {
 				return err
 			}
 		}
@@ -2579,8 +2585,7 @@ func normalizeInboundClientsArray() error {
 				log.Printf("InboundClientsArrayFix: skip inbound %d (marshal failed): %v", inbound.Id, err)
 				continue
 			}
-			if err := tx.Model(&model.Inbound{}).Where("id = ?", inbound.Id).
-				Update("settings", string(newSettings)).Error; err != nil {
+			if err := updateInboundSettingsCol(tx, inbound.Id, string(newSettings)); err != nil {
 				return err
 			}
 		}
@@ -2928,8 +2933,7 @@ func stripRealityFinalmaskTcp() error {
 			if !changed {
 				continue
 			}
-			if err := tx.Model(&model.Inbound{}).Where("id = ?", inbounds[i].Id).
-				Update("stream_settings", updated).Error; err != nil {
+			if err := updateInboundStreamSettingsCol(tx, inbounds[i].Id, updated); err != nil {
 				return err
 			}
 			log.Printf("InboundRealityFinalmaskTcpStrip: removed finalmask.tcp from REALITY inbound %d (%s)", inbounds[i].Id, inbounds[i].Tag)
@@ -3170,6 +3174,9 @@ func InitDB(dbPath string) error {
 	dsn := dbPath + "?_journal_mode=" + journal + "&_busy_timeout=10000&_synchronous=" + sync + "&_txlock=immediate"
 	db, err = gorm.Open(sqlite.Open(dsn), c)
 	if err != nil {
+		return err
+	}
+	if err := registerInboundCryptoCallbacks(db); err != nil {
 		return err
 	}
 	if err := restrictSQLiteFilePerms(dbPath); err != nil {

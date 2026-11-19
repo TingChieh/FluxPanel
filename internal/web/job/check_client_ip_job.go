@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/TingChieh/FluxPanel/internal/crypto/nodetoken"
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 	"github.com/TingChieh/FluxPanel/internal/logger"
@@ -917,7 +918,11 @@ func (j *CheckClientIpJob) getInboundByEmail(clientEmail string) (*model.Inbound
 	}
 
 	var candidates []model.Inbound
-	if listErr := db.Model(&model.Inbound{}).Where("settings LIKE ?", "%"+clientEmail+"%").Find(&candidates).Error; listErr != nil {
+	q := db.Model(&model.Inbound{})
+	if !nodetoken.Enabled() {
+		q = q.Where("settings LIKE ?", "%"+clientEmail+"%")
+	}
+	if listErr := q.Find(&candidates).Error; listErr != nil {
 		return nil, listErr
 	}
 	for i := range candidates {

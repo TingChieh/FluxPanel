@@ -266,8 +266,12 @@ func (s *InboundService) markClientsDisabledInSettings(tx *gorm.DB, inboundID in
 		return &snapshot, &ib, nil
 	}
 	ib.Settings = joined
+	storedSettings, encErr := model.EncryptInboundSettings(ib.Settings)
+	if encErr != nil {
+		return nil, nil, encErr
+	}
 	if err := tx.Model(&model.Inbound{}).Where("id = ?", inboundID).
-		Update("settings", ib.Settings).Error; err != nil {
+		Update("settings", storedSettings).Error; err != nil {
 		return nil, nil, err
 	}
 	// A just-disabled client must leave subscriptions within this tick.
@@ -313,8 +317,12 @@ func (s *InboundService) markClientEnabledInSettings(tx *gorm.DB, inboundID int,
 	if err != nil {
 		return err
 	}
+	storedSettings, err := model.EncryptInboundSettings(string(bs))
+	if err != nil {
+		return err
+	}
 	return tx.Model(&model.Inbound{}).Where("id = ?", inboundID).
-		Update("settings", string(bs)).Error
+		Update("settings", storedSettings).Error
 }
 
 // trafficDisabledEmails reports which emails have a switched-off stats row. The

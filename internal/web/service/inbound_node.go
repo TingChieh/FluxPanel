@@ -921,7 +921,11 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 			updates["protocol"] = snapIb.Protocol
 			updates["total"] = snapIb.Total
 			updates["expiry_time"] = snapIb.ExpiryTime
-			updates["stream_settings"] = snapIb.StreamSettings
+			storedStream, encErr := model.EncryptInboundStreamSettings(snapIb.StreamSettings)
+			if encErr != nil {
+				return false, encErr
+			}
+			updates["stream_settings"] = storedStream
 			updates["sniffing"] = snapIb.Sniffing
 			updates["traffic_reset"] = snapIb.TrafficReset
 			updates["traffic_reset_day"] = normalizeTrafficResetDay(snapIb.TrafficResetDay)
@@ -1344,9 +1348,13 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 			lifecycleLifted = true
 		}
 		if p.central.Settings != adoptedSettings {
+			storedAdopted, encErr := model.EncryptInboundSettings(adoptedSettings)
+			if encErr != nil {
+				return false, encErr
+			}
 			if err := tx.Model(model.Inbound{}).
 				Where("id = ?", p.central.Id).
-				Update("settings", adoptedSettings).Error; err != nil {
+				Update("settings", storedAdopted).Error; err != nil {
 				return false, err
 			}
 			structuralChange = true

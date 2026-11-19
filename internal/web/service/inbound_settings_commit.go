@@ -17,14 +17,24 @@ func commitInboundClientSettings(tx *gorm.DB, ib *model.Inbound, base string) er
 	if err := tx.Model(&model.Inbound{}).Where("id = ?", ib.Id).Pluck("settings", &current).Error; err != nil {
 		return err
 	}
-	if len(current) == 1 && current[0] != base {
-		merged, err := rebaseClientSettings(base, ib.Settings, current[0])
+	if len(current) == 1 {
+		dec, err := model.DecryptInboundSettings(current[0])
 		if err != nil {
 			return err
 		}
-		ib.Settings = merged
+		if dec != base {
+			merged, err := rebaseClientSettings(base, ib.Settings, dec)
+			if err != nil {
+				return err
+			}
+			ib.Settings = merged
+		}
 	}
-	return tx.Model(&model.Inbound{}).Where("id = ?", ib.Id).Update("settings", ib.Settings).Error
+	stored, err := model.EncryptInboundSettings(ib.Settings)
+	if err != nil {
+		return err
+	}
+	return tx.Model(&model.Inbound{}).Where("id = ?", ib.Id).Update("settings", stored).Error
 }
 
 // rebaseClientSettings three-way merges settings JSON: every key and client field

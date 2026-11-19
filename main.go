@@ -298,6 +298,12 @@ func encryptNodeTokens() {
 		os.Exit(1)
 	}
 	fmt.Printf("node-token migration complete: %d re-encrypted, %d already current/skipped\n", changed, skipped)
+	ibChanged, ibSkipped, err := (&service.InboundService{}).MigrateInboundSecretsToActiveKey()
+	if err != nil {
+		fmt.Println("inbound-secrets migration failed:", err)
+		os.Exit(1)
+	}
+	fmt.Printf("inbound-secrets migration complete: %d re-encrypted, %d already current/skipped\n", ibChanged, ibSkipped)
 }
 
 // updateSetting updates various panel settings including port, credentials, base path, listen IP, and two-factor authentication.

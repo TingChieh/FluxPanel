@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/TingChieh/FluxPanel/internal/crypto/nodetoken"
 	"github.com/TingChieh/FluxPanel/internal/database"
 	"github.com/TingChieh/FluxPanel/internal/database/model"
 	"github.com/TingChieh/FluxPanel/internal/xray"
@@ -265,10 +266,11 @@ func (s *ClientService) findInboundIdsByClientEmail(email string) ([]int, error)
 		probe = probe[:cut]
 	}
 	var inbounds []model.Inbound
-	if err := database.GetDB().
-		Select("id, settings").
-		Where("settings LIKE ? ESCAPE '\\'", "%"+escapeLikeLiteral(probe)+"%").
-		Find(&inbounds).Error; err != nil {
+	q := database.GetDB().Select("id, settings")
+	if !nodetoken.Enabled() {
+		q = q.Where("settings LIKE ? ESCAPE '\\'", "%"+escapeLikeLiteral(probe)+"%")
+	}
+	if err := q.Find(&inbounds).Error; err != nil {
 		return nil, err
 	}
 	out := make([]int, 0, len(inbounds))
