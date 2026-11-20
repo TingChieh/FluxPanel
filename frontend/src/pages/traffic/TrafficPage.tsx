@@ -79,7 +79,7 @@ export default function TrafficPage() {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  const overviewQuery = useTrafficOverviewQuery(period, anchor, true);
+  const overviewQuery = useTrafficOverviewQuery(period, anchor, !anchor);
   const overview = overviewQuery.data;
   const effectiveAnchor = anchor || overview?.anchor || '';
   const today = overview?.today || '';
@@ -91,7 +91,7 @@ export default function TrafficPage() {
   const clientsQuery = useTrafficClientsQuery(
     {
       period,
-      anchor: effectiveAnchor,
+      anchor,
       search,
       sort: clientSort,
       activeOnly,
@@ -231,12 +231,31 @@ export default function TrafficPage() {
                 />
               </Space.Compact>
               {!isViewingCurrent && (
-                <Button type="link" onClick={() => setAnchor('')}>
+                <Button
+                  type="link"
+                  onClick={() => {
+                    setAnchor('');
+                    setPage(1);
+                  }}
+                >
                   {t('pages.traffic.backToCurrent')}
                 </Button>
               )}
             </Space>
           </div>
+
+          {(overviewQuery.isError || clientsQuery.isError) && (
+            <Alert
+              type="error"
+              showIcon
+              className="traffic-banner"
+              title={
+                overviewQuery.error?.message ||
+                clientsQuery.error?.message ||
+                t('somethingWentWrong')
+              }
+            />
+          )}
 
           {summary && !summary.hasHistory && (
             <Alert

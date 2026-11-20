@@ -340,78 +340,32 @@ func resolveTrafficRange(period, anchor string, now time.Time, loc *time.Locatio
 	return r, nil
 }
 
-type trafficAggRow struct {
-	bucketKey string
-	nodeID    int
-	email     string
-	up        int64
-	down      int64
-}
-
 type trafficFilter struct {
-	nodeID *int
-	email  *string
+	nodeID      *int
+	email       *string
+	nonEmpty    bool
+	emailSearch string
 }
 
-func loadTrafficRows(
-	db *gorm.DB,
-	bucketUnit string,
-	startTime, endTime time.Time,
-	dates []string,
-	cutoffDate string,
-	cutoffUnix int64,
-	loc *time.Location,
-	filter trafficFilter,
-) ([]trafficAggRow, error) {
-	pending := SnapshotPendingTraffic()
-	var rows []trafficAggRow
+type trafficWindowPlan struct {
+	bucketUnit    string
+	dailyDates    []string
+	hourlyDateSet map[string]struct{}
+	hourlyStart   int64
+	hourlyEnd     int64
+	loc           *time.Location
+}
 
+func buildWindowPlan(bucketUnit string, startTime, endTime time.Time, dates []string, cutoffDate string, cutoffUnix int64, loc *time.Location) trafficWindowPlan {
 	if bucketUnit == "hour" {
-		startUnix := startTime.UTC().Truncate(time.Hour).Unix()
-		endUnix := endTime.UTC().Truncate(time.Hour).Unix()
-		q := db.Model(&model.TrafficHourly{}).Where("hour_bucket >= ? AND hour_bucket < ?", startUnix, endUnix)
-		if filter.nodeID != nil {
-			q = q.Where("node_id = ?", *filter.nodeID)
+		return trafficWindowPlan{
+			bucketUnit:  "hour",
+			hourlyStart: startTime.UTC().Truncate(time.Hour).Unix(),
+			// Keep exact endTime.Unix() so non-integer-hour timezones (e.g. +05:30) retain their last bucket.
+			hourlyEnd: endTime.Unix(),
+			loc:       loc,
 		}
-		if filter.email != nil {
-			q = q.Where("email = ?", *filter.email)
-		}
-		var dbRows []model.TrafficHourly
-		if err := q.Find(&dbRows).Error; err != nil {
-			return nil, err
-		}
-		rows = make([]trafficAggRow, 0, len(dbRows)+len(pending))
-		for _, h := range dbRows {
-			rows = append(rows, trafficAggRow{
-				bucketKey: fmt.Sprintf("%d", h.HourBucket),
-				nodeID:    h.NodeId,
-				email:     h.Email,
-				up:        h.Up,
-				down:      h.Down,
-			})
-		}
-		for k, d := range pending {
-			if k.HourBucket < startUnix || k.HourBucket >= endUnix {
-				continue
-			}
-			if filter.nodeID != nil && k.NodeId != *filter.nodeID {
-				continue
-			}
-			if filter.email != nil && k.Email != *filter.email {
-				continue
-			}
-			rows = append(rows, trafficAggRow{
-				bucketKey: fmt.Sprintf("%d", k.HourBucket),
-				nodeID:    k.NodeId,
-				email:     k.Email,
-				up:        d.Up,
-				down:      d.Down,
-			})
-		}
-		return rows, nil
 	}
-
-	// Daily bucket mode: split dates strictly by cutoffDate (< cutoff => dailies, >= cutoff => hourlies + pending).
 	var dailyDates []string
 	hourlyDateSet := make(map[string]struct{})
 	for _, ds := range dates {
@@ -421,102 +375,280 @@ func loadTrafficRows(
 			hourlyDateSet[ds] = struct{}{}
 		}
 	}
+	var hStart, hEnd int64
+	if len(hourlyDateSet) > 0 {
+		hStart = max(startTime.UTC().Truncate(time.Hour).Unix(), cutoffUnix)
+		hEnd = endTime.Unix()
+	}
+	return trafficWindowPlan{
+		bucketUnit:    "day",
+		dailyDates:    dailyDates,
+		hourlyDateSet: hourlyDateSet,
+		hourlyStart:   hStart,
+		hourlyEnd:     hEnd,
+		loc:           loc,
+	}
+}
 
-	if len(dailyDates) > 0 {
-		q := db.Model(&model.TrafficDaily{}).Where("date IN ?", dailyDates)
-		if filter.nodeID != nil {
-			q = q.Where("node_id = ?", *filter.nodeID)
+func applyTrafficFilter(q *gorm.DB, filter trafficFilter) *gorm.DB {
+	if filter.nodeID != nil {
+		q = q.Where("node_id = ?", *filter.nodeID)
+	}
+	if filter.email != nil {
+		q = q.Where("email = ?", *filter.email)
+	} else if filter.nonEmpty {
+		q = q.Where("email <> ''")
+	}
+	if filter.emailSearch != "" {
+		q = q.Where("LOWER(email) LIKE ?", "%"+strings.ToLower(filter.emailSearch)+"%")
+	}
+	return q
+}
+
+func matchesPendingFilter(k TrafficLedgerKey, filter trafficFilter) bool {
+	if filter.nodeID != nil && k.NodeId != *filter.nodeID {
+		return false
+	}
+	if filter.email != nil && k.Email != *filter.email {
+		return false
+	}
+	if filter.email == nil && filter.nonEmpty && k.Email == "" {
+		return false
+	}
+	if filter.emailSearch != "" && !strings.Contains(strings.ToLower(k.Email), strings.ToLower(filter.emailSearch)) {
+		return false
+	}
+	return true
+}
+
+func pendingBucketKey(k TrafficLedgerKey, plan trafficWindowPlan) (string, bool) {
+	if plan.hourlyEnd <= plan.hourlyStart || k.HourBucket < plan.hourlyStart || k.HourBucket >= plan.hourlyEnd {
+		return "", false
+	}
+	if plan.bucketUnit == "hour" {
+		return fmt.Sprintf("%d", k.HourBucket), true
+	}
+	ds := time.Unix(k.HourBucket, 0).In(plan.loc).Format("2006-01-02")
+	if _, ok := plan.hourlyDateSet[ds]; !ok {
+		return "", false
+	}
+	return ds, true
+}
+
+func queryTrafficSeries(db *gorm.DB, plan trafficWindowPlan, pending map[TrafficLedgerKey]TrafficDelta, filter trafficFilter) (map[string]TrafficDelta, error) {
+	byBucket := make(map[string]TrafficDelta)
+	if len(plan.dailyDates) > 0 {
+		var rows []struct {
+			Date string
+			Up   int64
+			Down int64
 		}
-		if filter.email != nil {
-			q = q.Where("email = ?", *filter.email)
-		}
-		var dRows []model.TrafficDaily
-		if err := q.Find(&dRows).Error; err != nil {
+		q := applyTrafficFilter(db.Model(&model.TrafficDaily{}).Where("date IN ?", plan.dailyDates), filter)
+		if err := q.Select("date, COALESCE(SUM(up), 0) AS up, COALESCE(SUM(down), 0) AS down").Group("date").Scan(&rows).Error; err != nil {
 			return nil, err
 		}
-		for _, d := range dRows {
-			rows = append(rows, trafficAggRow{
-				bucketKey: d.Date,
-				nodeID:    d.NodeId,
-				email:     d.Email,
-				up:        d.Up,
-				down:      d.Down,
-			})
+		for _, r := range rows {
+			cur := byBucket[r.Date]
+			cur.Up += r.Up
+			cur.Down += r.Down
+			byBucket[r.Date] = cur
 		}
 	}
+	if plan.hourlyEnd > plan.hourlyStart {
+		var rows []struct {
+			HourBucket int64
+			Up         int64
+			Down       int64
+		}
+		q := applyTrafficFilter(
+			db.Model(&model.TrafficHourly{}).Where("hour_bucket >= ? AND hour_bucket < ?", plan.hourlyStart, plan.hourlyEnd),
+			filter,
+		)
+		if err := q.Select("hour_bucket, COALESCE(SUM(up), 0) AS up, COALESCE(SUM(down), 0) AS down").Group("hour_bucket").Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			var key string
+			if plan.bucketUnit == "hour" {
+				key = fmt.Sprintf("%d", r.HourBucket)
+			} else {
+				ds := time.Unix(r.HourBucket, 0).In(plan.loc).Format("2006-01-02")
+				if _, ok := plan.hourlyDateSet[ds]; !ok {
+					continue
+				}
+				key = ds
+			}
+			cur := byBucket[key]
+			cur.Up += r.Up
+			cur.Down += r.Down
+			byBucket[key] = cur
+		}
+		for k, d := range pending {
+			if !matchesPendingFilter(k, filter) {
+				continue
+			}
+			key, ok := pendingBucketKey(k, plan)
+			if !ok {
+				continue
+			}
+			cur := byBucket[key]
+			cur.Up += d.Up
+			cur.Down += d.Down
+			byBucket[key] = cur
+		}
+	}
+	return byBucket, nil
+}
 
-	if len(hourlyDateSet) > 0 {
-		startUnix := max(startTime.UTC().Truncate(time.Hour).Unix(), cutoffUnix)
-		endUnix := endTime.UTC().Truncate(time.Hour).Unix()
-		if startUnix < endUnix {
-			q := db.Model(&model.TrafficHourly{}).Where("hour_bucket >= ? AND hour_bucket < ?", startUnix, endUnix)
-			if filter.nodeID != nil {
-				q = q.Where("node_id = ?", *filter.nodeID)
+func queryTrafficScalarTotal(db *gorm.DB, plan trafficWindowPlan, pending map[TrafficLedgerKey]TrafficDelta, filter trafficFilter) (int64, int64, error) {
+	byBucket, err := queryTrafficSeries(db, plan, pending, filter)
+	if err != nil {
+		return 0, 0, err
+	}
+	var up, down int64
+	for _, d := range byBucket {
+		up += d.Up
+		down += d.Down
+	}
+	return up, down, nil
+}
+
+func queryTrafficByNode(db *gorm.DB, plan trafficWindowPlan, pending map[TrafficLedgerKey]TrafficDelta, filter trafficFilter) (map[int]TrafficDelta, error) {
+	byNode := make(map[int]TrafficDelta)
+	if len(plan.dailyDates) > 0 {
+		var rows []struct {
+			NodeId int
+			Up     int64
+			Down   int64
+		}
+		q := applyTrafficFilter(db.Model(&model.TrafficDaily{}).Where("date IN ?", plan.dailyDates), filter)
+		if err := q.Select("node_id, COALESCE(SUM(up), 0) AS up, COALESCE(SUM(down), 0) AS down").Group("node_id").Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			cur := byNode[r.NodeId]
+			cur.Up += r.Up
+			cur.Down += r.Down
+			byNode[r.NodeId] = cur
+		}
+	}
+	if plan.hourlyEnd > plan.hourlyStart {
+		if plan.bucketUnit == "hour" {
+			var rows []struct {
+				NodeId int
+				Up     int64
+				Down   int64
 			}
-			if filter.email != nil {
-				q = q.Where("email = ?", *filter.email)
-			}
-			var hRows []model.TrafficHourly
-			if err := q.Find(&hRows).Error; err != nil {
+			q := applyTrafficFilter(
+				db.Model(&model.TrafficHourly{}).Where("hour_bucket >= ? AND hour_bucket < ?", plan.hourlyStart, plan.hourlyEnd),
+				filter,
+			)
+			if err := q.Select("node_id, COALESCE(SUM(up), 0) AS up, COALESCE(SUM(down), 0) AS down").Group("node_id").Scan(&rows).Error; err != nil {
 				return nil, err
 			}
-			for _, h := range hRows {
-				ds := time.Unix(h.HourBucket, 0).In(loc).Format("2006-01-02")
-				if _, ok := hourlyDateSet[ds]; !ok {
-					continue
-				}
-				rows = append(rows, trafficAggRow{
-					bucketKey: ds,
-					nodeID:    h.NodeId,
-					email:     h.Email,
-					up:        h.Up,
-					down:      h.Down,
-				})
+			for _, r := range rows {
+				cur := byNode[r.NodeId]
+				cur.Up += r.Up
+				cur.Down += r.Down
+				byNode[r.NodeId] = cur
 			}
-			for k, d := range pending {
-				if k.HourBucket < startUnix || k.HourBucket >= endUnix {
+		} else {
+			var rows []struct {
+				HourBucket int64
+				NodeId     int
+				Up         int64
+				Down       int64
+			}
+			q := applyTrafficFilter(
+				db.Model(&model.TrafficHourly{}).Where("hour_bucket >= ? AND hour_bucket < ?", plan.hourlyStart, plan.hourlyEnd),
+				filter,
+			)
+			if err := q.Select("hour_bucket, node_id, COALESCE(SUM(up), 0) AS up, COALESCE(SUM(down), 0) AS down").Group("hour_bucket, node_id").Scan(&rows).Error; err != nil {
+				return nil, err
+			}
+			for _, r := range rows {
+				ds := time.Unix(r.HourBucket, 0).In(plan.loc).Format("2006-01-02")
+				if _, ok := plan.hourlyDateSet[ds]; !ok {
 					continue
 				}
-				if filter.nodeID != nil && k.NodeId != *filter.nodeID {
-					continue
-				}
-				if filter.email != nil && k.Email != *filter.email {
-					continue
-				}
-				ds := time.Unix(k.HourBucket, 0).In(loc).Format("2006-01-02")
-				if _, ok := hourlyDateSet[ds]; !ok {
-					continue
-				}
-				rows = append(rows, trafficAggRow{
-					bucketKey: ds,
-					nodeID:    k.NodeId,
-					email:     k.Email,
-					up:        d.Up,
-					down:      d.Down,
-				})
+				cur := byNode[r.NodeId]
+				cur.Up += r.Up
+				cur.Down += r.Down
+				byNode[r.NodeId] = cur
 			}
 		}
+		for k, d := range pending {
+			if !matchesPendingFilter(k, filter) {
+				continue
+			}
+			if _, ok := pendingBucketKey(k, plan); !ok {
+				continue
+			}
+			cur := byNode[k.NodeId]
+			cur.Up += d.Up
+			cur.Down += d.Down
+			byNode[k.NodeId] = cur
+		}
 	}
-
-	return rows, nil
+	return byNode, nil
 }
 
-func sumTrafficRows(rows []trafficAggRow) (up, down int64) {
-	for _, r := range rows {
-		up += r.up
-		down += r.down
+func queryTrafficByEmail(db *gorm.DB, plan trafficWindowPlan, pending map[TrafficLedgerKey]TrafficDelta, filter trafficFilter) (map[string]TrafficDelta, error) {
+	byEmail := make(map[string]TrafficDelta)
+	if len(plan.dailyDates) > 0 {
+		var rows []struct {
+			Email string
+			Up    int64
+			Down  int64
+		}
+		q := applyTrafficFilter(db.Model(&model.TrafficDaily{}).Where("date IN ?", plan.dailyDates), filter)
+		if err := q.Select("email, COALESCE(SUM(up), 0) AS up, COALESCE(SUM(down), 0) AS down").Group("email").Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			cur := byEmail[r.Email]
+			cur.Up += r.Up
+			cur.Down += r.Down
+			byEmail[r.Email] = cur
+		}
 	}
-	return up, down
+	if plan.hourlyEnd > plan.hourlyStart {
+		// Group in SQL directly by email over the exact local-midnight-aligned [hourlyStart, hourlyEnd) window.
+		var rows []struct {
+			Email string
+			Up    int64
+			Down  int64
+		}
+		q := applyTrafficFilter(
+			db.Model(&model.TrafficHourly{}).Where("hour_bucket >= ? AND hour_bucket < ?", plan.hourlyStart, plan.hourlyEnd),
+			filter,
+		)
+		if err := q.Select("email, COALESCE(SUM(up), 0) AS up, COALESCE(SUM(down), 0) AS down").Group("email").Scan(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			cur := byEmail[r.Email]
+			cur.Up += r.Up
+			cur.Down += r.Down
+			byEmail[r.Email] = cur
+		}
+		for k, d := range pending {
+			if !matchesPendingFilter(k, filter) {
+				continue
+			}
+			if _, ok := pendingBucketKey(k, plan); !ok {
+				continue
+			}
+			cur := byEmail[k.Email]
+			cur.Up += d.Up
+			cur.Down += d.Down
+			byEmail[k.Email] = cur
+		}
+	}
+	return byEmail, nil
 }
 
-func buildSeriesPoints(specs []trafficBucketSpec, rows []trafficAggRow) []TrafficSeriesPoint {
-	byKey := make(map[string]TrafficDelta, len(specs))
-	for _, r := range rows {
-		cur := byKey[r.bucketKey]
-		cur.Up += r.up
-		cur.Down += r.down
-		byKey[r.bucketKey] = cur
-	}
+func buildSeriesPoints(specs []trafficBucketSpec, byKey map[string]TrafficDelta) []TrafficSeriesPoint {
 	series := make([]TrafficSeriesPoint, len(specs))
 	for i, sp := range specs {
 		d := byKey[sp.key]
@@ -547,8 +679,8 @@ func calcSharePct(part, total int64) float64 {
 	return math.Round((float64(part)/float64(total))*10000) / 100
 }
 
-func hasAnyTrafficHistory(db *gorm.DB) bool {
-	if len(SnapshotPendingTraffic()) > 0 {
+func hasAnyTrafficHistory(db *gorm.DB, pending map[TrafficLedgerKey]TrafficDelta) bool {
+	if len(pending) > 0 {
 		return true
 	}
 	var count int64
@@ -609,20 +741,45 @@ func (s *TrafficAnalyticsService) GetOverview(period, anchor string) (*TrafficOv
 		return nil, err
 	}
 	cutoffDate, cutoffUnix := TrafficHourlyCutoffDate(now, loc)
+	curPlan := buildWindowPlan(rng.bucketUnit, rng.startTime, rng.endTime, rng.dates, cutoffDate, cutoffUnix, loc)
+	prevPlan := buildWindowPlan(rng.bucketUnit, rng.prevStartTime, rng.prevEndTime, rng.prevDates, cutoffDate, cutoffUnix, loc)
 	db := database.GetDB()
 
-	curRows, err := loadTrafficRows(db, rng.bucketUnit, rng.startTime, rng.endTime, rng.dates, cutoffDate, cutoffUnix, loc, trafficFilter{})
-	if err != nil {
-		return nil, err
-	}
-	prevRows, err := loadTrafficRows(db, rng.bucketUnit, rng.prevStartTime, rng.prevEndTime, rng.prevDates, cutoffDate, cutoffUnix, loc, trafficFilter{})
-	if err != nil {
+	var (
+		seriesMap    map[string]TrafficDelta
+		prevUp       int64
+		prevDown     int64
+		nodeTotals   map[int]TrafficDelta
+		clientTotals map[string]TrafficDelta
+		hasHist      bool
+	)
+	if err := WithTrafficLedgerReadLock(func() error {
+		pending := SnapshotPendingTraffic()
+		var innerErr error
+		if seriesMap, innerErr = queryTrafficSeries(db, curPlan, pending, trafficFilter{}); innerErr != nil {
+			return innerErr
+		}
+		if prevUp, prevDown, innerErr = queryTrafficScalarTotal(db, prevPlan, pending, trafficFilter{}); innerErr != nil {
+			return innerErr
+		}
+		if nodeTotals, innerErr = queryTrafficByNode(db, curPlan, pending, trafficFilter{}); innerErr != nil {
+			return innerErr
+		}
+		if clientTotals, innerErr = queryTrafficByEmail(db, curPlan, pending, trafficFilter{nonEmpty: true}); innerErr != nil {
+			return innerErr
+		}
+		hasHist = hasAnyTrafficHistory(db, pending)
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 
-	totalUp, totalDown := sumTrafficRows(curRows)
+	var totalUp, totalDown int64
+	for _, d := range seriesMap {
+		totalUp += d.Up
+		totalDown += d.Down
+	}
 	total := totalUp + totalDown
-	prevUp, prevDown := sumTrafficRows(prevRows)
 	prevTotal := prevUp + prevDown
 
 	clientSet, nodeMap, err := loadExistingClientsAndNodes(db)
@@ -631,36 +788,23 @@ func (s *TrafficAnalyticsService) GetOverview(period, anchor string) (*TrafficOv
 	}
 	live := GetLiveSpeedSnapshot(now)
 
-	clientTotals := make(map[string]TrafficDelta)
-	nodeTotals := make(map[int]TrafficDelta)
-	for _, r := range curRows {
-		if r.email != "" {
-			cd := clientTotals[r.email]
-			cd.Up += r.up
-			cd.Down += r.down
-			clientTotals[r.email] = cd
-		}
-		nd := nodeTotals[r.nodeID]
-		nd.Up += r.up
-		nd.Down += r.down
-		nodeTotals[r.nodeID] = nd
-	}
-
 	activeClients := 0
 	var topClientEmail string
 	var topClientTotal int64
 	for email, d := range clientTotals {
 		t := d.Up + d.Down
-		if t > 0 {
+		if t <= 0 {
+			continue
+		}
+		if _, exists := clientSet[email]; exists {
 			activeClients++
-			if t > topClientTotal || (t == topClientTotal && email < topClientEmail) {
-				topClientEmail = email
-				topClientTotal = t
-			}
+		}
+		if t > topClientTotal || (t == topClientTotal && email < topClientEmail) {
+			topClientEmail = email
+			topClientTotal = t
 		}
 	}
 
-	// Build node rank list: always include local (0) + all existing nodes + any deleted nodes with traffic.
 	nodeIDSet := make(map[int]struct{}, len(nodeMap)+len(nodeTotals)+1)
 	nodeIDSet[0] = struct{}{}
 	for id := range nodeMap {
@@ -758,10 +902,10 @@ func (s *TrafficAnalyticsService) GetOverview(period, anchor string) (*TrafficOv
 			TopNodeTotal:   topNodeTotal,
 			LiveUpSpeed:    live.Total.Up,
 			LiveDownSpeed:  live.Total.Down,
-			HasHistory:     hasAnyTrafficHistory(db),
+			HasHistory:     hasHist,
 			HourlyExpired:  rng.period == "day" && rng.anchor < cutoffDate,
 		},
-		Series: buildSeriesPoints(rng.buckets, curRows),
+		Series: buildSeriesPoints(rng.buckets, seriesMap),
 		Nodes:  nodeItems,
 	}, nil
 }
@@ -791,14 +935,30 @@ func (s *TrafficAnalyticsService) GetClientsPage(period, anchor, search, sortBy 
 		return nil, err
 	}
 	cutoffDate, cutoffUnix := TrafficHourlyCutoffDate(now, loc)
+	curPlan := buildWindowPlan(rng.bucketUnit, rng.startTime, rng.endTime, rng.dates, cutoffDate, cutoffUnix, loc)
 	db := database.GetDB()
+	qSearch := strings.TrimSpace(search)
 
-	curRows, err := loadTrafficRows(db, rng.bucketUnit, rng.startTime, rng.endTime, rng.dates, cutoffDate, cutoffUnix, loc, trafficFilter{})
-	if err != nil {
+	var (
+		periodUp     int64
+		periodDown   int64
+		clientTotals map[string]TrafficDelta
+	)
+	if err := WithTrafficLedgerReadLock(func() error {
+		pending := SnapshotPendingTraffic()
+		var innerErr error
+		if periodUp, periodDown, innerErr = queryTrafficScalarTotal(db, curPlan, pending, trafficFilter{}); innerErr != nil {
+			return innerErr
+		}
+		clientTotals, innerErr = queryTrafficByEmail(db, curPlan, pending, trafficFilter{
+			nonEmpty:    true,
+			emailSearch: qSearch,
+		})
+		return innerErr
+	}); err != nil {
 		return nil, err
 	}
-	totalUp, totalDown := sumTrafficRows(curRows)
-	periodTotal := totalUp + totalDown
+	periodTotal := periodUp + periodDown
 
 	clientSet, _, err := loadExistingClientsAndNodes(db)
 	if err != nil {
@@ -807,19 +967,12 @@ func (s *TrafficAnalyticsService) GetClientsPage(period, anchor, search, sortBy 
 	onlineSet := s.onlineEmailSet()
 	live := GetLiveSpeedSnapshot(now)
 
-	clientTotals := make(map[string]TrafficDelta)
-	for _, r := range curRows {
-		if r.email == "" {
+	candidates := make(map[string]struct{}, len(clientSet)+len(clientTotals))
+	lowerSearch := strings.ToLower(qSearch)
+	for email := range clientSet {
+		if lowerSearch != "" && !strings.Contains(strings.ToLower(email), lowerSearch) {
 			continue
 		}
-		cd := clientTotals[r.email]
-		cd.Up += r.up
-		cd.Down += r.down
-		clientTotals[r.email] = cd
-	}
-
-	candidates := make(map[string]struct{}, len(clientSet)+len(clientTotals))
-	for email := range clientSet {
 		candidates[email] = struct{}{}
 	}
 	for email, d := range clientTotals {
@@ -828,12 +981,8 @@ func (s *TrafficAnalyticsService) GetClientsPage(period, anchor, search, sortBy 
 		}
 	}
 
-	qSearch := strings.ToLower(strings.TrimSpace(search))
 	items := make([]TrafficClientRankItem, 0, len(candidates))
 	for email := range candidates {
-		if qSearch != "" && !strings.Contains(strings.ToLower(email), qSearch) {
-			continue
-		}
 		d := clientTotals[email]
 		tot := d.Up + d.Down
 		_, exists := clientSet[email]
@@ -901,21 +1050,38 @@ func (s *TrafficAnalyticsService) GetClientDetail(email, period, anchor string) 
 		return nil, err
 	}
 	cutoffDate, cutoffUnix := TrafficHourlyCutoffDate(now, loc)
+	curPlan := buildWindowPlan(rng.bucketUnit, rng.startTime, rng.endTime, rng.dates, cutoffDate, cutoffUnix, loc)
+	prevPlan := buildWindowPlan(rng.bucketUnit, rng.prevStartTime, rng.prevEndTime, rng.prevDates, cutoffDate, cutoffUnix, loc)
 	db := database.GetDB()
-
 	filter := trafficFilter{email: &email}
-	curRows, err := loadTrafficRows(db, rng.bucketUnit, rng.startTime, rng.endTime, rng.dates, cutoffDate, cutoffUnix, loc, filter)
-	if err != nil {
-		return nil, err
-	}
-	prevRows, err := loadTrafficRows(db, rng.bucketUnit, rng.prevStartTime, rng.prevEndTime, rng.prevDates, cutoffDate, cutoffUnix, loc, filter)
-	if err != nil {
+
+	var (
+		seriesMap  map[string]TrafficDelta
+		prevUp     int64
+		prevDown   int64
+		nodeTotals map[int]TrafficDelta
+	)
+	if err := WithTrafficLedgerReadLock(func() error {
+		pending := SnapshotPendingTraffic()
+		var innerErr error
+		if seriesMap, innerErr = queryTrafficSeries(db, curPlan, pending, filter); innerErr != nil {
+			return innerErr
+		}
+		if prevUp, prevDown, innerErr = queryTrafficScalarTotal(db, prevPlan, pending, filter); innerErr != nil {
+			return innerErr
+		}
+		nodeTotals, innerErr = queryTrafficByNode(db, curPlan, pending, filter)
+		return innerErr
+	}); err != nil {
 		return nil, err
 	}
 
-	totalUp, totalDown := sumTrafficRows(curRows)
+	var totalUp, totalDown int64
+	for _, d := range seriesMap {
+		totalUp += d.Up
+		totalDown += d.Down
+	}
 	total := totalUp + totalDown
-	prevUp, prevDown := sumTrafficRows(prevRows)
 	prevTotal := prevUp + prevDown
 
 	clientSet, nodeMap, err := loadExistingClientsAndNodes(db)
@@ -924,14 +1090,6 @@ func (s *TrafficAnalyticsService) GetClientDetail(email, period, anchor string) 
 	}
 	onlineSet := s.onlineEmailSet()
 	live := GetLiveSpeedSnapshot(now)
-
-	nodeTotals := make(map[int]TrafficDelta)
-	for _, r := range curRows {
-		nd := nodeTotals[r.nodeID]
-		nd.Up += r.up
-		nd.Down += r.down
-		nodeTotals[r.nodeID] = nd
-	}
 
 	localStatus := s.localNodeStatus()
 	nodes := make([]TrafficNodeBreakdownItem, 0, len(nodeTotals))
@@ -988,7 +1146,7 @@ func (s *TrafficAnalyticsService) GetClientDetail(email, period, anchor string) 
 			PrevTotal: prevTotal,
 			ChangePct: calcChangePct(total, prevTotal),
 		},
-		Series: buildSeriesPoints(rng.buckets, curRows),
+		Series: buildSeriesPoints(rng.buckets, seriesMap),
 		Nodes:  nodes,
 	}, nil
 }
@@ -1015,22 +1173,46 @@ func (s *TrafficAnalyticsService) GetNodeDetail(nodeID int, period, anchor, sear
 		return nil, err
 	}
 	cutoffDate, cutoffUnix := TrafficHourlyCutoffDate(now, loc)
+	curPlan := buildWindowPlan(rng.bucketUnit, rng.startTime, rng.endTime, rng.dates, cutoffDate, cutoffUnix, loc)
+	prevPlan := buildWindowPlan(rng.bucketUnit, rng.prevStartTime, rng.prevEndTime, rng.prevDates, cutoffDate, cutoffUnix, loc)
 	db := database.GetDB()
 
 	clientSet, nodeMap, err := loadExistingClientsAndNodes(db)
 	if err != nil {
 		return nil, err
 	}
+	qSearch := strings.TrimSpace(search)
 
-	filter := trafficFilter{nodeID: &nodeID}
-	curRows, err := loadTrafficRows(db, rng.bucketUnit, rng.startTime, rng.endTime, rng.dates, cutoffDate, cutoffUnix, loc, filter)
-	if err != nil {
+	var (
+		seriesMap map[string]TrafficDelta
+		prevUp    int64
+		prevDown  int64
+		byEmail   map[string]TrafficDelta
+	)
+	if err := WithTrafficLedgerReadLock(func() error {
+		pending := SnapshotPendingTraffic()
+		var innerErr error
+		nodeFilter := trafficFilter{nodeID: &nodeID}
+		if seriesMap, innerErr = queryTrafficSeries(db, curPlan, pending, nodeFilter); innerErr != nil {
+			return innerErr
+		}
+		if prevUp, prevDown, innerErr = queryTrafficScalarTotal(db, prevPlan, pending, nodeFilter); innerErr != nil {
+			return innerErr
+		}
+		emailFilter := trafficFilter{nodeID: &nodeID, emailSearch: qSearch}
+		byEmail, innerErr = queryTrafficByEmail(db, curPlan, pending, emailFilter)
+		return innerErr
+	}); err != nil {
 		return nil, err
 	}
-	prevRows, err := loadTrafficRows(db, rng.bucketUnit, rng.prevStartTime, rng.prevEndTime, rng.prevDates, cutoffDate, cutoffUnix, loc, filter)
-	if err != nil {
-		return nil, err
+
+	var totalUp, totalDown int64
+	for _, d := range seriesMap {
+		totalUp += d.Up
+		totalDown += d.Down
 	}
+	total := totalUp + totalDown
+	prevTotal := prevUp + prevDown
 
 	var nodeName, status string
 	var deleted bool
@@ -1045,7 +1227,7 @@ func (s *TrafficAnalyticsService) GetNodeDetail(nodeID int, period, anchor, sear
 			status = "offline"
 		}
 	} else {
-		if len(curRows) == 0 && len(prevRows) == 0 {
+		if total == 0 && prevTotal == 0 {
 			return nil, gorm.ErrRecordNotFound
 		}
 		nodeName = fmt.Sprintf("Node #%d", nodeID)
@@ -1053,23 +1235,9 @@ func (s *TrafficAnalyticsService) GetNodeDetail(nodeID int, period, anchor, sear
 		deleted = true
 	}
 
-	totalUp, totalDown := sumTrafficRows(curRows)
-	total := totalUp + totalDown
-	prevUp, prevDown := sumTrafficRows(prevRows)
-	prevTotal := prevUp + prevDown
-
 	onlineSet := s.onlineEmailSet()
 	live := GetLiveSpeedSnapshot(now)
 
-	byEmail := make(map[string]TrafficDelta)
-	for _, r := range curRows {
-		cd := byEmail[r.email]
-		cd.Up += r.up
-		cd.Down += r.down
-		byEmail[r.email] = cd
-	}
-
-	qSearch := strings.ToLower(strings.TrimSpace(search))
 	clients := make([]TrafficClientBreakdownItem, 0, len(byEmail))
 	for email, d := range byEmail {
 		tot := d.Up + d.Down
@@ -1077,7 +1245,7 @@ func (s *TrafficAnalyticsService) GetNodeDetail(nodeID int, period, anchor, sear
 			continue
 		}
 		unattr := email == ""
-		if qSearch != "" && (unattr || !strings.Contains(strings.ToLower(email), qSearch)) {
+		if qSearch != "" && unattr {
 			continue
 		}
 		_, exists := clientSet[email]
@@ -1122,7 +1290,7 @@ func (s *TrafficAnalyticsService) GetNodeDetail(nodeID int, period, anchor, sear
 			PrevTotal: prevTotal,
 			ChangePct: calcChangePct(total, prevTotal),
 		},
-		Series:       buildSeriesPoints(rng.buckets, curRows),
+		Series:       buildSeriesPoints(rng.buckets, seriesMap),
 		ClientsTotal: clientsTotal,
 		Clients:      clients[start:end],
 	}, nil

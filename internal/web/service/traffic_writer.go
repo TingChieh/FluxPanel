@@ -176,6 +176,9 @@ func runSerializedTx(fn func(tx *gorm.DB) error) error {
 		if err == nil {
 			// Still on the writer, so no node merge runs between the commit and the lift.
 			withdrawClientTombstones(state.createdClientEmails...)
+			for _, hook := range state.afterCommit {
+				hook()
+			}
 		}
 		return err
 	})
@@ -184,6 +187,7 @@ func runSerializedTx(fn func(tx *gorm.DB) error) error {
 // serializedTx carries what may only take effect once its transaction commits.
 type serializedTx struct {
 	createdClientEmails []string
+	afterCommit         []func()
 }
 
 func serializedTxOf(tx *gorm.DB) *serializedTx {

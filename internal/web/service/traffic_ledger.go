@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"maps"
 	"sync"
 	"time"
@@ -15,7 +16,8 @@ import (
 const (
 	trafficHourlyRetentionDays = 90
 	trafficDailyRetentionDays  = 365
-	trafficLedgerBatchSize     = 500
+	// 150 rows * 5 bind columns = 750 vars, safely below SQLite's 900-variable ceiling.
+	trafficLedgerBatchSize = 150
 )
 
 // TrafficLedgerKey identifies one (UTC hour, node, client email) bucket in memory.
@@ -34,7 +36,16 @@ type TrafficDelta struct {
 var (
 	trafficLedgerMu      sync.Mutex
 	trafficLedgerPending = make(map[TrafficLedgerKey]TrafficDelta)
+	// Coordinates atomic (swap pending + commit DB) in flush against analytics reads.
+	trafficLedgerReadMu sync.RWMutex
 )
+
+// WithTrafficLedgerReadLock runs fn while holding a shared lock against concurrent flushes.
+func WithTrafficLedgerReadLock(fn func() error) error {
+	trafficLedgerReadMu.RLock()
+	defer trafficLedgerReadMu.RUnlock()
+	return fn()
+}
 
 // RecordTrafficDelta accumulates positive traffic increments in memory for periodic flushing.
 func RecordTrafficDelta(at time.Time, nodeID int, email string, up, down int64) {
@@ -96,40 +107,61 @@ func requeueTrafficDeltas(batch map[TrafficLedgerKey]TrafficDelta) {
 	trafficLedgerMu.Unlock()
 }
 
-// FlushTrafficLedger writes all buffered hourly deltas to SQLite in a single serialized transaction.
-func FlushTrafficLedger() error {
+func renamePendingTraffic(oldEmail, newEmail string) {
 	trafficLedgerMu.Lock()
-	if len(trafficLedgerPending) == 0 {
-		trafficLedgerMu.Unlock()
-		return nil
-	}
-	batch := trafficLedgerPending
-	trafficLedgerPending = make(map[TrafficLedgerKey]TrafficDelta)
-	trafficLedgerMu.Unlock()
-
-	rows := make([]model.TrafficHourly, 0, len(batch))
-	for k, d := range batch {
-		if d.Up == 0 && d.Down == 0 {
+	for k, d := range trafficLedgerPending {
+		if k.Email != oldEmail {
 			continue
 		}
-		rows = append(rows, model.TrafficHourly{
-			HourBucket: k.HourBucket,
-			NodeId:     k.NodeId,
-			Email:      k.Email,
-			Up:         d.Up,
-			Down:       d.Down,
-		})
+		dst := TrafficLedgerKey{HourBucket: k.HourBucket, NodeId: k.NodeId, Email: newEmail}
+		cur := trafficLedgerPending[dst]
+		cur.Up += d.Up
+		cur.Down += d.Down
+		trafficLedgerPending[dst] = cur
+		delete(trafficLedgerPending, k)
 	}
-	if len(rows) == 0 {
-		return nil
-	}
+	trafficLedgerMu.Unlock()
+}
 
-	err := submitTrafficWriteBackground(func() error {
-		db := database.GetDB()
-		if db == nil {
+// FlushTrafficLedger writes all buffered hourly deltas to SQLite inside the serial writer.
+func FlushTrafficLedger() error {
+	return submitTrafficWriteBackground(func() error {
+		trafficLedgerReadMu.Lock()
+		defer trafficLedgerReadMu.Unlock()
+
+		trafficLedgerMu.Lock()
+		if len(trafficLedgerPending) == 0 {
+			trafficLedgerMu.Unlock()
 			return nil
 		}
-		return db.Transaction(func(tx *gorm.DB) error {
+		batch := trafficLedgerPending
+		trafficLedgerPending = make(map[TrafficLedgerKey]TrafficDelta)
+		trafficLedgerMu.Unlock()
+
+		db := database.GetDB()
+		if db == nil {
+			requeueTrafficDeltas(batch)
+			return errors.New("database not initialized")
+		}
+
+		rows := make([]model.TrafficHourly, 0, len(batch))
+		for k, d := range batch {
+			if d.Up == 0 && d.Down == 0 {
+				continue
+			}
+			rows = append(rows, model.TrafficHourly{
+				HourBucket: k.HourBucket,
+				NodeId:     k.NodeId,
+				Email:      k.Email,
+				Up:         d.Up,
+				Down:       d.Down,
+			})
+		}
+		if len(rows) == 0 {
+			return nil
+		}
+
+		err := db.Transaction(func(tx *gorm.DB) error {
 			for i := 0; i < len(rows); i += trafficLedgerBatchSize {
 				end := min(i+trafficLedgerBatchSize, len(rows))
 				if err := tx.Clauses(clause.OnConflict{
@@ -148,33 +180,19 @@ func FlushTrafficLedger() error {
 			}
 			return nil
 		})
+		if err != nil {
+			requeueTrafficDeltas(batch)
+			return err
+		}
+		return nil
 	})
-	if err != nil {
-		requeueTrafficDeltas(batch)
-		return err
-	}
-	return nil
 }
 
-// RenameTrafficHistoryTx merges oldEmail into newEmail across the in-memory ledger and history tables.
+// RenameTrafficHistoryTx merges oldEmail into newEmail across history tables and commits pending deltas post-commit.
 func RenameTrafficHistoryTx(tx *gorm.DB, oldEmail, newEmail string) error {
 	if oldEmail == "" || newEmail == "" || oldEmail == newEmail {
 		return nil
 	}
-
-	trafficLedgerMu.Lock()
-	for k, d := range trafficLedgerPending {
-		if k.Email != oldEmail {
-			continue
-		}
-		dst := TrafficLedgerKey{HourBucket: k.HourBucket, NodeId: k.NodeId, Email: newEmail}
-		cur := trafficLedgerPending[dst]
-		cur.Up += d.Up
-		cur.Down += d.Down
-		trafficLedgerPending[dst] = cur
-		delete(trafficLedgerPending, k)
-	}
-	trafficLedgerMu.Unlock()
 
 	if err := tx.Exec(
 		`INSERT INTO traffic_hourlies (hour_bucket, node_id, email, up, down)
@@ -200,7 +218,18 @@ func RenameTrafficHistoryTx(tx *gorm.DB, oldEmail, newEmail string) error {
 	).Error; err != nil {
 		return err
 	}
-	return tx.Where("email = ?", oldEmail).Delete(&model.TrafficDaily{}).Error
+	if err := tx.Where("email = ?", oldEmail).Delete(&model.TrafficDaily{}).Error; err != nil {
+		return err
+	}
+
+	if state := serializedTxOf(tx); state != nil {
+		state.afterCommit = append(state.afterCommit, func() {
+			renamePendingTraffic(oldEmail, newEmail)
+		})
+	} else {
+		renamePendingTraffic(oldEmail, newEmail)
+	}
+	return nil
 }
 
 // TrafficHourlyCutoffDate returns the earliest YYYY-MM-DD (and its local midnight unix) kept in traffic_hourlies.

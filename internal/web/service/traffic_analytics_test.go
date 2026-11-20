@@ -257,3 +257,65 @@ func TestTrafficAnalytics_ClientAndNodeDetailsAndRetentionExpiry(t *testing.T) {
 		t.Fatalf("expected HourlyExpired=true for day older than 90d cutoff")
 	}
 }
+
+func TestTrafficAnalytics_HalfHourTimezoneIncludesFinalHalfHour(t *testing.T) {
+	db := initTrafficLedgerTestDB(t)
+	ResetLiveSpeedsForTest()
+	t.Cleanup(ResetLiveSpeedsForTest)
+	setPanelTimeLocationForTest(t, "Asia/Kolkata")
+
+	loc, err := time.LoadLocation("Asia/Kolkata")
+	if err != nil {
+		t.Fatalf("load Asia/Kolkata: %v", err)
+	}
+	// 2026-11-22 is Sunday (last day of week 2026-11-16..2026-11-22).
+	// 23:45 +05:30 is 18:15 UTC -> HourBucket = 18:00 UTC (which maps to 23:30 +05:30 on 2026-11-22).
+	lateSunday := time.Date(2026, 11, 22, 23, 45, 0, 0, loc)
+	if err := db.Create(&model.TrafficHourly{
+		HourBucket: lateSunday.UTC().Truncate(time.Hour).Unix(),
+		NodeId:     0,
+		Email:      "kolkata",
+		Up:         111,
+		Down:       222,
+	}).Error; err != nil {
+		t.Fatalf("seed kolkata hourly: %v", err)
+	}
+
+	svc := TrafficAnalyticsService{nowFn: func() time.Time { return time.Date(2026, 11, 23, 10, 0, 0, 0, loc) }}
+	res, err := svc.GetOverview("week", "2026-11-22")
+	if err != nil {
+		t.Fatalf("week overview: %v", err)
+	}
+	if res.Summary.TotalUp != 111 || res.Summary.TotalDown != 222 {
+		t.Fatalf("kolkata late Sunday total = (%d, %d), want (111, 222)", res.Summary.TotalUp, res.Summary.TotalDown)
+	}
+}
+
+func TestTrafficAnalytics_ActiveClientsNeverExceedsTotalClients(t *testing.T) {
+	db := initTrafficLedgerTestDB(t)
+	ResetLiveSpeedsForTest()
+	t.Cleanup(ResetLiveSpeedsForTest)
+	setPanelTimeLocationForTest(t, "UTC")
+
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	if err := db.Create(&model.ClientRecord{Email: "alive", UUID: "u1", SubID: "s1", Enable: true}).Error; err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+	h := now.Truncate(time.Hour).Unix()
+	if err := db.Create(&[]model.TrafficHourly{
+		{HourBucket: h, NodeId: 0, Email: "alive", Up: 10, Down: 20},
+		{HourBucket: h, NodeId: 0, Email: "deleted1", Up: 30, Down: 40},
+		{HourBucket: h, NodeId: 0, Email: "deleted2", Up: 50, Down: 60},
+	}).Error; err != nil {
+		t.Fatalf("seed hourly: %v", err)
+	}
+
+	svc := TrafficAnalyticsService{nowFn: func() time.Time { return now }}
+	res, err := svc.GetOverview("day", "2026-11-20")
+	if err != nil {
+		t.Fatalf("overview: %v", err)
+	}
+	if res.Summary.ActiveClients != 1 || res.Summary.TotalClients != 1 {
+		t.Fatalf("active/total clients = (%d, %d), want (1, 1)", res.Summary.ActiveClients, res.Summary.TotalClients)
+	}
+}

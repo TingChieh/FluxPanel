@@ -989,11 +989,14 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 			updates["last_traffic_reset_time"] = snapIb.LastTrafficResetTime
 		}
 		if !inGrace || (snapIb.Up+snapIb.Down) <= (c.Up+c.Down) {
-			if dUp := snapIb.Up - c.Up; dUp > 0 {
-				ledgerInboundUp += dUp
-			}
-			if dDown := snapIb.Down - c.Down; dDown > 0 {
-				ledgerInboundDown += dDown
+			// Skip first-time compatible-alias bind on a zeroed central row so historical totals are not booked as delta.
+			if c.OriginNodeGuid != "" || c.Up > 0 || c.Down > 0 {
+				if dUp := snapIb.Up - c.Up; dUp > 0 {
+					ledgerInboundUp += dUp
+				}
+				if dDown := snapIb.Down - c.Down; dDown > 0 {
+					ledgerInboundDown += dDown
+				}
 			}
 			updates["up"] = snapIb.Up
 			updates["down"] = snapIb.Down

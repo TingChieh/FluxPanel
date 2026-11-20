@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Drawer, Empty, Input, Pagination, Progress, Spin, Tag, Typography } from 'antd';
+import { Alert, Drawer, Empty, Input, Pagination, Progress, Spin, Tag, Typography } from 'antd';
 import { ClusterOutlined, UserOutlined } from '@ant-design/icons';
 
 import {
@@ -103,6 +103,7 @@ export default function TrafficDetailDrawer({
   ) : target?.kind === 'node' ? (
     <span className="traffic-drawer-title">
       <ClusterOutlined aria-hidden />
+      {nodeData?.status && <span className={`traffic-status-dot is-${nodeData.status}`} />}
       <span>
         {target.nodeId === 0
           ? t('pages.traffic.localNode')
@@ -115,6 +116,13 @@ export default function TrafficDetailDrawer({
   );
 
   const loading = isClient ? clientQuery.isLoading : nodeQuery.isLoading;
+  const activeError = isClient
+    ? clientQuery.isError
+      ? clientQuery.error
+      : null
+    : nodeQuery.isError
+      ? nodeQuery.error
+      : null;
 
   return (
     <Drawer
@@ -131,6 +139,12 @@ export default function TrafficDetailDrawer({
         <div className="traffic-drawer-loading">
           <Spin />
         </div>
+      ) : activeError ? (
+        <Alert
+          type="error"
+          showIcon
+          title={activeError instanceof Error ? activeError.message : t('somethingWentWrong')}
+        />
       ) : isClient && clientData ? (
         <div className="traffic-drawer-body">
           <div className="traffic-drawer-summary">

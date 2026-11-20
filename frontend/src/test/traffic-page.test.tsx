@@ -361,4 +361,24 @@ describe('TrafficPage', () => {
       expect(screen.getByText(/Hourly data is retained for the last 90 days/i)).toBeTruthy();
     });
   });
+
+  it('does not duplicate initial /clients fetch and surfaces error alert on query failure', async () => {
+    const clientCalls: string[] = [];
+    vi.spyOn(HttpUtil, 'get').mockImplementation(async (url: string) => {
+      if (url.startsWith('/panel/api/traffic/clients')) {
+        clientCalls.push(url);
+      }
+      if (url.startsWith('/panel/api/traffic/overview')) {
+        return new Msg(false, 'backend unavailable', null);
+      }
+      return new Msg(true, '', makeClientsPage());
+    });
+
+    renderTrafficPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('backend unavailable')).toBeTruthy();
+    });
+    expect(clientCalls).toHaveLength(1);
+  });
 });

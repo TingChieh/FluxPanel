@@ -348,7 +348,9 @@ func (s *Server) startTask(restartXray bool, loc *time.Location) {
 	_, _ = s.cron.AddJob(cadenceAccessAudit, job.NewAccessAuditDigestJob())
 	_, _ = s.cron.AddJob("@daily", job.NewAccessAuditPruneJob())
 	_, _ = s.cron.AddJob(cadenceTrafficFlush, job.NewTrafficFlushJob())
-	_, _ = s.cron.AddJob("@daily", job.NewTrafficRollupJob(loc))
+	trafficRollupJob := job.NewTrafficRollupJob(loc)
+	_, _ = s.cron.AddJob("@daily", trafficRollupJob)
+	common.GoRecover("traffic-rollup-startup", trafficRollupJob.Run)
 
 	// Inbound traffic reset jobs
 	// Run every hour

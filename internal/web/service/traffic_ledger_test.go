@@ -225,3 +225,39 @@ func TestTrafficLedger_RollupAndPruneStrictCutoff(t *testing.T) {
 		t.Fatalf("expected within-365d daily row to be kept")
 	}
 }
+
+func TestTrafficLedger_RenameRollbackPreservesPendingBuffer(t *testing.T) {
+	db := initTrafficLedgerTestDB(t)
+
+	ts := time.Date(2026, 11, 20, 13, 0, 0, 0, time.UTC)
+	hourBucket := ts.Unix()
+	RecordTrafficDelta(ts, 0, "old@rb", 55, 66)
+
+	forcedErr := gorm.ErrInvalidTransaction
+	err := runSerializedTx(func(tx *gorm.DB) error {
+		if err := RenameTrafficHistoryTx(tx, "old@rb", "new@rb"); err != nil {
+			return err
+		}
+		return forcedErr
+	})
+	if err == nil {
+		t.Fatalf("expected transaction rollback error")
+	}
+	_ = db
+
+	snap := SnapshotPendingTraffic()
+	oldKey := TrafficLedgerKey{HourBucket: hourBucket, NodeId: 0, Email: "old@rb"}
+	newKey := TrafficLedgerKey{HourBucket: hourBucket, NodeId: 0, Email: "new@rb"}
+	if got := snap[oldKey]; got != (TrafficDelta{Up: 55, Down: 66}) {
+		t.Fatalf("after rollback old pending = %+v, want {55 66}", got)
+	}
+	if _, leaked := snap[newKey]; leaked {
+		t.Fatalf("after rollback new@rb should not exist in pending buffer")
+	}
+}
+
+func TestTrafficLedger_BatchSizeStaysWithinSQLiteVarLimit(t *testing.T) {
+	if trafficLedgerBatchSize*5 > 900 {
+		t.Fatalf("trafficLedgerBatchSize=%d binds %d vars (> 900 SQLite limit)", trafficLedgerBatchSize, trafficLedgerBatchSize*5)
+	}
+}
