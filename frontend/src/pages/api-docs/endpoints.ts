@@ -2925,7 +2925,7 @@ export const sections: readonly Section[] = [
         path: '/panel/api/traffic/client/:email',
         summary: "Return one client's traffic trend and per-node breakdown for a period.",
         params: [
-          { name: 'email', in: 'path', type: 'string', required: true, desc: 'Client email.' },
+          { name: 'email', in: 'path', type: 'string', desc: 'Client email.' },
           {
             name: 'period',
             in: 'query',
@@ -2950,7 +2950,6 @@ export const sections: readonly Section[] = [
             name: 'id',
             in: 'path',
             type: 'integer',
-            required: true,
             desc: 'Node ID (0 for the local panel).',
           },
           {

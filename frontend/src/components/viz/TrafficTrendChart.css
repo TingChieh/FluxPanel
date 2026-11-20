@@ -1,0 +1,74 @@
+.traffic-trend-chart {
+  position: relative;
+  width: 100%;
+}
+
+.traffic-trend-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--ant-color-text-secondary, rgba(0, 0, 0, 0.65));
+}
+
+.traffic-trend-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.traffic-trend-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.traffic-trend-canvas-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.traffic-trend-host {
+  width: 100%;
+}
+
+.traffic-trend-host .uplot {
+  width: 100%;
+}
+
+.traffic-trend-tooltip {
+  position: absolute;
+  top: 8px;
+  z-index: 5;
+  pointer-events: none;
+  min-width: 164px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ant-color-bg-elevated, #ffffff);
+  border: 1px solid var(--ant-color-border-secondary, rgba(0, 0, 0, 0.12));
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.traffic-trend-tooltip.is-left {
+  transform: translateX(-110%);
+}
+
+.traffic-trend-tooltip-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ant-color-border-secondary, rgba(0, 0, 0, 0.08));
+}
+
+.traffic-trend-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
