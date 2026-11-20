@@ -23,6 +23,7 @@ func TestJobCadencesAreValidCronSpecs(t *testing.T) {
 		"cadenceNodeTraffic":   cadenceNodeTraffic,
 		"cadenceOutboundSub":   cadenceOutboundSub,
 		"cadenceRemoteRouting": cadenceRemoteRouting,
+		"cadenceTrafficFlush":  cadenceTrafficFlush,
 	}
 	for name, spec := range cadences {
 		if _, err := cron.ParseStandard(spec); err != nil {

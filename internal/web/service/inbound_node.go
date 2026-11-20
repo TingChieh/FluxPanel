@@ -742,6 +742,8 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 	degradedInbounds := map[int]string{}
 
 	newInboundIDs := make(map[int]struct{})
+	ledgerClientDeltas := make(map[string]TrafficDelta)
+	var ledgerInboundUp, ledgerInboundDown int64
 
 	// Every pass below walks a central inbound's clients once per snapshot entry that
 	// resolves to it, so only the first such entry is merged; repeats are dropped.
@@ -932,6 +934,12 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 			updates["last_traffic_reset_time"] = snapIb.LastTrafficResetTime
 		}
 		if !inGrace || (snapIb.Up+snapIb.Down) <= (c.Up+c.Down) {
+			if dUp := snapIb.Up - c.Up; dUp > 0 {
+				ledgerInboundUp += dUp
+			}
+			if dDown := snapIb.Down - c.Down; dDown > 0 {
+				ledgerInboundDown += dDown
+			}
 			updates["up"] = snapIb.Up
 			updates["down"] = snapIb.Down
 		}
@@ -1271,6 +1279,12 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 			if err := s.upsertNodeBaseline(tx, nodeID, cs.Email, canon.Up, canon.Down, addUp, addDown); err != nil {
 				return false, err
 			}
+			if seen && (addUp > 0 || addDown > 0) {
+				cur := ledgerClientDeltas[cs.Email]
+				cur.Up += max(addUp, 0)
+				cur.Down += max(addDown, 0)
+				ledgerClientDeltas[cs.Email] = cur
+			}
 			nodeBaselines[cs.Email] = nodeTrafficCounter{Up: canon.Up, Down: canon.Down}
 		}
 
@@ -1508,6 +1522,19 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 		return false, err
 	}
 	committed = true
+
+	if len(ledgerClientDeltas) > 0 || ledgerInboundUp > 0 || ledgerInboundDown > 0 {
+		recordedAt := time.Now()
+		var cliUpSum, cliDownSum int64
+		for email, d := range ledgerClientDeltas {
+			RecordTrafficDelta(recordedAt, nodeID, email, d.Up, d.Down)
+			cliUpSum += d.Up
+			cliDownSum += d.Down
+		}
+		if ledgerInboundUp > cliUpSum || ledgerInboundDown > cliDownSum {
+			RecordTrafficDelta(recordedAt, nodeID, "", max(ledgerInboundUp-cliUpSum, 0), max(ledgerInboundDown-cliDownSum, 0))
+		}
+	}
 
 	if len(degradedInbounds) > 0 {
 		if mgr := runtime.GetManager(); mgr != nil {

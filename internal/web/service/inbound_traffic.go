@@ -49,16 +49,20 @@ func (s *InboundService) AddTraffic(inboundTraffics []*xray.Traffic, clientTraff
 
 func (s *InboundService) addTrafficLocked(inboundTraffics []*xray.Traffic, clientTraffics []*xray.ClientTraffic) (bool, bool, []int, []trafficInboundUpdatePlan, []string, error) {
 	db := database.GetDB()
+	var committedClients []*xray.ClientTraffic
 	// Commit durable traffic before best-effort lifecycle maintenance so helper
 	// failures cannot discard usage already reported by Xray.
 	if err := db.Transaction(func(tx *gorm.DB) error {
 		if err := s.addInboundTraffic(tx, inboundTraffics); err != nil {
 			return err
 		}
-		return s.addClientTraffic(tx, clientTraffics)
+		var err error
+		committedClients, err = s.addClientTrafficCommitted(tx, clientTraffics)
+		return err
 	}); err != nil {
 		return false, false, nil, nil, nil, err
 	}
+	recordLocalTrafficLedger(time.Now(), inboundTraffics, committedClients)
 
 	var (
 		needRestart          bool
@@ -130,13 +134,46 @@ func (s *InboundService) addInboundTraffic(tx *gorm.DB, traffics []*xray.Traffic
 	return nil
 }
 
-func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTraffic) (err error) {
+func recordLocalTrafficLedger(now time.Time, inboundTraffics []*xray.Traffic, clientTraffics []*xray.ClientTraffic) {
+	var cliUp, cliDown int64
+	for _, ct := range clientTraffics {
+		if ct == nil || (ct.Up <= 0 && ct.Down <= 0) {
+			continue
+		}
+		u, d := max(ct.Up, 0), max(ct.Down, 0)
+		RecordTrafficDelta(now, 0, ct.Email, u, d)
+		cliUp += u
+		cliDown += d
+	}
+	var inUp, inDown int64
+	for _, tr := range inboundTraffics {
+		if tr == nil || !tr.IsInbound {
+			continue
+		}
+		if tr.Up > 0 {
+			inUp += tr.Up
+		}
+		if tr.Down > 0 {
+			inDown += tr.Down
+		}
+	}
+	if inUp > cliUp || inDown > cliDown {
+		RecordTrafficDelta(now, 0, "", max(inUp-cliUp, 0), max(inDown-cliDown, 0))
+	}
+}
+
+func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTraffic) error {
+	_, err := s.addClientTrafficCommitted(tx, traffics)
+	return err
+}
+
+func (s *InboundService) addClientTrafficCommitted(tx *gorm.DB, traffics []*xray.ClientTraffic) (canonical []*xray.ClientTraffic, err error) {
 	if len(traffics) == 0 {
-		return nil
+		return nil, nil
 	}
 	traffics, err = canonicalizeClientTraffic(tx, traffics)
 	if err != nil {
-		return fmt.Errorf("resolve client traffic identities: %w", err)
+		return nil, fmt.Errorf("resolve client traffic identities: %w", err)
 	}
 
 	emails := make([]string, 0, len(traffics))
@@ -158,17 +195,17 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 		Order("id").
 		Find(&dbClientTraffics).Error
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Avoid empty slice error
 	if len(dbClientTraffics) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	dbClientTraffics, convertedExpiryByEmail, err := s.adjustTraffics(tx, dbClientTraffics)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Index by email for O(N) merge.
@@ -179,6 +216,7 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 		}
 	}
 	now := time.Now().UnixMilli()
+	committed := make([]*xray.ClientTraffic, 0, len(dbClientTraffics))
 	// Use atomic per-row UPDATE instead of read-modify-write Save. tx.Save
 	// issues UPDATEs in slice order, which varies between concurrent callers;
 	// on PostgreSQL two transactions locking the same rows in opposite order
@@ -198,8 +236,9 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 			),
 			t.Up, t.Down, now, ct.Email,
 		).Error; err != nil {
-			return fmt.Errorf("update traffic for %s: %w", ct.Email, err)
+			return nil, fmt.Errorf("update traffic for %s: %w", ct.Email, err)
 		}
+		committed = append(committed, t)
 	}
 
 	// adjustTraffics converts delayed-start rows (negative ExpiryTime → absolute
@@ -212,11 +251,11 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 			`UPDATE client_traffics SET expiry_time = ? WHERE email = ? AND expiry_time < 0`,
 			convertedExpiryByEmail[email], email,
 		).Error; err != nil {
-			return fmt.Errorf("update expiry time for %s: %w", email, err)
+			return nil, fmt.Errorf("update expiry time for %s: %w", email, err)
 		}
 	}
 
-	return nil
+	return committed, nil
 }
 
 func canonicalizeClientTraffic(tx *gorm.DB, traffics []*xray.ClientTraffic) ([]*xray.ClientTraffic, error) {

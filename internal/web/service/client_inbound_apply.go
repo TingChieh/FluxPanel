@@ -934,6 +934,9 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 				if e := tx.Model(&model.ClientRecord{}).Where("email = ?", oldEmail).Update("email", clients[0].Email).Error; e != nil {
 					return e
 				}
+				if e := RenameTrafficHistoryTx(tx, oldEmail, clients[0].Email); e != nil {
+					return e
+				}
 			}
 		}
 		// detachEmails covers the rename the guard above refused: the old record
