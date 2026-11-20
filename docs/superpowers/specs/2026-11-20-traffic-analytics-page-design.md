@@ -6,20 +6,24 @@
 ## 1. 背景与目标
 
 ### 为什么做这个功能
+
 FluxPanel 目前的流量信息分散在多个地方：用户实时速率和累计流量在「用户」页，单节点累计分布藏在「节点」页弹窗里，系统吞吐在「首页」。更重要的是，数据库只记录了**累计流量**（`client_traffics`、`node_client_traffics`、`inbounds`），没有按时段持久化的历史账本，一旦重置配额或想复盘某天、某周、某月的真实使用情况就无从查起。
 
 ### 核心目标
+
 1. **第一眼看清实时态势**：打开独立页面即刻看到全站、各用户、各节点（含本机）的当前实时速率与周期消耗，无需切换多个页面。
 2. **精细查询日 / 周 / 月趋势**：支持按「日（每小时）」、「周（每天）」、「月（每天）」查看与前后翻页回溯，既能看全站汇总，也能一键下钻到单个用户或单个节点。
 3. **历史账本独立于配额重置**：手动或定时重置用户流量配额时，历史真实消耗记录保留不丢失。
 4. **单机与多节点一致**：本地 Xray 与所有远端节点（Master/Node mTLS 架构）统一记账，实时速率与历史统计均完整覆盖本机与子节点。
 
 ### 非目标（Non-goals）
+
 - 不做自定义多维 BI 报表编辑器、拖拽看板或 CSV/PDF 导出中心。
 - 不做新的配额限速、计费账单或告警推送机制。
 - 不改变现有 `client_traffics` / `inbounds` 的配额扣减、自动续期与重置语义。
 
 ### 反目标（Anti-goals）
+
 - **绝不拖慢或锁死热路径**：每 5 秒一次的流量采集和节点同步不得因为写入历史统计而引起 SQLite 锁竞争或响应延迟。
 - **绝不双算或漏算**：同一用户同时挂在多个入站或跨本机+子节点使用时，历史增量不能重复记账，也不能漏掉无用户归属的纯入站流量。
 - **万级用户不退化**：大面板（10k–20k+ 用户）切换周期、搜索或接收 5 秒 WebSocket 推送时不产生 MB 级 JSON 载荷或前端卡顿。
@@ -30,10 +34,12 @@ FluxPanel 目前的流量信息分散在多个地方：用户实时速率和累�
 ## 2. 界面布局与交互设计（用户已确认：方案 B）
 
 ### 导航入口
+
 - 侧边栏新增独立菜单项「流量统计 / Traffic」，路由 `/panel/traffic`，同时注册到命令面板（Command Palette）。
 - 仅使用项目现有的 Ant Design 6 + `uplot`，不引入新的 UI 框架或图表库。
 
 ### 页面结构（自上而下）
+
 1. **顶部工具栏**
    - 粒度切换器（`Segmented`）：`日`（按小时）/ `周`（按天）/ `月`（按天）。
    - 周期导航：`上一期 ‹` ｜ 当前日期/周/月选择器（点击可直选日期，基准日期与当前「今天」统一以面板时区为准）｜ `› 下一期` + `回到当前` 快捷按钮（查看历史周期时高亮显示）。
@@ -79,6 +85,7 @@ FluxPanel 目前的流量信息分散在多个地方：用户实时速率和累�
 ## 3. 后端数据模型与采集架构
 
 ### 3.1 统一时区权威（`timeLocation`）
+
 - 与现有 `AuditPage`、`autoRenewClients`、`PeriodicTrafficResetJob` 保持一致：**全部日/周/月边界切分、按天归档与前端基准「今天」统一以面板配置的 IANA `timeLocation` 为唯一权威时区**（未配置时回落 `time.Local`）。
 - 优点：天然正确处理夏令时（DST 23h/25h 天），且 `traffic_hourlies` 与 `traffic_dailies` 在 90 天归档边界上使用完全一致的切日标准，零重叠、零漏算。
 
@@ -135,6 +142,7 @@ FluxPanel 目前的流量信息分散在多个地方：用户实时速率和累�
    - **实时读取一致性**：所有查询接口在汇总 `traffic_hourlies` 时，会把当前内存中尚未 flush 的增量实时合并进结果，保证前端刷新即可看到秒级最新数据。
 
 ### 3.4 历史保留与按天归档策略
+
 - `traffic_hourlies` 保留最近 **90 个完整自然日**（按面板 `timeLocation` 的 `today - 90 days` 零点作为严格切分点 `cutoffDate`）。
 - 每日定时维护任务对 `hour_bucket < cutoffStartUnix` 的 `traffic_hourlies` 按面板 `timeLocation` 归类到 `YYYY-MM-DD`，在单事务内批量 `UPSERT` 到 `traffic_dailies` 后删除这些已归档的小时行，确保任何自然日不会同时被两张表重复计入。
 - `traffic_dailies` 保留 **365 天**，超期后清理。
@@ -197,6 +205,7 @@ FluxPanel 目前的流量信息分散在多个地方：用户实时速率和累�
      - `clientsTotal` (int), `clients`: `[]TrafficClientBreakdownItem` (`{ email, online, up, down, total, sharePct, deleted, unattributed }`)
 
 ### 必须遵守的仓库集成规范
+
 - `internal/database/db.go`：注册 `TrafficHourly` 与 `TrafficDaily` 迁移。
 - `tools/openapigen/main.go`：将上述响应结构体加入 `StructAllow` 并补齐 `example:` tag。
 - `frontend/src/pages/api-docs/endpoints.ts`：注册 4 个新 GET 路由，满足 `TestRouteRegistryContract`。
@@ -207,11 +216,13 @@ FluxPanel 目前的流量信息分散在多个地方：用户实时速率和累�
 ---
 
 ## 6. 留给实现阶段决定的细节（Left to the Builder）
+
 - `TrafficLedger` flush 周期具体配置常量（默认 60s）与 SQLite 批量 upsert 分批大小。
 - uPlot 图表的具体配色 token、响应式高度、坐标轴刻度格式化细节（需适配现有亮/暗/极黑三套主题）。
 - `traffic_hourlies` 归档清理任务是挂在现有 `ClearLogsJob` 还是独立 cron job 注册在 `web.go`。
 
 ## 7. 我这边先帮你定好的默认规则（Our Calls，请审阅确认）
+
 1. **周期与时区定义**：`日` = 自然日（00:00~23:59，按小时）；`周` = 自然周（周一~周日，按天）；`月` = 自然月（1 日~月末，按天），统一采用面板配置的时区（与现有审计日志、定期重置保持一致）。
 2. **历史保留时长**：按小时明细保留 90 天，超期后自动按天归档再保留至 365 天。
 3. **重置、改名与删除行为**：

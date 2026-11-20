@@ -69,12 +69,14 @@
 ### Task 1: 历史账本模型与 `TrafficLedger`（缓冲、刷盘、改名合并、归档清理）
 
 **Files:**
+
 - Create: `internal/database/model/traffic_history.go`
 - Modify: `internal/database/db.go:53-81`
 - Create: `internal/web/service/traffic_ledger.go`
 - Test: `internal/web/service/traffic_ledger_test.go`
 
 **Interfaces:**
+
 - Consumes: `database.GetDB()`, `submitTrafficWriteBackground` (`internal/web/service/traffic_writer.go`)
 - Produces:
   - `model.TrafficHourly` (`Id`, `HourBucket`, `NodeId`, `Email`, `Up`, `Down`)
@@ -92,6 +94,7 @@
 - [ ] **Step 1: Write failing tests in `internal/web/service/traffic_ledger_test.go`**
 
 覆盖 5 个核心场景（使用 `dbtest.InitDB`）：
+
 1. `TestTrafficLedger_RecordSnapshotAndFlushUpsert`：同 `(hour, node, email)` 多次 `RecordTrafficDelta` 在 flush 前可通过 `SnapshotPendingTraffic` 读到总和；flush 写入 `traffic_hourlies` 后内存清空，再次 record 同键并 flush 正确累加（UPSERT）。
 2. `TestTrafficLedger_FlushFailureRequeuesDeltas`：DB 关闭或表损坏时 `FlushTrafficLedger()` 返回 error 且未写入的 delta 完整回滚保留在 `SnapshotPendingTraffic()` 中不丢失。
 3. `TestTrafficLedger_RenameMergesBufferAndTablesOnConflict`：`traffic_hourlies`、`traffic_dailies` 和未刷盘内存缓冲中同时存在 `oldEmail` 与已占用的 `newEmail` 行，调用 `RenameTrafficHistoryTx` 后三处均精准累加到 `newEmail` 且 `oldEmail` 行全部清除（Review Focus #5）。
@@ -129,6 +132,7 @@ git commit -m "feat(traffic): add hourly/daily traffic ledger models and flush/r
 ### Task 2: 采集接入（本机 + 远端节点 + 改名钩子 + 定时刷盘与关停）
 
 **Files:**
+
 - Modify: `internal/web/service/inbound_traffic.go:50-165`
 - Modify: `internal/web/service/inbound_node.go:420-1280`
 - Modify: `internal/web/service/client_crud.go:640-700`
@@ -138,6 +142,7 @@ git commit -m "feat(traffic): add hourly/daily traffic ledger models and flush/r
 - Test: `internal/web/service/traffic_collection_test.go`
 
 **Interfaces:**
+
 - Consumes: Task 1 `RecordTrafficDelta`, `FlushTrafficLedger`, `RenameTrafficHistoryTx`, `RollupAndPruneTrafficHistory`, `SnapshotPendingTraffic`
 - Produces:
   - `job.NewTrafficFlushJob()` (`Run()`)
@@ -147,6 +152,7 @@ git commit -m "feat(traffic): add hourly/daily traffic ledger models and flush/r
 - [ ] **Step 1: Write failing tests in `internal/web/service/traffic_collection_test.go`**
 
 覆盖 5 个真实路径测试：
+
 1. `TestTrafficCollection_LocalClientAndUnattributedInbound`：调用 `InboundService.AddTraffic` 传入 `inboundTraffics`（总和 Up=500, Down=1000）和 `clientTraffics`（alice Up=300, Down=800）；断言内存账本记录 `(node=0, "alice", 300, 800)` 与 `(node=0, "", 200, 200)`，总和恰好等于入站增量，零双算。
 2. `TestTrafficCollection_RemoteNodeNormalAndRenewedDeltas`：节点已有 baseline，调用 `SetRemoteTraffic` 传入增长后的用户与入站计数，验证常规增量和 `renewed` 增量正确记入 `nodeID`；再次重置用户配额（`ResetClientTraffic`）后历史账本数据保持不变。
 3. `TestTrafficCollection_RemoteNodeFirstImportSkipsHistoricalTotals`：节点首次接入尚无 baseline 且带有既有大额累计流量（如 10GB），调用 `SetRemoteTraffic` 后验证历史账本增量必须为 0（Review Focus #2）；下一轮真实新增 1MB 才开始记账。
@@ -182,12 +188,14 @@ git commit -m "feat(traffic): hook local/node traffic deltas, client renames, an
 ### Task 3: 统一实时速率追踪器 `LiveSpeedTracker` 与 WebSocket 广播扩展
 
 **Files:**
+
 - Create: `internal/web/service/live_speed.go`
 - Modify: `internal/web/job/xray_traffic_job.go:195-215`
 - Modify: `internal/web/job/node_traffic_sync_job.go:35-60, 160-299`
 - Test: `internal/web/service/live_speed_test.go`
 
 **Interfaces:**
+
 - Consumes: `xray.Traffic`, `xray.ClientTraffic`
 - Produces:
   - `type LiveSpeed struct { Up int64 `json:"up" example:"131072"`; Down int64 `json:"down" example:"1048576"` }`（单位：bytes/sec）
@@ -201,6 +209,7 @@ git commit -m "feat(traffic): hook local/node traffic deltas, client renames, an
 - [ ] **Step 1: Write failing tests in `internal/web/service/live_speed_test.go`**
 
 覆盖：
+
 1. `TestLiveSpeedTracker_AggregatesLocalAndRemotePerUserAndTotal`：本机 alice 跑 100KB/s，节点 1 上 alice 同时跑 200KB/s、bob 跑 50KB/s；验证 `Users["alice"] == 300KB/s`，`Nodes[0] == 本机入站速率`，`Nodes[1] == 节点 1 入站速率`，`Total == Nodes[0] + Nodes[1]`。
 2. `TestLiveSpeedTracker_ExpiresStaleEntriesAfter15s`：超过 15 秒未更新的节点或本机样本自动过期归零，活跃节点不受影响。
 3. `TestLiveSpeedTracker_ZeroDeltaClearsActiveUser`：本机下一轮 5 秒轮询 alice 变成 0 流量，立即清除本机 alice 速率，不再残留。
@@ -233,10 +242,12 @@ git commit -m "feat(traffic): add unified local+node LiveSpeedTracker and WebSoc
 ### Task 4: 流量查询聚合服务 `TrafficAnalyticsService`
 
 **Files:**
+
 - Create: `internal/web/service/traffic_analytics.go`
 - Test: `internal/web/service/traffic_analytics_test.go`
 
 **Interfaces:**
+
 - Consumes: Task 1 `model.TrafficHourly`, `model.TrafficDaily`, `SnapshotPendingTraffic`, `TrafficHourlyCutoffDate`; Task 3 `GetLiveSpeedSnapshot`, `LiveSpeed`; `SettingService.GetTimeLocation`, `InboundService.GetOnlineClients`, `NodeService`
 - Produces:
   - Structs (all fields carry `json:` + `example:` tags for `openapigen`):
@@ -260,6 +271,7 @@ git commit -m "feat(traffic): add unified local+node LiveSpeedTracker and WebSoc
 - [ ] **Step 1: Write failing tests in `internal/web/service/traffic_analytics_test.go`**
 
 覆盖全部关键行为与 Review Focus：
+
 1. `TestTrafficAnalytics_DayPeriodHandlesDST23hAnd25h`：使用 `America/New_York` 分别查询春季跳时日（23 桶）和秋季回拨日（25 桶），断言桶数量、每个桶的 `Timestamp` 与聚合数值精确无误（Review Focus #1）。
 2. `TestTrafficAnalytics_WeekAndMonthCross90DayCutoffNoDoubleCount`：构造跨越 `cutoffDate` 的某周/某月（前段在 `traffic_dailies`，后段在 `traffic_hourlies`，并在内存 `TrafficLedger` 放一笔当前小时未刷盘数据），断言边界日零双算、内存未刷盘实时计入、`ChangePct` 计算准确且上一周期为 0 时为 `nil`（Review Focus #4）。
 3. `TestTrafficAnalytics_ClientsPageSearchSortActiveOnlyAndDeleted`：包含现存有流量用户、现存 0 流量但当前有实时速率用户、现存 0 流量离线用户、以及本周期有流量的已删用户；验证 `sort=traffic`、`sort=speed`、`activeOnly=true/false`、`search`、分页切片与 `deleted: true` 标记，同时确认未归属流量（`email == ""`）绝不出现在用户排行中。
@@ -274,6 +286,7 @@ Expected: FAIL（undefined `TrafficAnalyticsService`）。
 - [ ] **Step 3: Implement `internal/web/service/traffic_analytics.go`**
 
 核心实现要点：
+
 - 周期解析辅助函数 `resolveTrafficRange(period, anchor string, now time.Time, loc *time.Location)`：
   - `day`：`anchor` 当天 `[startOfDay, nextDayStart)`，按 `t = startOfDay; t < nextDayStart; t = t.Add(time.Hour)` 枚举每一个真实 UTC 整点桶（天然支持 23h/25h DST），上一周期为前一天；
   - `week`：`anchor` 所在自然周（周一 00:00 ~ 下周一 00:00，7 天），上一周期为上一自然周；
@@ -302,6 +315,7 @@ git commit -m "feat(traffic): implement TrafficAnalyticsService for day/week/mon
 ### Task 5: HTTP 控制器、SPA 路由、OpenAPI Codegen 与文档同步
 
 **Files:**
+
 - Create: `internal/web/controller/traffic.go`
 - Modify: `internal/web/controller/api.go:230-238`
 - Modify: `internal/web/controller/spa.go:38-50`
@@ -310,6 +324,7 @@ git commit -m "feat(traffic): implement TrafficAnalyticsService for day/week/mon
 - Test: `internal/web/controller/traffic_test.go`
 
 **Interfaces:**
+
 - Consumes: Task 4 `TrafficAnalyticsService`
 - Produces:
   - `GET /panel/api/traffic/overview`
@@ -322,6 +337,7 @@ git commit -m "feat(traffic): implement TrafficAnalyticsService for day/week/mon
 - [ ] **Step 1: Write failing tests in `internal/web/controller/traffic_test.go`**
 
 覆盖：
+
 1. `TestTrafficController_EndpointsReturnExpectedPayloads`：通过 Gin `httptest` 验证 4 个接口返回 `success: true` 与完整字段结构。
 2. `TestTrafficController_InvalidParamsHandledCleanly`：非法 `period`、`anchor`、非整数 `node/:id`、负数 `node/:id` 返回 `success: false`（HTTP 400 或规范错误 JSON），超界 `pageSize` 自动钳位到 100。
 3. `TestTrafficController_RequiresAuth`：未登录请求被 `/panel/api` 鉴权拦截。
@@ -359,6 +375,7 @@ git commit -m "feat(traffic): expose traffic analytics API endpoints and regener
 ### Task 6: 前端数据层、实时速率 Hook、`uplot` 流量趋势图、路由与双语文案
 
 **Files:**
+
 - Create: `frontend/src/schemas/traffic.ts`
 - Modify: `frontend/src/api/queryKeys.ts`
 - Create: `frontend/src/api/queries/useTrafficQueries.ts`
@@ -370,6 +387,7 @@ git commit -m "feat(traffic): expose traffic analytics API endpoints and regener
 - Modify: `internal/web/translation/zh-CN.json`
 
 **Interfaces:**
+
 - Consumes: `frontend/src/generated/zod.ts` (`TrafficOverviewResponseSchema`, `TrafficClientsPageResponseSchema`, `TrafficClientDetailResponseSchema`, `TrafficNodeDetailResponseSchema`), `getSharedWebSocketClient` (`@/api/websocket`), `useTheme` (`@/hooks/useTheme`), `uplot`
 - Produces:
   - Types & schemas from `@/schemas/traffic`（`TrafficPeriod = 'day' | 'week' | 'month'`, `TrafficSort = 'traffic' | 'speed'`, `z.infer` 导出类型）
@@ -386,6 +404,7 @@ git commit -m "feat(traffic): expose traffic analytics API endpoints and regener
 - [ ] **Step 2: Build reusable `<TrafficTrendChart />` component using `uplot`**
 
 在 `frontend/src/components/viz/TrafficTrendChart.tsx` + `.css` 实现：
+
 - 基于 `uplot` 绘制「下行（主色填充面积线）+ 上行（对比色折线）」双系列图表，横轴支持 `hour`（`HH:00`）与 `day`（`MM-DD`），纵轴按 `SizeFormatter.sizeFormat` 自动缩放单位（B/KB/MB/GB/TB）。
 - `future: true` 的未到达桶以 `null` 断开或虚化处理，避免尾部断崖掉零。
 - 自定义悬浮 Tooltip 显示精确时间桶标签、总流量、上行、下行。
@@ -404,6 +423,7 @@ Expected: 0 TypeScript errors（若 `panelRoutes.tsx` 引用 `TrafficPage`，在
 ### Task 7: 前端独立「流量统计」页面（方案 B）、详情抽屉、前端测试与全量验证
 
 **Files:**
+
 - Create: `frontend/src/pages/traffic/TrafficPage.tsx`
 - Create: `frontend/src/pages/traffic/TrafficPage.css`
 - Create: `frontend/src/pages/traffic/TrafficDetailDrawer.tsx`
@@ -411,12 +431,14 @@ Expected: 0 TypeScript errors（若 `panelRoutes.tsx` 引用 `TrafficPage`，在
 - Create: `frontend/src/test/traffic-page.test.tsx`
 
 **Interfaces:**
+
 - Consumes: Task 6 `useTraffic*Query`, `useLiveTrafficSpeeds`, `TrafficTrendChart`, `ClientSpeedTag`, `SizeFormatter`
 - Produces: 完整可用的 `/panel/traffic` 页面与交互测试
 
 - [ ] **Step 1: Write failing frontend tests in `frontend/src/test/traffic-page.test.tsx`**
 
 使用 Vitest + React Testing Library + mock `HttpUtil` & `uplot`（参照 `frontend/src/test/node-history-panel.test.tsx`）覆盖：
+
 1. 首屏渲染 4 张 KPI 卡片（实时总速率、周期总流量与环比、活跃用户与 Top 1、在线节点与 Top 1）、趋势图区域、以及左右并排的用户榜和节点榜。
 2. 切换 `日 / 周 / 月` `Segmented` 与点击 `上一期 / 下一期 / 回到当前`，正确以对应 `period` 和 `anchor` 重发请求。
 3. 模拟 WebSocket `traffic` 推送 `liveTotalSpeed` / `liveUserSpeeds` / `liveNodeSpeeds`，验证顶部总速率卡片、左栏用户速率与右栏节点速率即时原位刷新。
@@ -432,6 +454,7 @@ Expected: FAIL（`TrafficPage` 尚未创建）。
 - [ ] **Step 3: Implement `TrafficPage.tsx`, `TrafficDetailDrawer.tsx`, CSS, and register `/traffic` in `panelRoutes.tsx`**
 
 实现要点（严格按方案 B）：
+
 1. **顶部工具栏**：页面标题 + `Segmented`（日/周/月）+ `‹` / Ant Design `DatePicker`（按 `period` 切换 `date`/`week`/`month` picker）/ `›` + `回到当前` 按钮 + 实时呼吸灯与面板时区 Badge。
 2. **4 张 KPI 卡片**（Ant Design `Row` / `Col` 响应式 4 列 → 2 列 → 1 列）：
    - 实时总速率（总速率 + `↑ / ↓`）
@@ -454,6 +477,7 @@ Expected: FAIL（`TrafficPage` 尚未创建）。
 cd frontend && npx vitest run src/test/traffic-page.test.tsx src/test/i18n-dead-keys.test.ts
 make verify && make race
 ```
+
 Expected: 全部测试、`gen-check`、`lint`、`typecheck`、`build`、`build-storybook`、`docs-openapi-check` 与 `make race` 全部通过，0 报错。
 
 - [ ] **Step 5: Commit**
@@ -466,6 +490,7 @@ git commit -m "feat(traffic): add standalone traffic analytics page with live sp
 ---
 
 ## Self-Review Notes
+
 - **Spec coverage**：设计文档全部章节（导航入口、方案 B 首屏 4 KPI + uPlot 趋势 + 双榜并排 + 右侧抽屉、面板时区 `timeLocation`、两张历史表、内存缓冲 60s 刷盘+关停刷盘+实时读取合并、本机+远端采集含首次接入护栏与未归属差额、用户改名合并、90/365 天严格切分归档、统一实时速率与 WS 广播、4 个分页/详情 API、OpenAPI+docs+i18n 集成规范）均已一一映射到 Task 1–7。
 - **Type & interface consistency**：`TrafficLedgerKey`/`TrafficDelta`、`LiveSpeed`/`LiveSpeedSnapshot`、4 个 API 路径与 12 个响应结构体在 Task 1–7 中名称和字段完全一致。
 - **Review Focus coverage**：5 项关键风险全部绑定到了对应 Task 的明确测试用例子项。
