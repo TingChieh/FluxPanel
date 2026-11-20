@@ -235,4 +235,7 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 
 	// Access audit — daily domain summaries, sensitive-content alerts, and sharing checks
 	NewAuditController(api.Group("/audit"))
+
+	// Traffic analytics — historical day/week/month ledger queries and live speeds
+	NewTrafficController(api.Group("/traffic"))
 }

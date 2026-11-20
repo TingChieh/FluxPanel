@@ -3335,6 +3335,26 @@ export const SCHEMAS: Record<string, unknown> = {
     ],
     "type": "object"
   },
+  "LiveSpeed": {
+    "description": "LiveSpeed holds instantaneous upload and download rates in bytes per second.",
+    "properties": {
+      "down": {
+        "example": 1048576,
+        "format": "int64",
+        "type": "integer"
+      },
+      "up": {
+        "example": 131072,
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "down",
+      "up"
+    ],
+    "type": "object"
+  },
   "LogEntry": {
     "properties": {
       "DateTime": {
@@ -4465,6 +4485,632 @@ export const SCHEMAS: Record<string, unknown> = {
       "IsOutbound",
       "Tag",
       "Up"
+    ],
+    "type": "object"
+  },
+  "TrafficClientBreakdownItem": {
+    "description": "TrafficClientBreakdownItem holds one client's (or unattributed) share inside a node's detail drawer.",
+    "properties": {
+      "deleted": {
+        "example": false,
+        "type": "boolean"
+      },
+      "down": {
+        "example": 1073741824,
+        "format": "int64",
+        "type": "integer"
+      },
+      "email": {
+        "example": "alice@example.com",
+        "type": "string"
+      },
+      "online": {
+        "example": true,
+        "type": "boolean"
+      },
+      "sharePct": {
+        "example": 41.67,
+        "type": "number"
+      },
+      "total": {
+        "example": 1342177280,
+        "format": "int64",
+        "type": "integer"
+      },
+      "unattributed": {
+        "example": false,
+        "type": "boolean"
+      },
+      "up": {
+        "example": 268435456,
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "deleted",
+      "down",
+      "email",
+      "online",
+      "sharePct",
+      "total",
+      "unattributed",
+      "up"
+    ],
+    "type": "object"
+  },
+  "TrafficClientDetailResponse": {
+    "description": "TrafficClientDetailResponse is returned by GET /panel/api/traffic/client/:email.",
+    "properties": {
+      "deleted": {
+        "example": false,
+        "type": "boolean"
+      },
+      "downSpeed": {
+        "example": 524288,
+        "format": "int64",
+        "type": "integer"
+      },
+      "email": {
+        "example": "alice@example.com",
+        "type": "string"
+      },
+      "nodes": {
+        "items": {
+          "$ref": "#/components/schemas/TrafficNodeBreakdownItem"
+        },
+        "type": "array"
+      },
+      "online": {
+        "example": true,
+        "type": "boolean"
+      },
+      "series": {
+        "items": {
+          "$ref": "#/components/schemas/TrafficSeriesPoint"
+        },
+        "type": "array"
+      },
+      "summary": {
+        "$ref": "#/components/schemas/TrafficSummaryMetrics"
+      },
+      "upSpeed": {
+        "example": 65536,
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "deleted",
+      "downSpeed",
+      "email",
+      "nodes",
+      "online",
+      "series",
+      "summary",
+      "upSpeed"
+    ],
+    "type": "object"
+  },
+  "TrafficClientRankItem": {
+    "description": "TrafficClientRankItem holds one client's period usage and live speed in the ranking list.",
+    "properties": {
+      "deleted": {
+        "example": false,
+        "type": "boolean"
+      },
+      "down": {
+        "example": 1073741824,
+        "format": "int64",
+        "type": "integer"
+      },
+      "downSpeed": {
+        "example": 524288,
+        "format": "int64",
+        "type": "integer"
+      },
+      "email": {
+        "example": "alice@example.com",
+        "type": "string"
+      },
+      "online": {
+        "example": true,
+        "type": "boolean"
+      },
+      "sharePct": {
+        "example": 20.83,
+        "type": "number"
+      },
+      "total": {
+        "example": 1342177280,
+        "format": "int64",
+        "type": "integer"
+      },
+      "up": {
+        "example": 268435456,
+        "format": "int64",
+        "type": "integer"
+      },
+      "upSpeed": {
+        "example": 65536,
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "deleted",
+      "down",
+      "downSpeed",
+      "email",
+      "online",
+      "sharePct",
+      "total",
+      "up",
+      "upSpeed"
+    ],
+    "type": "object"
+  },
+  "TrafficClientsPageResponse": {
+    "description": "TrafficClientsPageResponse is returned by GET /panel/api/traffic/clients.",
+    "properties": {
+      "items": {
+        "items": {
+          "$ref": "#/components/schemas/TrafficClientRankItem"
+        },
+        "type": "array"
+      },
+      "page": {
+        "example": 1,
+        "type": "integer"
+      },
+      "pageSize": {
+        "example": 25,
+        "type": "integer"
+      },
+      "periodTotal": {
+        "example": 6442450944,
+        "format": "int64",
+        "type": "integer"
+      },
+      "total": {
+        "example": 38,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "items",
+      "page",
+      "pageSize",
+      "periodTotal",
+      "total"
+    ],
+    "type": "object"
+  },
+  "TrafficNodeBreakdownItem": {
+    "description": "TrafficNodeBreakdownItem holds one node's share inside a client's detail drawer.",
+    "properties": {
+      "deleted": {
+        "example": false,
+        "type": "boolean"
+      },
+      "down": {
+        "example": 1073741824,
+        "format": "int64",
+        "type": "integer"
+      },
+      "nodeId": {
+        "example": 1,
+        "type": "integer"
+      },
+      "nodeName": {
+        "example": "HK-01",
+        "type": "string"
+      },
+      "sharePct": {
+        "example": 60,
+        "type": "number"
+      },
+      "status": {
+        "example": "online",
+        "type": "string"
+      },
+      "total": {
+        "example": 1342177280,
+        "format": "int64",
+        "type": "integer"
+      },
+      "up": {
+        "example": 268435456,
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "deleted",
+      "down",
+      "nodeId",
+      "nodeName",
+      "sharePct",
+      "status",
+      "total",
+      "up"
+    ],
+    "type": "object"
+  },
+  "TrafficNodeDetailResponse": {
+    "description": "TrafficNodeDetailResponse is returned by GET /panel/api/traffic/node/:id.",
+    "properties": {
+      "clients": {
+        "items": {
+          "$ref": "#/components/schemas/TrafficClientBreakdownItem"
+        },
+        "type": "array"
+      },
+      "clientsTotal": {
+        "example": 12,
+        "type": "integer"
+      },
+      "deleted": {
+        "example": false,
+        "type": "boolean"
+      },
+      "downSpeed": {
+        "example": 1048576,
+        "format": "int64",
+        "type": "integer"
+      },
+      "nodeId": {
+        "example": 1,
+        "type": "integer"
+      },
+      "nodeName": {
+        "example": "HK-01",
+        "type": "string"
+      },
+      "series": {
+        "items": {
+          "$ref": "#/components/schemas/TrafficSeriesPoint"
+        },
+        "type": "array"
+      },
+      "status": {
+        "example": "online",
+        "type": "string"
+      },
+      "summary": {
+        "$ref": "#/components/schemas/TrafficSummaryMetrics"
+      },
+      "upSpeed": {
+        "example": 131072,
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "clients",
+      "clientsTotal",
+      "deleted",
+      "downSpeed",
+      "nodeId",
+      "nodeName",
+      "series",
+      "status",
+      "summary",
+      "upSpeed"
+    ],
+    "type": "object"
+  },
+  "TrafficNodeRankItem": {
+    "description": "TrafficNodeRankItem holds one node's period usage and live speed in the ranking list.",
+    "properties": {
+      "deleted": {
+        "example": false,
+        "type": "boolean"
+      },
+      "down": {
+        "example": 2684354560,
+        "format": "int64",
+        "type": "integer"
+      },
+      "downSpeed": {
+        "example": 1048576,
+        "format": "int64",
+        "type": "integer"
+      },
+      "nodeId": {
+        "example": 1,
+        "type": "integer"
+      },
+      "nodeName": {
+        "example": "HK-01",
+        "type": "string"
+      },
+      "sharePct": {
+        "example": 50,
+        "type": "number"
+      },
+      "status": {
+        "example": "online",
+        "type": "string"
+      },
+      "total": {
+        "example": 3221225472,
+        "format": "int64",
+        "type": "integer"
+      },
+      "up": {
+        "example": 536870912,
+        "format": "int64",
+        "type": "integer"
+      },
+      "upSpeed": {
+        "example": 131072,
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "deleted",
+      "down",
+      "downSpeed",
+      "nodeId",
+      "nodeName",
+      "sharePct",
+      "status",
+      "total",
+      "up",
+      "upSpeed"
+    ],
+    "type": "object"
+  },
+  "TrafficOverviewResponse": {
+    "description": "TrafficOverviewResponse is returned by GET /panel/api/traffic/overview.",
+    "properties": {
+      "anchor": {
+        "example": "2026-11-20",
+        "type": "string"
+      },
+      "bucketUnit": {
+        "example": "hour",
+        "type": "string"
+      },
+      "hourlyRetentionCutoff": {
+        "example": "2026-08-22",
+        "type": "string"
+      },
+      "nodes": {
+        "items": {
+          "$ref": "#/components/schemas/TrafficNodeRankItem"
+        },
+        "type": "array"
+      },
+      "period": {
+        "example": "day",
+        "type": "string"
+      },
+      "rangeEnd": {
+        "example": "2026-11-20",
+        "type": "string"
+      },
+      "rangeStart": {
+        "example": "2026-11-20",
+        "type": "string"
+      },
+      "series": {
+        "items": {
+          "$ref": "#/components/schemas/TrafficSeriesPoint"
+        },
+        "type": "array"
+      },
+      "summary": {
+        "$ref": "#/components/schemas/TrafficOverviewSummary"
+      },
+      "timezone": {
+        "example": "Asia/Shanghai",
+        "type": "string"
+      },
+      "today": {
+        "example": "2026-11-20",
+        "type": "string"
+      }
+    },
+    "required": [
+      "anchor",
+      "bucketUnit",
+      "hourlyRetentionCutoff",
+      "nodes",
+      "period",
+      "rangeEnd",
+      "rangeStart",
+      "series",
+      "summary",
+      "timezone",
+      "today"
+    ],
+    "type": "object"
+  },
+  "TrafficOverviewSummary": {
+    "description": "TrafficOverviewSummary summarizes global period usage, active counts, and live speed.",
+    "properties": {
+      "activeClients": {
+        "example": 14,
+        "type": "integer"
+      },
+      "changePct": {
+        "example": 20,
+        "nullable": true,
+        "type": "number"
+      },
+      "hasHistory": {
+        "example": true,
+        "type": "boolean"
+      },
+      "hourlyExpired": {
+        "example": false,
+        "type": "boolean"
+      },
+      "liveDownSpeed": {
+        "example": 2097152,
+        "format": "int64",
+        "type": "integer"
+      },
+      "liveUpSpeed": {
+        "example": 262144,
+        "format": "int64",
+        "type": "integer"
+      },
+      "onlineNodes": {
+        "example": 4,
+        "type": "integer"
+      },
+      "prevTotal": {
+        "example": 5368709120,
+        "format": "int64",
+        "type": "integer"
+      },
+      "topClientEmail": {
+        "example": "alice@example.com",
+        "type": "string"
+      },
+      "topClientTotal": {
+        "example": 2147483648,
+        "format": "int64",
+        "type": "integer"
+      },
+      "topNodeId": {
+        "example": 1,
+        "type": "integer"
+      },
+      "topNodeName": {
+        "example": "HK-01",
+        "type": "string"
+      },
+      "topNodeTotal": {
+        "example": 3221225472,
+        "format": "int64",
+        "type": "integer"
+      },
+      "total": {
+        "example": 6442450944,
+        "format": "int64",
+        "type": "integer"
+      },
+      "totalClients": {
+        "example": 38,
+        "type": "integer"
+      },
+      "totalDown": {
+        "example": 5368709120,
+        "format": "int64",
+        "type": "integer"
+      },
+      "totalNodes": {
+        "example": 4,
+        "type": "integer"
+      },
+      "totalUp": {
+        "example": 1073741824,
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "activeClients",
+      "hasHistory",
+      "hourlyExpired",
+      "liveDownSpeed",
+      "liveUpSpeed",
+      "onlineNodes",
+      "prevTotal",
+      "topClientEmail",
+      "topClientTotal",
+      "topNodeId",
+      "topNodeName",
+      "topNodeTotal",
+      "total",
+      "totalClients",
+      "totalDown",
+      "totalNodes",
+      "totalUp"
+    ],
+    "type": "object"
+  },
+  "TrafficSeriesPoint": {
+    "description": "TrafficSeriesPoint represents one time bucket (hour or day) in a traffic chart.",
+    "properties": {
+      "down": {
+        "example": 1073741824,
+        "format": "int64",
+        "type": "integer"
+      },
+      "future": {
+        "example": false,
+        "type": "boolean"
+      },
+      "label": {
+        "example": "14:00",
+        "type": "string"
+      },
+      "timestamp": {
+        "example": 1763625600,
+        "format": "int64",
+        "type": "integer"
+      },
+      "total": {
+        "example": 1342177280,
+        "format": "int64",
+        "type": "integer"
+      },
+      "up": {
+        "example": 268435456,
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "down",
+      "future",
+      "label",
+      "timestamp",
+      "total",
+      "up"
+    ],
+    "type": "object"
+  },
+  "TrafficSummaryMetrics": {
+    "description": "TrafficSummaryMetrics holds period totals and period-over-period change.",
+    "properties": {
+      "changePct": {
+        "example": 20,
+        "nullable": true,
+        "type": "number"
+      },
+      "prevTotal": {
+        "example": 5368709120,
+        "format": "int64",
+        "type": "integer"
+      },
+      "total": {
+        "example": 6442450944,
+        "format": "int64",
+        "type": "integer"
+      },
+      "totalDown": {
+        "example": 5368709120,
+        "format": "int64",
+        "type": "integer"
+      },
+      "totalUp": {
+        "example": 1073741824,
+        "format": "int64",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "prevTotal",
+      "total",
+      "totalDown",
+      "totalUp"
     ],
     "type": "object"
   },

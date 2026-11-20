@@ -45,6 +45,7 @@ func (a *XUIController) initRouter(g *gin.RouterGroup) {
 	g.GET("/outbound", a.panelSPA)
 	g.GET("/routing", a.panelSPA)
 	g.GET("/audit", a.panelSPA)
+	g.GET("/traffic", a.panelSPA)
 	g.GET("/api-docs", a.panelSPA)
 
 	// SPA pages built by Vite don't have a server-rendered <meta name="csrf-token">,
