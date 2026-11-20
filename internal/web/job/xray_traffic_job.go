@@ -19,6 +19,7 @@ type XrayTrafficJob struct {
 	xrayService     service.XrayService
 	inboundService  service.InboundService
 	outboundService outbound.OutboundService
+	lastPollAt      time.Time
 }
 
 // clientStatsSnapshotMaxClients caps how many client_traffics rows the job
@@ -109,6 +110,19 @@ func (j *XrayTrafficJob) Run() {
 		j.xrayService.SetToNeedRestart()
 	}
 
+	now := time.Now()
+	windowSec := 5.0
+	if !j.lastPollAt.IsZero() {
+		windowSec = now.Sub(j.lastPollAt).Seconds()
+		if windowSec < 1 {
+			windowSec = 1
+		} else if windowSec > 60 {
+			windowSec = 60
+		}
+	}
+	j.lastPollAt = now
+	service.UpdateLocalLiveSpeeds(now, windowSec, traffics, clientTraffics)
+
 	// Derive the local online set from this poll's per-email deltas rather
 	// than the shared last_online column, which remote-node syncs also bump
 	// and would otherwise make a client active only on a remote node appear
@@ -195,14 +209,16 @@ func (j *XrayTrafficJob) Run() {
 	if onlineClients == nil {
 		onlineClients = []string{}
 	}
-	websocket.BroadcastTraffic(map[string]any{
+	trafficPayload := map[string]any{
 		"traffics":       traffics,
 		"clientTraffics": movedTraffics,
 		"onlineClients":  onlineClients,
 		"onlineByGuid":   j.inboundService.GetOnlineClientsByGuid(),
 		"activeInbounds": j.inboundService.GetActiveInboundsByGuid(),
 		"lastOnlineMap":  lastOnlineMap,
-	})
+	}
+	service.AttachLiveSpeedPayload(trafficPayload, now, clientStatsSnapshotMaxClients)
+	websocket.BroadcastTraffic(trafficPayload)
 
 	clientStatsPayload := map[string]any{"snapshot": snapshot}
 	if len(stats) > 0 {
