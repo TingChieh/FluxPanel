@@ -842,7 +842,7 @@ func (s *TrafficAnalyticsService) GetClientsPage(period, anchor, search, sortBy 
 		hasLive := online || sp.Up > 0 || sp.Down > 0
 
 		if activeOnly {
-			if tot <= 0 && !(rng.includesToday && hasLive) {
+			if tot <= 0 && (!rng.includesToday || !hasLive) {
 				continue
 			}
 		}
