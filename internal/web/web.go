@@ -297,6 +297,7 @@ const (
 	cadenceXrayLogPrune  = "@every 10m"
 	cadenceAccessAudit   = "@every 1m"
 	cadenceAuditNodePull = "@every 5m"
+	cadenceTrafficFlush  = "@every 60s"
 )
 
 // startTask schedules background jobs (Xray checks, traffic jobs, cron
@@ -346,6 +347,10 @@ func (s *Server) startTask(restartXray bool, loc *time.Location) {
 	_, _ = s.cron.AddJob(cadenceAuditNodePull, job.NewAccessAuditNodeSyncJob())
 	_, _ = s.cron.AddJob(cadenceAccessAudit, job.NewAccessAuditDigestJob())
 	_, _ = s.cron.AddJob("@daily", job.NewAccessAuditPruneJob())
+	_, _ = s.cron.AddJob(cadenceTrafficFlush, job.NewTrafficFlushJob())
+	trafficRollupJob := job.NewTrafficRollupJob(loc)
+	_, _ = s.cron.AddJob("@daily", trafficRollupJob)
+	common.GoRecover("traffic-rollup-startup", trafficRollupJob.Run)
 
 	// Inbound traffic reset jobs
 	// Run every hour
@@ -535,6 +540,9 @@ func (s *Server) stop(stopXray bool) error {
 	}
 	if err := service.PersistSystemMetrics(); err != nil {
 		logger.Warning("persist system metrics on shutdown failed:", err)
+	}
+	if err := service.FlushTrafficLedger(); err != nil {
+		logger.Warning("flush traffic ledger on shutdown failed:", err)
 	}
 	if stopXray {
 		service.StopTrafficWriter()

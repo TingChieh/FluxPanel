@@ -970,6 +970,10 @@ export const EXAMPLES: Record<string, unknown> = {
     "total": 10737418240,
     "up": 1048576
   },
+  "LiveSpeed": {
+    "down": 1048576,
+    "up": 131072
+  },
   "LogEntry": {
     "DateTime": "2025-01-01T12:00:00Z",
     "Email": "alice@example.com",
@@ -1217,6 +1221,231 @@ export const EXAMPLES: Record<string, unknown> = {
     "IsOutbound": false,
     "Tag": "inbound-443",
     "Up": 1048576
+  },
+  "TrafficClientBreakdownItem": {
+    "deleted": false,
+    "down": 1073741824,
+    "email": "alice@example.com",
+    "online": true,
+    "sharePct": 41.67,
+    "total": 1342177280,
+    "unattributed": false,
+    "up": 268435456
+  },
+  "TrafficClientDetailResponse": {
+    "deleted": false,
+    "downSpeed": 524288,
+    "email": "alice@example.com",
+    "nodes": [
+      {
+        "deleted": false,
+        "down": 1073741824,
+        "nodeId": 1,
+        "nodeName": "HK-01",
+        "sharePct": 60,
+        "status": "online",
+        "total": 1342177280,
+        "up": 268435456
+      }
+    ],
+    "online": true,
+    "series": [
+      {
+        "down": 1073741824,
+        "future": false,
+        "label": "14:00",
+        "timestamp": 1763625600,
+        "total": 1342177280,
+        "up": 268435456
+      }
+    ],
+    "summary": {
+      "changePct": 20,
+      "prevTotal": 5368709120,
+      "total": 6442450944,
+      "totalDown": 5368709120,
+      "totalUp": 1073741824
+    },
+    "upSpeed": 65536
+  },
+  "TrafficClientRankItem": {
+    "deleted": false,
+    "down": 1073741824,
+    "downSpeed": 524288,
+    "email": "alice@example.com",
+    "online": true,
+    "sharePct": 20.83,
+    "total": 1342177280,
+    "up": 268435456,
+    "upSpeed": 65536
+  },
+  "TrafficClientsPageResponse": {
+    "items": [
+      {
+        "deleted": false,
+        "down": 1073741824,
+        "downSpeed": 524288,
+        "email": "alice@example.com",
+        "online": true,
+        "sharePct": 20.83,
+        "total": 1342177280,
+        "up": 268435456,
+        "upSpeed": 65536
+      }
+    ],
+    "page": 1,
+    "pageSize": 25,
+    "periodTotal": 6442450944,
+    "total": 38
+  },
+  "TrafficNodeBreakdownItem": {
+    "deleted": false,
+    "down": 1073741824,
+    "nodeId": 1,
+    "nodeName": "HK-01",
+    "sharePct": 60,
+    "status": "online",
+    "total": 1342177280,
+    "up": 268435456
+  },
+  "TrafficNodeDetailResponse": {
+    "clients": [
+      {
+        "deleted": false,
+        "down": 1073741824,
+        "email": "alice@example.com",
+        "online": true,
+        "sharePct": 41.67,
+        "total": 1342177280,
+        "unattributed": false,
+        "up": 268435456
+      }
+    ],
+    "clientsTotal": 12,
+    "deleted": false,
+    "downSpeed": 1048576,
+    "nodeId": 1,
+    "nodeName": "HK-01",
+    "series": [
+      {
+        "down": 1073741824,
+        "future": false,
+        "label": "14:00",
+        "timestamp": 1763625600,
+        "total": 1342177280,
+        "up": 268435456
+      }
+    ],
+    "status": "online",
+    "summary": {
+      "changePct": 20,
+      "prevTotal": 5368709120,
+      "total": 6442450944,
+      "totalDown": 5368709120,
+      "totalUp": 1073741824
+    },
+    "upSpeed": 131072
+  },
+  "TrafficNodeRankItem": {
+    "deleted": false,
+    "down": 2684354560,
+    "downSpeed": 1048576,
+    "nodeId": 1,
+    "nodeName": "HK-01",
+    "sharePct": 50,
+    "status": "online",
+    "total": 3221225472,
+    "up": 536870912,
+    "upSpeed": 131072
+  },
+  "TrafficOverviewResponse": {
+    "anchor": "2026-11-20",
+    "bucketUnit": "hour",
+    "hourlyRetentionCutoff": "2026-08-22",
+    "nodes": [
+      {
+        "deleted": false,
+        "down": 2684354560,
+        "downSpeed": 1048576,
+        "nodeId": 1,
+        "nodeName": "HK-01",
+        "sharePct": 50,
+        "status": "online",
+        "total": 3221225472,
+        "up": 536870912,
+        "upSpeed": 131072
+      }
+    ],
+    "period": "day",
+    "rangeEnd": "2026-11-20",
+    "rangeStart": "2026-11-20",
+    "series": [
+      {
+        "down": 1073741824,
+        "future": false,
+        "label": "14:00",
+        "timestamp": 1763625600,
+        "total": 1342177280,
+        "up": 268435456
+      }
+    ],
+    "summary": {
+      "activeClients": 14,
+      "changePct": 20,
+      "hasHistory": true,
+      "hourlyExpired": false,
+      "liveDownSpeed": 2097152,
+      "liveUpSpeed": 262144,
+      "onlineNodes": 4,
+      "prevTotal": 5368709120,
+      "topClientEmail": "alice@example.com",
+      "topClientTotal": 2147483648,
+      "topNodeId": 1,
+      "topNodeName": "HK-01",
+      "topNodeTotal": 3221225472,
+      "total": 6442450944,
+      "totalClients": 38,
+      "totalDown": 5368709120,
+      "totalNodes": 4,
+      "totalUp": 1073741824
+    },
+    "timezone": "Asia/Shanghai",
+    "today": "2026-11-20"
+  },
+  "TrafficOverviewSummary": {
+    "activeClients": 14,
+    "changePct": 20,
+    "hasHistory": true,
+    "hourlyExpired": false,
+    "liveDownSpeed": 2097152,
+    "liveUpSpeed": 262144,
+    "onlineNodes": 4,
+    "prevTotal": 5368709120,
+    "topClientEmail": "alice@example.com",
+    "topClientTotal": 2147483648,
+    "topNodeId": 1,
+    "topNodeName": "HK-01",
+    "topNodeTotal": 3221225472,
+    "total": 6442450944,
+    "totalClients": 38,
+    "totalDown": 5368709120,
+    "totalNodes": 4,
+    "totalUp": 1073741824
+  },
+  "TrafficSeriesPoint": {
+    "down": 1073741824,
+    "future": false,
+    "label": "14:00",
+    "timestamp": 1763625600,
+    "total": 1342177280,
+    "up": 268435456
+  },
+  "TrafficSummaryMetrics": {
+    "changePct": 20,
+    "prevTotal": 5368709120,
+    "total": 6442450944,
+    "totalDown": 5368709120,
+    "totalUp": 1073741824
   },
   "User": {
     "id": 0,

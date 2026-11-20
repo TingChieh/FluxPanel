@@ -54,7 +54,8 @@ type NodeTrafficSyncJob struct {
 	// the counter last changed) per node inbound tag, so the next poll can derive
 	// a per-inbound speed delta — node inbounds have no local Xray poll. Touched
 	// only from Run (serialized).
-	prevInboundTotals map[string]inboundSample
+	prevInboundTotals    map[string]inboundSample
+	prevNodeClientTotals map[service.NodeClientCounterKey]inboundSample
 }
 
 type atomicBool struct {
@@ -159,9 +160,14 @@ func (j *NodeTrafficSyncJob) Run() {
 	// xray's clients and inbounds still age out between traffic polls.
 	j.inboundService.RefreshLocalOnlineClients(nil, nil)
 
-	// Derive per-node-inbound speed every tick (keeps the baseline fresh even
-	// with no dashboard open); only broadcast it when someone is watching.
-	inboundSpeed := j.nodeInboundSpeed()
+	// Derive per-node-inbound and per-node-client speeds every tick so baselines
+	// and live-speed caches stay fresh even when no WebSocket viewer is connected.
+	nowTime := time.Now()
+	inboundSpeed, nodeSpeeds := j.nodeInboundSpeed(nodes)
+	nodeUserSpeeds := j.nodeClientSpeeds()
+	if nodeSpeeds != nil {
+		service.UpdateNodeLiveSpeeds(nowTime, nodeSpeeds, nodeUserSpeeds)
+	}
 
 	if !websocket.HasClients() {
 		return
@@ -221,6 +227,7 @@ func (j *NodeTrafficSyncJob) Run() {
 	// client-side, leaving the last shown value untouched; an empty (non-nil)
 	// slice marshals to [] and clears stale speeds.
 	trafficPayload["nodeTraffics"] = inboundSpeed
+	service.AttachLiveSpeedPayload(trafficPayload, nowTime, clientStatsSnapshotMaxClients)
 	websocket.BroadcastTraffic(trafficPayload)
 
 	clientStats := map[string]any{"snapshot": snapshot}
@@ -253,28 +260,31 @@ func (j *NodeTrafficSyncJob) Run() {
 // moves, so an idle stretch is averaged correctly when traffic resumes. A reset
 // rebaselines to the lower value; a first-seen tag yields no delta until the
 // next poll.
-func (j *NodeTrafficSyncJob) nodeInboundSpeed() []*xray.Traffic {
-	totals, err := j.inboundService.GetNodeInboundTrafficTotals()
+func (j *NodeTrafficSyncJob) nodeInboundSpeed(nodes []*model.Node) ([]*xray.Traffic, map[int]service.LiveSpeed) {
+	totals, err := j.inboundService.GetNodeInboundTrafficTotalsByNode()
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 	now := time.Now().UnixMilli()
 	deltas := make([]*xray.Traffic, 0, len(totals))
+	nodeSpeeds := make(map[int]service.LiveSpeed, len(nodes))
+	for _, n := range nodes {
+		if n != nil && n.Enable && n.Status == "online" {
+			nodeSpeeds[n.Id] = service.LiveSpeed{}
+		}
+	}
 	next := make(map[string]inboundSample, len(totals))
 	for tag, cur := range totals {
 		prev, ok := j.prevInboundTotals[tag]
 		if !ok {
-			next[tag] = inboundSample{up: cur[0], down: cur[1], at: now}
+			next[tag] = inboundSample{up: cur.Up, down: cur.Down, at: now}
 			continue
 		}
-		dUp := cur[0] - prev.up
-		dDown := cur[1] - prev.down
+		dUp := cur.Up - prev.up
+		dDown := cur.Down - prev.down
 		if dUp <= 0 && dDown <= 0 {
-			// No movement, or a counter reset: hold the change timestamp so a
-			// later jump is averaged over the real elapsed window, not shown as a
-			// spike. Adopt the lower value on a reset.
-			if cur[0] < prev.up || cur[1] < prev.down {
-				next[tag] = inboundSample{up: cur[0], down: cur[1], at: now}
+			if cur.Up < prev.up || cur.Down < prev.down {
+				next[tag] = inboundSample{up: cur.Up, down: cur.Down, at: now}
 			} else {
 				next[tag] = prev
 			}
@@ -291,11 +301,58 @@ func (j *NodeTrafficSyncJob) nodeInboundSpeed() []*xray.Traffic {
 		down := dDown * nodeInboundSpeedWindowMs / elapsed
 		if up > 0 || down > 0 {
 			deltas = append(deltas, &xray.Traffic{Tag: tag, IsInbound: true, Up: up, Down: down})
+			sp := nodeSpeeds[cur.NodeId]
+			sp.Up += dUp * 1000 / elapsed
+			sp.Down += dDown * 1000 / elapsed
+			nodeSpeeds[cur.NodeId] = sp
 		}
-		next[tag] = inboundSample{up: cur[0], down: cur[1], at: now}
+		next[tag] = inboundSample{up: cur.Up, down: cur.Down, at: now}
 	}
 	j.prevInboundTotals = next
-	return deltas
+	return deltas, nodeSpeeds
+}
+
+func (j *NodeTrafficSyncJob) nodeClientSpeeds() map[int]map[string]service.LiveSpeed {
+	totals, err := j.inboundService.GetNodeClientTrafficTotals()
+	if err != nil {
+		return nil
+	}
+	now := time.Now().UnixMilli()
+	next := make(map[service.NodeClientCounterKey]inboundSample, len(totals))
+	out := make(map[int]map[string]service.LiveSpeed)
+	for key, cur := range totals {
+		prev, ok := j.prevNodeClientTotals[key]
+		if !ok {
+			next[key] = inboundSample{up: cur[0], down: cur[1], at: now}
+			continue
+		}
+		dUp := cur[0] - prev.up
+		dDown := cur[1] - prev.down
+		if dUp <= 0 && dDown <= 0 {
+			if cur[0] < prev.up || cur[1] < prev.down {
+				next[key] = inboundSample{up: cur[0], down: cur[1], at: now}
+			} else {
+				next[key] = prev
+			}
+			continue
+		}
+		dUp = max(dUp, 0)
+		dDown = max(dDown, 0)
+		elapsed := max(now-prev.at, nodeInboundSpeedWindowMs)
+		upRate := dUp * 1000 / elapsed
+		downRate := dDown * 1000 / elapsed
+		if upRate > 0 || downRate > 0 {
+			perNode := out[key.NodeId]
+			if perNode == nil {
+				perNode = make(map[string]service.LiveSpeed)
+				out[key.NodeId] = perNode
+			}
+			perNode[key.Email] = service.LiveSpeed{Up: upRate, Down: downRate}
+		}
+		next[key] = inboundSample{up: cur[0], down: cur[1], at: now}
+	}
+	j.prevNodeClientTotals = next
+	return out
 }
 
 // maybePushGlobals broadcasts this panel's aggregated per-client usage to its

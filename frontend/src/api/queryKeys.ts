@@ -39,6 +39,21 @@ export const keys = {
     lastOnline: () => ['clients', 'lastOnline'] as const,
     groups: () => ['clients', 'groups'] as const,
   },
+  traffic: {
+    root: () => ['traffic'] as const,
+    overview: (period: string, anchor: string) => ['traffic', 'overview', period, anchor] as const,
+    clients: (params: unknown) => ['traffic', 'clients', params] as const,
+    clientDetail: (email: string, period: string, anchor: string) =>
+      ['traffic', 'clientDetail', email, period, anchor] as const,
+    nodeDetail: (
+      nodeId: number,
+      period: string,
+      anchor: string,
+      search: string,
+      page: number,
+      pageSize: number,
+    ) => ['traffic', 'nodeDetail', nodeId, period, anchor, search, page, pageSize] as const,
+  },
   xray: {
     root: () => ['xray'] as const,
     config: () => ['xray', 'config'] as const,

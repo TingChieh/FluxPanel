@@ -5,6 +5,7 @@
 .settings-page,
 .nodes-page,
 .audit-page,
+.traffic-page,
 .groups-page,
 .api-docs-page {
   --bg-page: #e6e8ec;
@@ -20,6 +21,7 @@
 .settings-page.is-dark,
 .nodes-page.is-dark,
 .audit-page.is-dark,
+.traffic-page.is-dark,
 .groups-page.is-dark,
 .api-docs-page.is-dark {
   --bg-page: #1a1b1f;
@@ -33,6 +35,7 @@
 .settings-page.is-dark.is-ultra,
 .nodes-page.is-dark.is-ultra,
 .audit-page.is-dark.is-ultra,
+.traffic-page.is-dark.is-ultra,
 .groups-page.is-dark.is-ultra,
 .api-docs-page.is-dark.is-ultra {
   --bg-page: #000;
@@ -52,8 +55,10 @@
 .nodes-page .ant-layout,
 .nodes-page .ant-layout-content,
 .audit-page .ant-layout,
+.traffic-page .ant-layout,
 .groups-page .ant-layout,
 .audit-page .ant-layout-content,
+.traffic-page .ant-layout-content,
 .groups-page .ant-layout-content,
 .api-docs-page .ant-layout,
 .api-docs-page .ant-layout-content {

@@ -2845,6 +2845,150 @@ export const sections: readonly Section[] = [
   },
 
   {
+    id: 'traffic',
+    title: 'Traffic Analytics',
+    description:
+      'Historical day (hourly), week (daily), and month (daily) traffic ledger queries combined with live per-client and per-node speeds.',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/panel/api/traffic/overview',
+        summary: 'Return global traffic KPIs, time series, and per-node rankings for a period.',
+        params: [
+          {
+            name: 'period',
+            in: 'query',
+            type: 'string',
+            desc: 'Aggregation period: day, week, or month (defaults to day).',
+          },
+          {
+            name: 'anchor',
+            in: 'query',
+            type: 'string',
+            desc: 'Anchor date in YYYY-MM-DD (defaults to today in the panel time zone).',
+          },
+        ],
+        responseSchema: 'TrafficOverviewResponse',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/traffic/clients',
+        summary: 'Return a paginated, searchable, sortable ranking of clients for a period.',
+        params: [
+          {
+            name: 'period',
+            in: 'query',
+            type: 'string',
+            desc: 'Aggregation period: day, week, or month (defaults to day).',
+          },
+          {
+            name: 'anchor',
+            in: 'query',
+            type: 'string',
+            desc: 'Anchor date in YYYY-MM-DD (defaults to today in the panel time zone).',
+          },
+          {
+            name: 'search',
+            in: 'query',
+            type: 'string',
+            desc: 'Optional case-insensitive substring filter on client email.',
+          },
+          {
+            name: 'sort',
+            in: 'query',
+            type: 'string',
+            desc: 'Sort mode: traffic or speed (defaults to traffic).',
+          },
+          {
+            name: 'activeOnly',
+            in: 'query',
+            type: 'boolean',
+            desc: 'When true, return only clients with traffic in the period or live activity.',
+          },
+          {
+            name: 'page',
+            in: 'query',
+            type: 'integer',
+            desc: '1-based page number (defaults to 1).',
+          },
+          {
+            name: 'pageSize',
+            in: 'query',
+            type: 'integer',
+            desc: 'Page size between 1 and 100 (defaults to 25).',
+          },
+        ],
+        responseSchema: 'TrafficClientsPageResponse',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/traffic/client/:email',
+        summary: "Return one client's traffic trend and per-node breakdown for a period.",
+        params: [
+          { name: 'email', in: 'path', type: 'string', desc: 'Client email.' },
+          {
+            name: 'period',
+            in: 'query',
+            type: 'string',
+            desc: 'Aggregation period: day, week, or month (defaults to day).',
+          },
+          {
+            name: 'anchor',
+            in: 'query',
+            type: 'string',
+            desc: 'Anchor date in YYYY-MM-DD (defaults to today in the panel time zone).',
+          },
+        ],
+        responseSchema: 'TrafficClientDetailResponse',
+      },
+      {
+        method: 'GET',
+        path: '/panel/api/traffic/node/:id',
+        summary: "Return one node's traffic trend and paginated per-client breakdown (0 = local).",
+        params: [
+          {
+            name: 'id',
+            in: 'path',
+            type: 'integer',
+            desc: 'Node ID (0 for the local panel).',
+          },
+          {
+            name: 'period',
+            in: 'query',
+            type: 'string',
+            desc: 'Aggregation period: day, week, or month (defaults to day).',
+          },
+          {
+            name: 'anchor',
+            in: 'query',
+            type: 'string',
+            desc: 'Anchor date in YYYY-MM-DD (defaults to today in the panel time zone).',
+          },
+          {
+            name: 'search',
+            in: 'query',
+            type: 'string',
+            desc: 'Optional case-insensitive substring filter on client email.',
+          },
+          {
+            name: 'page',
+            in: 'query',
+            type: 'integer',
+            desc: '1-based page number (defaults to 1).',
+          },
+          {
+            name: 'pageSize',
+            in: 'query',
+            type: 'integer',
+            desc: 'Page size between 1 and 100 (defaults to 25).',
+          },
+        ],
+        responseSchema: 'TrafficNodeDetailResponse',
+      },
+    ],
+  },
+
+  {
     id: 'websocket',
     title: 'WebSocket',
     description:

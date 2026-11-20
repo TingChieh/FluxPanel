@@ -5,6 +5,7 @@
 .settings-page .ant-card,
 .nodes-page .ant-card,
 .audit-page .ant-card,
+.traffic-page .ant-card,
 .groups-page .ant-card,
 .api-docs-page .ant-card {
   border-radius: 12px;
@@ -22,6 +23,7 @@
 .settings-page.is-dark .ant-card,
 .nodes-page.is-dark .ant-card,
 .audit-page.is-dark .ant-card,
+.traffic-page.is-dark .ant-card,
 .groups-page.is-dark .ant-card,
 .api-docs-page.is-dark .ant-card {
   box-shadow:
@@ -36,6 +38,7 @@
 .settings-page.is-dark.is-ultra .ant-card,
 .nodes-page.is-dark.is-ultra .ant-card,
 .audit-page.is-dark.is-ultra .ant-card,
+.traffic-page.is-dark.is-ultra .ant-card,
 .groups-page.is-dark.is-ultra .ant-card,
 .api-docs-page.is-dark.is-ultra .ant-card {
   box-shadow:

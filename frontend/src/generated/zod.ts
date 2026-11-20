@@ -818,6 +818,12 @@ export const InboundTrafficSummarySchema = z.object({
 });
 export type InboundTrafficSummary = z.infer<typeof InboundTrafficSummarySchema>;
 
+export const LiveSpeedSchema = z.object({
+  down: z.number().int(),
+  up: z.number().int(),
+});
+export type LiveSpeed = z.infer<typeof LiveSpeedSchema>;
+
 export const LogEntrySchema = z.object({
   DateTime: z.string(),
   Email: z.string(),
@@ -1075,6 +1081,148 @@ export const TrafficSchema = z.object({
   Up: z.number().int(),
 });
 export type Traffic = z.infer<typeof TrafficSchema>;
+
+export const TrafficClientBreakdownItemSchema = z.object({
+  deleted: z.boolean(),
+  down: z.number().int(),
+  email: z.string(),
+  online: z.boolean(),
+  sharePct: z.number(),
+  total: z.number().int(),
+  unattributed: z.boolean(),
+  up: z.number().int(),
+});
+export type TrafficClientBreakdownItem = z.infer<typeof TrafficClientBreakdownItemSchema>;
+
+export const TrafficClientDetailResponseSchema = z.object({
+  deleted: z.boolean(),
+  downSpeed: z.number().int(),
+  email: z.string(),
+  nodes: z.array(z.lazy(() => TrafficNodeBreakdownItemSchema)),
+  online: z.boolean(),
+  series: z.array(z.lazy(() => TrafficSeriesPointSchema)),
+  summary: z.lazy(() => TrafficSummaryMetricsSchema),
+  upSpeed: z.number().int(),
+});
+export type TrafficClientDetailResponse = z.infer<typeof TrafficClientDetailResponseSchema>;
+
+export const TrafficClientRankItemSchema = z.object({
+  deleted: z.boolean(),
+  down: z.number().int(),
+  downSpeed: z.number().int(),
+  email: z.string(),
+  online: z.boolean(),
+  sharePct: z.number(),
+  total: z.number().int(),
+  up: z.number().int(),
+  upSpeed: z.number().int(),
+});
+export type TrafficClientRankItem = z.infer<typeof TrafficClientRankItemSchema>;
+
+export const TrafficClientsPageResponseSchema = z.object({
+  items: z.array(z.lazy(() => TrafficClientRankItemSchema)),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  periodTotal: z.number().int(),
+  total: z.number().int(),
+});
+export type TrafficClientsPageResponse = z.infer<typeof TrafficClientsPageResponseSchema>;
+
+export const TrafficNodeBreakdownItemSchema = z.object({
+  deleted: z.boolean(),
+  down: z.number().int(),
+  nodeId: z.number().int(),
+  nodeName: z.string(),
+  sharePct: z.number(),
+  status: z.string(),
+  total: z.number().int(),
+  up: z.number().int(),
+});
+export type TrafficNodeBreakdownItem = z.infer<typeof TrafficNodeBreakdownItemSchema>;
+
+export const TrafficNodeDetailResponseSchema = z.object({
+  clients: z.array(z.lazy(() => TrafficClientBreakdownItemSchema)),
+  clientsTotal: z.number().int(),
+  deleted: z.boolean(),
+  downSpeed: z.number().int(),
+  nodeId: z.number().int(),
+  nodeName: z.string(),
+  series: z.array(z.lazy(() => TrafficSeriesPointSchema)),
+  status: z.string(),
+  summary: z.lazy(() => TrafficSummaryMetricsSchema),
+  upSpeed: z.number().int(),
+});
+export type TrafficNodeDetailResponse = z.infer<typeof TrafficNodeDetailResponseSchema>;
+
+export const TrafficNodeRankItemSchema = z.object({
+  deleted: z.boolean(),
+  down: z.number().int(),
+  downSpeed: z.number().int(),
+  nodeId: z.number().int(),
+  nodeName: z.string(),
+  sharePct: z.number(),
+  status: z.string(),
+  total: z.number().int(),
+  up: z.number().int(),
+  upSpeed: z.number().int(),
+});
+export type TrafficNodeRankItem = z.infer<typeof TrafficNodeRankItemSchema>;
+
+export const TrafficOverviewResponseSchema = z.object({
+  anchor: z.string(),
+  bucketUnit: z.string(),
+  hourlyRetentionCutoff: z.string(),
+  nodes: z.array(z.lazy(() => TrafficNodeRankItemSchema)),
+  period: z.string(),
+  rangeEnd: z.string(),
+  rangeStart: z.string(),
+  series: z.array(z.lazy(() => TrafficSeriesPointSchema)),
+  summary: z.lazy(() => TrafficOverviewSummarySchema),
+  timezone: z.string(),
+  today: z.string(),
+});
+export type TrafficOverviewResponse = z.infer<typeof TrafficOverviewResponseSchema>;
+
+export const TrafficOverviewSummarySchema = z.object({
+  activeClients: z.number().int(),
+  changePct: z.number().nullable().optional(),
+  hasHistory: z.boolean(),
+  hourlyExpired: z.boolean(),
+  liveDownSpeed: z.number().int(),
+  liveUpSpeed: z.number().int(),
+  onlineNodes: z.number().int(),
+  prevTotal: z.number().int(),
+  topClientEmail: z.string(),
+  topClientTotal: z.number().int(),
+  topNodeId: z.number().int(),
+  topNodeName: z.string(),
+  topNodeTotal: z.number().int(),
+  total: z.number().int(),
+  totalClients: z.number().int(),
+  totalDown: z.number().int(),
+  totalNodes: z.number().int(),
+  totalUp: z.number().int(),
+});
+export type TrafficOverviewSummary = z.infer<typeof TrafficOverviewSummarySchema>;
+
+export const TrafficSeriesPointSchema = z.object({
+  down: z.number().int(),
+  future: z.boolean(),
+  label: z.string(),
+  timestamp: z.number().int(),
+  total: z.number().int(),
+  up: z.number().int(),
+});
+export type TrafficSeriesPoint = z.infer<typeof TrafficSeriesPointSchema>;
+
+export const TrafficSummaryMetricsSchema = z.object({
+  changePct: z.number().nullable().optional(),
+  prevTotal: z.number().int(),
+  total: z.number().int(),
+  totalDown: z.number().int(),
+  totalUp: z.number().int(),
+});
+export type TrafficSummaryMetrics = z.infer<typeof TrafficSummaryMetricsSchema>;
 
 export const UserSchema = z.object({
   id: z.number().int(),

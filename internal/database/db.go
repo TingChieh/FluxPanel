@@ -77,6 +77,8 @@ func allModels() []any {
 		&model.AccessAuditDaily{},
 		&model.AccessAuditClientIP{},
 		&model.AccessAuditAlert{},
+		&model.TrafficHourly{},
+		&model.TrafficDaily{},
 	}
 }
 

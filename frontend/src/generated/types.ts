@@ -750,6 +750,11 @@ export interface InboundTrafficSummary {
   up: number;
 }
 
+export interface LiveSpeed {
+  down: number;
+  up: number;
+}
+
 export interface LogEntry {
   DateTime: string;
   Email: string;
@@ -989,6 +994,137 @@ export interface Traffic {
   IsOutbound: boolean;
   Tag: string;
   Up: number;
+}
+
+export interface TrafficClientBreakdownItem {
+  deleted: boolean;
+  down: number;
+  email: string;
+  online: boolean;
+  sharePct: number;
+  total: number;
+  unattributed: boolean;
+  up: number;
+}
+
+export interface TrafficClientDetailResponse {
+  deleted: boolean;
+  downSpeed: number;
+  email: string;
+  nodes: TrafficNodeBreakdownItem[];
+  online: boolean;
+  series: TrafficSeriesPoint[];
+  summary: TrafficSummaryMetrics;
+  upSpeed: number;
+}
+
+export interface TrafficClientRankItem {
+  deleted: boolean;
+  down: number;
+  downSpeed: number;
+  email: string;
+  online: boolean;
+  sharePct: number;
+  total: number;
+  up: number;
+  upSpeed: number;
+}
+
+export interface TrafficClientsPageResponse {
+  items: TrafficClientRankItem[];
+  page: number;
+  pageSize: number;
+  periodTotal: number;
+  total: number;
+}
+
+export interface TrafficNodeBreakdownItem {
+  deleted: boolean;
+  down: number;
+  nodeId: number;
+  nodeName: string;
+  sharePct: number;
+  status: string;
+  total: number;
+  up: number;
+}
+
+export interface TrafficNodeDetailResponse {
+  clients: TrafficClientBreakdownItem[];
+  clientsTotal: number;
+  deleted: boolean;
+  downSpeed: number;
+  nodeId: number;
+  nodeName: string;
+  series: TrafficSeriesPoint[];
+  status: string;
+  summary: TrafficSummaryMetrics;
+  upSpeed: number;
+}
+
+export interface TrafficNodeRankItem {
+  deleted: boolean;
+  down: number;
+  downSpeed: number;
+  nodeId: number;
+  nodeName: string;
+  sharePct: number;
+  status: string;
+  total: number;
+  up: number;
+  upSpeed: number;
+}
+
+export interface TrafficOverviewResponse {
+  anchor: string;
+  bucketUnit: string;
+  hourlyRetentionCutoff: string;
+  nodes: TrafficNodeRankItem[];
+  period: string;
+  rangeEnd: string;
+  rangeStart: string;
+  series: TrafficSeriesPoint[];
+  summary: TrafficOverviewSummary;
+  timezone: string;
+  today: string;
+}
+
+export interface TrafficOverviewSummary {
+  activeClients: number;
+  changePct?: number | null;
+  hasHistory: boolean;
+  hourlyExpired: boolean;
+  liveDownSpeed: number;
+  liveUpSpeed: number;
+  onlineNodes: number;
+  prevTotal: number;
+  topClientEmail: string;
+  topClientTotal: number;
+  topNodeId: number;
+  topNodeName: string;
+  topNodeTotal: number;
+  total: number;
+  totalClients: number;
+  totalDown: number;
+  totalNodes: number;
+  totalUp: number;
+}
+
+export interface TrafficSeriesPoint {
+  down: number;
+  future: boolean;
+  label: string;
+  timestamp: number;
+  total: number;
+  up: number;
+}
+
+export interface TrafficSummaryMetrics {
+  changePct?: number | null;
+  prevTotal: number;
+  total: number;
+  totalDown: number;
+  totalUp: number;
 }
 
 export interface User {

@@ -436,6 +436,61 @@ func (s *InboundService) SetRemoteTraffic(nodeID int, snap *runtime.TrafficSnaps
 	return structuralChange, err
 }
 
+// NodeInboundTrafficTotal holds a remote inbound's node id and cumulative counters.
+type NodeInboundTrafficTotal struct {
+	NodeId int
+	Up     int64
+	Down   int64
+}
+
+// GetNodeInboundTrafficTotalsByNode returns cumulative counters per remote inbound tag along with its node id.
+func (s *InboundService) GetNodeInboundTrafficTotalsByNode() (map[string]NodeInboundTrafficTotal, error) {
+	var rows []struct {
+		Tag    string
+		NodeId int
+		Up     int64
+		Down   int64
+	}
+	if err := database.GetDB().Table("inbounds").
+		Select("tag, node_id, up, down").
+		Where("node_id IS NOT NULL").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[string]NodeInboundTrafficTotal, len(rows))
+	for _, r := range rows {
+		out[r.Tag] = NodeInboundTrafficTotal{NodeId: r.NodeId, Up: r.Up, Down: r.Down}
+	}
+	return out, nil
+}
+
+// NodeClientCounterKey identifies one (node, email) row in node_client_traffics.
+type NodeClientCounterKey struct {
+	NodeId int
+	Email  string
+}
+
+// GetNodeClientTrafficTotals returns cumulative acc_up/acc_down per (node, email) for live speed derivation.
+func (s *InboundService) GetNodeClientTrafficTotals() (map[NodeClientCounterKey][2]int64, error) {
+	var rows []struct {
+		NodeId  int
+		Email   string
+		AccUp   int64
+		AccDown int64
+	}
+	if err := database.GetDB().Table("node_client_traffics").
+		Select("node_id, email, acc_up, acc_down").
+		Where("detached = ?", false).
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[NodeClientCounterKey][2]int64, len(rows))
+	for _, r := range rows {
+		out[NodeClientCounterKey{NodeId: r.NodeId, Email: r.Email}] = [2]int64{r.AccUp, r.AccDown}
+	}
+	return out, nil
+}
+
 // GetNodeInboundTrafficTotals returns the current cumulative up/down for every
 // node-hosted inbound, keyed by tag. The node sync diffs successive snapshots of
 // this to derive per-inbound speed for the dashboard — node inbounds have no
@@ -742,6 +797,8 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 	degradedInbounds := map[int]string{}
 
 	newInboundIDs := make(map[int]struct{})
+	ledgerClientDeltas := make(map[string]TrafficDelta)
+	var ledgerInboundUp, ledgerInboundDown int64
 
 	// Every pass below walks a central inbound's clients once per snapshot entry that
 	// resolves to it, so only the first such entry is merged; repeats are dropped.
@@ -932,6 +989,15 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 			updates["last_traffic_reset_time"] = snapIb.LastTrafficResetTime
 		}
 		if !inGrace || (snapIb.Up+snapIb.Down) <= (c.Up+c.Down) {
+			// Skip first-time compatible-alias bind on a zeroed central row so historical totals are not booked as delta.
+			if c.OriginNodeGuid != "" || c.Up > 0 || c.Down > 0 {
+				if dUp := snapIb.Up - c.Up; dUp > 0 {
+					ledgerInboundUp += dUp
+				}
+				if dDown := snapIb.Down - c.Down; dDown > 0 {
+					ledgerInboundDown += dDown
+				}
+			}
 			updates["up"] = snapIb.Up
 			updates["down"] = snapIb.Down
 		}
@@ -1271,6 +1337,12 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 			if err := s.upsertNodeBaseline(tx, nodeID, cs.Email, canon.Up, canon.Down, addUp, addDown); err != nil {
 				return false, err
 			}
+			if seen && (addUp > 0 || addDown > 0) {
+				cur := ledgerClientDeltas[cs.Email]
+				cur.Up += max(addUp, 0)
+				cur.Down += max(addDown, 0)
+				ledgerClientDeltas[cs.Email] = cur
+			}
 			nodeBaselines[cs.Email] = nodeTrafficCounter{Up: canon.Up, Down: canon.Down}
 		}
 
@@ -1508,6 +1580,19 @@ func (s *InboundService) setRemoteTrafficLocked(nodeID int, snap *runtime.Traffi
 		return false, err
 	}
 	committed = true
+
+	if len(ledgerClientDeltas) > 0 || ledgerInboundUp > 0 || ledgerInboundDown > 0 {
+		recordedAt := time.Now()
+		var cliUpSum, cliDownSum int64
+		for email, d := range ledgerClientDeltas {
+			RecordTrafficDelta(recordedAt, nodeID, email, d.Up, d.Down)
+			cliUpSum += d.Up
+			cliDownSum += d.Down
+		}
+		if ledgerInboundUp > cliUpSum || ledgerInboundDown > cliDownSum {
+			RecordTrafficDelta(recordedAt, nodeID, "", max(ledgerInboundUp-cliUpSum, 0), max(ledgerInboundDown-cliDownSum, 0))
+		}
+	}
 
 	if len(degradedInbounds) > 0 {
 		if mgr := runtime.GetManager(); mgr != nil {
