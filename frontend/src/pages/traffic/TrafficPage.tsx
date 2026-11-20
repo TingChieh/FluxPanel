@@ -57,7 +57,7 @@ function formatChangeText(changePct: number | null | undefined): string {
 
 export default function TrafficPage() {
   const { t } = useTranslation();
-  const { antdThemeConfig } = useTheme();
+  const { isDark, isUltra, antdThemeConfig } = useTheme();
 
   const [period, setPeriod] = useState<TrafficPeriod>('day');
   const [anchor, setAnchor] = useState<string>('');
@@ -169,9 +169,18 @@ export default function TrafficPage() {
   const pickerValue = effectiveAnchor ? dayjs(effectiveAnchor) : null;
   const summary = overview?.summary;
 
+  const pageClass = [
+    'traffic-page',
+    'traffic-layout',
+    isDark ? 'is-dark' : '',
+    isDark && isUltra ? 'is-ultra' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <ConfigProvider theme={antdThemeConfig}>
-      <Layout className="traffic-layout">
+      <Layout className={pageClass}>
         <AppSidebar />
         <Layout.Content className="traffic-content">
           <div className="traffic-header">
