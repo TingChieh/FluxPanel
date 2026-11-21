@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -413,4 +414,233 @@ func TestAccessAuditLegacySlotUpgradeAndDSTFallback(t *testing.T) {
 			t.Fatalf("spring-forward DST fallback mask missed 15:00/15:10 slots: encoded=%q", springMask.encode())
 		}
 	})
+}
+
+func TestAccessAuditDSTTransitionHoursAndDisambiguation(t *testing.T) {
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Skipf("America/New_York tzdata unavailable: %v", err)
+	}
+
+	t.Run("fall-back repeated 01:xx hour maps both EDT and EST UTC intervals", func(t *testing.T) {
+		// 2026-11-01 in America/New_York repeats 01:00-01:59 (EDT -04:00 then EST -05:00).
+		edtStart := time.Date(2026, 11, 1, 5, 5, 0, 0, time.UTC).Unix()
+		edtEnd := time.Date(2026, 11, 1, 5, 15, 0, 0, time.UTC).Unix()
+		estStart := time.Date(2026, 11, 1, 6, 25, 0, 0, time.UTC).Unix()
+		estEnd := time.Date(2026, 11, 1, 6, 35, 0, 0, time.UTC).Unix()
+
+		edtRow := model.AccessAuditClientIP{
+			Date: "2026-11-01", Email: "dst", SrcIP: "198.51.100.1",
+			HitCount: 6, FirstSeen: edtStart, LastSeen: edtEnd, ActiveHours: 1 << 1,
+		}
+		edtMask := slotsForClientIPRow(edtRow, loc)
+		if !edtMask.has(1*auditSlotsPerHr+0) || !edtMask.has(1*auditSlotsPerHr+1) || edtMask.has(1*auditSlotsPerHr+2) {
+			t.Fatalf("EDT 01:05-01:15 slots mismatch: encoded=%q", edtMask.encode())
+		}
+
+		estRow := model.AccessAuditClientIP{
+			Date: "2026-11-01", Email: "dst", SrcIP: "203.0.113.2",
+			HitCount: 6, FirstSeen: estStart, LastSeen: estEnd, ActiveHours: 1 << 1,
+		}
+		estMask := slotsForClientIPRow(estRow, loc)
+		if !estMask.has(1*auditSlotsPerHr+2) || !estMask.has(1*auditSlotsPerHr+3) || estMask.has(1*auditSlotsPerHr+0) {
+			t.Fatalf("EST 01:25-01:35 slots mismatch: encoded=%q", estMask.encode())
+		}
+
+		// formatSlotRange must distinguish the two 01:00 occurrences unambiguously.
+		slot0100 := 1 * auditSlotsPerHr
+		lblEDT := formatSlotRange("2026-11-01", slot0100, loc, []model.AccessAuditClientIP{edtRow})
+		if lblEDT != "01:00-01:09 (EDT -04:00)" {
+			t.Fatalf("EDT 01:00 label = %q, want %q", lblEDT, "01:00-01:09 (EDT -04:00)")
+		}
+		est0100Row := model.AccessAuditClientIP{
+			Date: "2026-11-01", FirstSeen: time.Date(2026, 11, 1, 6, 2, 0, 0, time.UTC).Unix(),
+			LastSeen: time.Date(2026, 11, 1, 6, 8, 0, 0, time.UTC).Unix(),
+		}
+		lblEST := formatSlotRange("2026-11-01", slot0100, loc, []model.AccessAuditClientIP{est0100Row})
+		if lblEST != "01:00-01:09 (EST -05:00)" {
+			t.Fatalf("EST 01:00 label = %q, want %q", lblEST, "01:00-01:09 (EST -05:00)")
+		}
+		lblBoth := formatSlotRange("2026-11-01", slot0100, loc, []model.AccessAuditClientIP{edtRow, est0100Row})
+		if lblBoth != "01:00-01:09 (EDT -04:00 / EST -05:00)" {
+			t.Fatalf("both-occurrence 01:00 label = %q, want %q", lblBoth, "01:00-01:09 (EDT -04:00 / EST -05:00)")
+		}
+		if normal := formatSlotRange("2026-11-01", 15*auditSlotsPerHr, loc, nil); normal != "15:00-15:09" {
+			t.Fatalf("non-repeated slot label = %q, want 15:00-15:09", normal)
+		}
+	})
+
+	t.Run("spring-forward skipped 02:xx hour sets 01:50 and 03:00 without phantom 02:xx slots", func(t *testing.T) {
+		// 2026-03-08 06:55Z is 01:55 EST; 07:05Z is 03:05 EDT (02:00-02:59 does not exist).
+		startUTC := time.Date(2026, 3, 8, 6, 55, 0, 0, time.UTC).Unix()
+		endUTC := time.Date(2026, 3, 8, 7, 5, 0, 0, time.UTC).Unix()
+		row := model.AccessAuditClientIP{
+			Date: "2026-03-08", Email: "dst", SrcIP: "198.51.100.1",
+			HitCount: 6, FirstSeen: startUTC, LastSeen: endUTC,
+			ActiveHours: (1 << 1) | (1 << 3),
+		}
+		mask := slotsForClientIPRow(row, loc)
+		if !mask.has(1*auditSlotsPerHr+5) || !mask.has(3*auditSlotsPerHr+0) {
+			t.Fatalf("spring-forward transition missed 01:50 or 03:00 slot: encoded=%q", mask.encode())
+		}
+		for s := 2 * auditSlotsPerHr; s < 3*auditSlotsPerHr; s++ {
+			if mask.has(s) {
+				t.Fatalf("spring-forward skipped hour 02:xx must not be marked (slot %d)", s)
+			}
+		}
+	})
+}
+
+func TestAccessAuditConfigRejectsDailyThresholdOne(t *testing.T) {
+	initAuditTestDB(t)
+	svc := &AccessAuditService{}
+
+	cfg := DefaultAuditConfig()
+	cfg.MaxDailySubnets = 1
+	err := svc.SaveConfig(cfg, false)
+	if !errors.Is(err, ErrInvalidAuditConfig) {
+		t.Fatalf("SaveConfig(MaxDailySubnets=1) error = %v, want ErrInvalidAuditConfig", err)
+	}
+	if got := svc.GetConfig().MaxDailySubnets; got != 8 {
+		t.Fatalf("stored MaxDailySubnets = %d after rejected save, want unchanged default 8", got)
+	}
+
+	cfg.MaxDailySubnets = 0
+	if err := svc.SaveConfig(cfg, false); err != nil {
+		t.Fatalf("SaveConfig(MaxDailySubnets=0) failed: %v", err)
+	}
+	if got := svc.GetConfig().MaxDailySubnets; got != 0 {
+		t.Fatalf("MaxDailySubnets = %d, want 0", got)
+	}
+}
+
+func TestAccessAuditLegacyConcurrentAlertDedupeAndUpgrade(t *testing.T) {
+	t.Run("pre-upgrade acked same-hour alert upgrades in place without duplicating", func(t *testing.T) {
+		initAuditTestDB(t)
+		svc := &AccessAuditService{}
+		db := database.GetDB()
+		if err := db.Create(&model.AccessAuditAlert{
+			CreatedAt: time.Date(2026, 11, 19, 15, 5, 0, 0, auditLocation()).Unix(),
+			Date:      "2026-11-19",
+			Email:     "legacy-ack",
+			AlertType: AuditAlertAccountSharing,
+			Severity:  AuditRiskHigh,
+			RuleName:  auditRuleConcurrentSubnets,
+			Target:    auditTargetLegacyConcurrentSubnets,
+			SrcIP:     "198.51.100.1",
+			HitCount:  3,
+			Detail:    "Hour 15:00 saw 3 distinct subnets concurrently",
+			Acked:     true,
+		}).Error; err != nil {
+			t.Fatal(err)
+		}
+
+		var b strings.Builder
+		for _, min := range []int{2, 12} {
+			writeBurst(&b, "2026/11/19", 15, min, 3, "198.51.100.1", "legacy-ack")
+			writeBurst(&b, "2026/11/19", 15, min, 3, "203.0.113.2", "legacy-ack")
+			writeBurst(&b, "2026/11/19", 15, min, 3, "192.0.2.3", "legacy-ack")
+		}
+		ingestAuditLines(t, svc, b.String())
+
+		alerts, err := svc.GetAlerts("2026-11-19", "legacy-ack", false, 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(alerts) != 1 || alerts[0].Target != auditTargetConcurrentSubnets || !alerts[0].Acked || alerts[0].HitCount != 3 {
+			t.Fatalf("alerts = %+v, want 1 upgraded acked concurrent-subnets alert with HitCount=3", alerts)
+		}
+	})
+
+	t.Run("read path deduplicates coexisting legacy and current rows while keeping untouched history", func(t *testing.T) {
+		initAuditTestDB(t)
+		svc := &AccessAuditService{}
+		db := database.GetDB()
+		ts := time.Date(2026, 11, 19, 15, 10, 0, 0, auditLocation()).Unix()
+		rows := []model.AccessAuditAlert{
+			{
+				CreatedAt: ts - 60, Date: "2026-11-19", Email: "dup",
+				AlertType: AuditAlertAccountSharing, Severity: AuditRiskHigh,
+				RuleName: auditRuleConcurrentSubnets, Target: auditTargetLegacyConcurrentSubnets,
+				HitCount: 3, Acked: true,
+			},
+			{
+				CreatedAt: ts, Date: "2026-11-19", Email: "dup",
+				AlertType: AuditAlertAccountSharing, Severity: AuditRiskHigh,
+				RuleName: auditRuleConcurrentSubnets, Target: auditTargetConcurrentSubnets,
+				HitCount: 3, Acked: false,
+			},
+			{
+				CreatedAt: ts - 86400, Date: "2026-11-18", Email: "dup",
+				AlertType: AuditAlertAccountSharing, Severity: AuditRiskHigh,
+				RuleName: auditRuleConcurrentSubnets, Target: auditTargetLegacyConcurrentSubnets,
+				HitCount: 3, Acked: true,
+			},
+		}
+		for _, r := range rows {
+			if err := db.Create(&r).Error; err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		allAlerts, err := svc.GetAlerts("", "dup", false, 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(allAlerts) != 2 {
+			t.Fatalf("allAlerts = %+v, want 2 (1 current on 11-19 + 1 untouched legacy on 11-18)", allAlerts)
+		}
+		summary, err := svc.GetSummary("2026-11-19", 1, AuditAllSources)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if summary.HighRiskAlerts != 1 || summary.UnackedAlerts != 1 {
+			t.Fatalf("summary = %+v, want HighRiskAlerts=1 UnackedAlerts=1 without double-counting legacy row", summary)
+		}
+		detail, err := svc.GetClientDetail("dup", "2026-11-19", 1, true, AuditAllSources)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(detail.Alerts) != 1 || detail.Alerts[0].Target != auditTargetConcurrentSubnets {
+			t.Fatalf("detail.Alerts = %+v, want single current alert", detail.Alerts)
+		}
+	})
+}
+
+func TestAccessAuditSummaryDistinguishesConcurrentAndDailySharingFlags(t *testing.T) {
+	initAuditTestDB(t)
+	var b strings.Builder
+	// daily-only client: 8 sequential networks, peak concurrency = 1.
+	dailyIPs := []string{
+		"198.51.100.1", "203.0.113.2", "192.0.2.3", "93.184.216.4",
+		"151.101.1.5", "104.16.1.6", "140.82.1.7", "172.64.1.8",
+	}
+	for i, ip := range dailyIPs {
+		writeBurst(&b, "2026/11/19", 8+i, 5, 5, ip, "daily-only")
+	}
+	// concurrent-only client: 3 concurrent networks across 2 slots.
+	for _, min := range []int{2, 12} {
+		writeBurst(&b, "2026/11/19", 20, min, 3, "198.51.100.1", "concurrent-only")
+		writeBurst(&b, "2026/11/19", 20, min, 3, "203.0.113.2", "concurrent-only")
+		writeBurst(&b, "2026/11/19", 20, min, 3, "192.0.2.3", "concurrent-only")
+	}
+
+	svc := &AccessAuditService{}
+	ingestAuditLines(t, svc, b.String())
+	summary, err := svc.GetSummary("2026-11-19", 1, AuditAllSources)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byEmail := make(map[string]AuditClientSummary, len(summary.Clients))
+	for _, c := range summary.Clients {
+		byEmail[c.Email] = c
+	}
+	daily := byEmail["daily-only"]
+	if !daily.SharingAlert || daily.ConcurrentSharingAlert || !daily.DailySharingAlert || daily.MaxConcurrentSubnets != 1 {
+		t.Fatalf("daily-only summary = %+v, want SharingAlert=true ConcurrentSharingAlert=false DailySharingAlert=true Peak=1", daily)
+	}
+	conc := byEmail["concurrent-only"]
+	if !conc.SharingAlert || !conc.ConcurrentSharingAlert || conc.DailySharingAlert || conc.MaxConcurrentSubnets != 3 {
+		t.Fatalf("concurrent-only summary = %+v, want SharingAlert=true ConcurrentSharingAlert=true DailySharingAlert=false Peak=3", conc)
+	}
 }

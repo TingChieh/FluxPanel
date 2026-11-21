@@ -85,19 +85,21 @@ type AuditIngestResult struct {
 
 // AuditClientSummary summarizes one client's activity and risk signals over the queried window.
 type AuditClientSummary struct {
-	Email                string   `json:"email" example:"alice"`
-	TotalHits            int64    `json:"totalHits" example:"1250"`
-	UniqueRootDomains    int      `json:"uniqueRootDomains" example:"38"`
-	UniqueIPs            int      `json:"uniqueIps" example:"2"`
-	UniqueSubnets        int      `json:"uniqueSubnets" example:"1"`
-	MaxConcurrentSubnets int      `json:"maxConcurrentSubnets" example:"1"`
-	SharingAlert         bool     `json:"sharingAlert" example:"false"`
-	HighRiskHits         int64    `json:"highRiskHits" example:"0"`
-	WarnRiskHits         int64    `json:"warnRiskHits" example:"0"`
-	UnackedAlerts        int      `json:"unackedAlerts" example:"0"`
-	TopDomains           []string `json:"topDomains"`
-	LastSeen             int64    `json:"lastSeen" example:"1763540000"`
-	NodeIds              []int    `json:"nodeIds"`
+	Email                  string   `json:"email" example:"alice"`
+	TotalHits              int64    `json:"totalHits" example:"1250"`
+	UniqueRootDomains      int      `json:"uniqueRootDomains" example:"38"`
+	UniqueIPs              int      `json:"uniqueIps" example:"2"`
+	UniqueSubnets          int      `json:"uniqueSubnets" example:"1"`
+	MaxConcurrentSubnets   int      `json:"maxConcurrentSubnets" example:"1"`
+	SharingAlert           bool     `json:"sharingAlert" example:"false"`
+	ConcurrentSharingAlert bool     `json:"concurrentSharingAlert" example:"false"`
+	DailySharingAlert      bool     `json:"dailySharingAlert" example:"false"`
+	HighRiskHits           int64    `json:"highRiskHits" example:"0"`
+	WarnRiskHits           int64    `json:"warnRiskHits" example:"0"`
+	UnackedAlerts          int      `json:"unackedAlerts" example:"0"`
+	TopDomains             []string `json:"topDomains"`
+	LastSeen               int64    `json:"lastSeen" example:"1763540000"`
+	NodeIds                []int    `json:"nodeIds"`
 }
 
 // AuditSourceSummary is one audit source (this panel or a node) in the window,
@@ -302,7 +304,20 @@ func (s *AccessAuditService) GetConfig() AuditConfig {
 	return normalizeAuditConfig(cfg)
 }
 
+// ErrInvalidAuditConfig signals an explicit out-of-range audit setting value.
+var ErrInvalidAuditConfig = errors.New("invalid audit configuration")
+
+func validateAuditConfig(cfg AuditConfig) error {
+	if cfg.MaxDailySubnets < 0 || cfg.MaxDailySubnets == 1 || cfg.MaxDailySubnets > 100 {
+		return fmt.Errorf("%w: maxDailySubnets must be 0 (disabled) or between 2 and 100", ErrInvalidAuditConfig)
+	}
+	return nil
+}
+
 func (s *AccessAuditService) SaveConfig(cfg AuditConfig, reevaluate bool) error {
+	if err := validateAuditConfig(cfg); err != nil {
+		return err
+	}
 	cfg = normalizeAuditConfig(cfg)
 	raw, err := json.Marshal(cfg)
 	if err != nil {
@@ -1016,7 +1031,8 @@ func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig)
 		return nil, nil
 	}
 
-	metrics := evaluateSharingDay(ipRows, cfg, auditLocation())
+	loc := auditLocation()
+	metrics := evaluateSharingDay(ipRows, cfg, loc)
 	latestSeen := int64(0)
 	latestIP := ""
 	for _, r := range ipRows {
@@ -1031,6 +1047,9 @@ func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig)
 
 	var emitted []model.AccessAuditAlert
 	if metrics.peakConcurrent >= cfg.MaxConcurrentSubnets && metrics.exceedingSlots >= cfg.MinConcurrentWindows {
+		if err := upgradeLegacyConcurrentAlert(tx, dateStr, email); err != nil {
+			return nil, err
+		}
 		emitted = append(emitted, model.AccessAuditAlert{
 			CreatedAt: latestSeen,
 			Date:      dateStr,
@@ -1038,11 +1057,11 @@ func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig)
 			AlertType: AuditAlertAccountSharing,
 			Severity:  AuditRiskHigh,
 			RuleName:  auditRuleConcurrentSubnets,
-			Target:    "concurrent subnets",
+			Target:    auditTargetConcurrentSubnets,
 			SrcIP:     latestIP,
 			HitCount:  int64(metrics.peakConcurrent),
 			Detail: fmt.Sprintf("Peak %s saw %d concurrent networks across %d 10m window(s) (min %d hits/net): %s",
-				formatSlotRange(metrics.peakSlot), metrics.peakConcurrent, metrics.exceedingSlots, cfg.MinSharingHits, metrics.peakSummary),
+				formatSlotRange(dateStr, metrics.peakSlot, loc, ipRows), metrics.peakConcurrent, metrics.exceedingSlots, cfg.MinSharingHits, metrics.peakSummary),
 		})
 	}
 	if cfg.MaxDailySubnets > 0 && metrics.dailyQualified >= cfg.MaxDailySubnets {
@@ -1223,7 +1242,10 @@ func (s *AccessAuditService) GetSummary(dateStr string, days int, nodeID int) (A
 		ipsByClient[r.Email] = append(ipsByClient[r.Email], r)
 	}
 
+	alertRows = dedupeLegacySharingAlerts(alertRows)
 	sharingSet := make(map[string]struct{})
+	concurrentSharingSet := make(map[string]struct{})
+	dailySharingSet := make(map[string]struct{})
 	for _, a := range alertRows {
 		acc := getAcc(a.Email)
 		if a.Severity >= AuditRiskHigh {
@@ -1237,6 +1259,11 @@ func (s *AccessAuditService) GetSummary(dateStr string, days int, nodeID int) (A
 		}
 		if a.AlertType == AuditAlertAccountSharing {
 			sharingSet[a.Email] = struct{}{}
+			if a.RuleName == auditRuleDailySubnets {
+				dailySharingSet[a.Email] = struct{}{}
+			} else {
+				concurrentSharingSet[a.Email] = struct{}{}
+			}
 		}
 	}
 	resp.SharingClients = len(sharingSet)
@@ -1251,6 +1278,8 @@ func (s *AccessAuditService) GetSummary(dateStr string, days int, nodeID int) (A
 			acc.summary.TopDomains = topKeysByCount(acc.rootHits, 5)
 		}
 		_, acc.summary.SharingAlert = sharingSet[email]
+		_, acc.summary.ConcurrentSharingAlert = concurrentSharingSet[email]
+		_, acc.summary.DailySharingAlert = dailySharingSet[email]
 
 		ipList := ipsByClient[email]
 		ipSet := make(map[string]struct{}, len(ipList))
@@ -1512,6 +1541,7 @@ func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hi
 		Find(&resp.Alerts).Error; err != nil {
 		return resp, err
 	}
+	resp.Alerts = dedupeLegacySharingAlerts(resp.Alerts)
 	return resp, nil
 }
 
@@ -1538,7 +1568,7 @@ func (s *AccessAuditService) GetAlerts(dateStr, email string, onlyUnacked bool, 
 	if err := q.Order("acked ASC, severity DESC, created_at DESC").Limit(limit).Find(&alerts).Error; err != nil {
 		return nil, err
 	}
-	return slices.Clip(alerts), nil
+	return slices.Clip(dedupeLegacySharingAlerts(alerts)), nil
 }
 
 func (s *AccessAuditService) AckAlert(id uint) error {

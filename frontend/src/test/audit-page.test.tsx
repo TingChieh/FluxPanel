@@ -254,9 +254,9 @@ describe('AuditPage', () => {
     );
   });
 
-  // Overview risk tags must follow the backend sharingAlert decision so trusted
-  // clients or brief one-window spikes are never mislabeled as Sharing Risk.
-  it('badges Sharing Risk from sharingAlert rather than raw peak concurrency', async () => {
+  // Overview badges and metric highlights must separate high-risk concurrent
+  // sharing from daily-only warnings and never mislabel trusted clients.
+  it('distinguishes concurrent sharing, daily multi-network warning, and normal rows', async () => {
     stubAuditBackend(
       [],
       [],
@@ -269,10 +269,29 @@ describe('AuditPage', () => {
           uniqueSubnets: 3,
           maxConcurrentSubnets: 3,
           sharingAlert: false,
+          concurrentSharingAlert: false,
+          dailySharingAlert: false,
           highRiskHits: 0,
           warnRiskHits: 0,
           unackedAlerts: 0,
           topDomains: ['github.com'],
+          lastSeen: 1763540000,
+          nodeIds: [0],
+        },
+        {
+          email: 'daily-roamer',
+          totalHits: 180,
+          uniqueRootDomains: 7,
+          uniqueIps: 9,
+          uniqueSubnets: 8,
+          maxConcurrentSubnets: 1,
+          sharingAlert: true,
+          concurrentSharingAlert: false,
+          dailySharingAlert: true,
+          highRiskHits: 0,
+          warnRiskHits: 0,
+          unackedAlerts: 1,
+          topDomains: ['openai.com'],
           lastSeen: 1763540000,
           nodeIds: [0],
         },
@@ -284,6 +303,8 @@ describe('AuditPage', () => {
           uniqueSubnets: 4,
           maxConcurrentSubnets: 3,
           sharingAlert: true,
+          concurrentSharingAlert: true,
+          dailySharingAlert: false,
           highRiskHits: 0,
           warnRiskHits: 0,
           unackedAlerts: 1,
@@ -296,9 +317,39 @@ describe('AuditPage', () => {
 
     renderAuditPage();
     const trustedRow = (await screen.findByText('trusted-roamer')).closest('tr');
+    const dailyRow = (await screen.findByText('daily-roamer')).closest('tr');
     const sharerRow = (await screen.findByText('real-sharer')).closest('tr');
+
     expect(trustedRow?.textContent).toContain('Normal');
-    expect(trustedRow?.textContent).not.toContain('Sharing Risk');
-    expect(sharerRow?.textContent).toContain('Sharing Risk');
+    expect(trustedRow?.textContent).not.toContain('Concurrent Sharing');
+    expect(trustedRow?.textContent).not.toContain('Daily Multi-Network');
+    expect(trustedRow?.querySelector('.ant-tag-red')).toBeNull();
+
+    expect(dailyRow?.textContent).toContain('Daily Multi-Network');
+    expect(dailyRow?.textContent).not.toContain('Concurrent Sharing');
+    expect(dailyRow?.querySelector('.ant-tag-red')).toBeNull();
+    expect(dailyRow?.querySelectorAll('.ant-tag-gold').length).toBeGreaterThanOrEqual(2);
+
+    expect(sharerRow?.textContent).toContain('Concurrent Sharing');
+    expect(sharerRow?.querySelector('.ant-tag-red')?.textContent).toBe('3');
+  });
+
+  // maxDailySubnets=1 is rejected rather than silently rewritten to 2.
+  it('blocks saving when maxDailySubnets is set to 1 and shows validation help', async () => {
+    const sent: SentRequest[] = [];
+    stubAuditBackend(sent);
+
+    renderAuditPage();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Audit Rules' }));
+    fireEvent.change(await screen.findByLabelText('Daily Distinct Networks Threshold'), {
+      target: { value: '1' },
+    });
+
+    const help = await screen.findByText('Enter 0 (disabled) or an integer between 2 and 100.');
+    expect(help.textContent).toContain('between 2 and 100');
+    const saveBtn = screen.getByRole('button', { name: /Save Rules/ }) as HTMLButtonElement;
+    expect(saveBtn.disabled).toBe(true);
+    fireEvent.click(saveBtn);
+    expect(sent).toHaveLength(0);
   });
 });

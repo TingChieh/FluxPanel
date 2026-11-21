@@ -2017,7 +2017,8 @@
         "normal": "正常",
         "warn": "注意",
         "high": "高危",
-        "sharing": "疑似转借",
+        "sharingConcurrent": "并发转借",
+        "sharingDaily": "单日多网段",
         "highHits": "{count} 次高危"
       },
       "alertTypes": {
@@ -2053,7 +2054,8 @@
         "maxConcurrentSubnets": "同窗口并发独立网段阈值",
         "maxConcurrentSubnetsHelp": "同一 10 分钟窗口内出现达到该数量的不同公网 IPv4 /16 或 IPv6 /48 网段（双栈去重）时触发高危转借告警。",
         "maxDailySubnets": "单日独立网段阈值",
-        "maxDailySubnetsHelp": "单日累计来源不同公网网段达到该数量时触发注意级别共享告警；设为 0 可关闭单日累计告警。",
+        "maxDailySubnetsHelp": "单日累计来源不同公网网段达到该数量时触发注意级别共享告警；设为 0 关闭，或设为 2–100 开启。",
+        "maxDailySubnetsInvalid": "请输入 0（关闭）或 2–100 之间的整数。",
         "minSharingHits": "单网段最低请求数",
         "minSharingHitsHelp": "低于该命中次数的瞬时重连或后台探测网段不计入账号转借判定。",
         "minConcurrentWindows": "持续并发 10 分钟窗口数",

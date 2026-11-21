@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"sort"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"github.com/TingChieh/FluxPanel/internal/database/model"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -16,6 +19,9 @@ const (
 	auditSlotsPerHr  = 60 / auditSlotMinutes
 	auditSlotCount   = 24 * auditSlotsPerHr
 	auditSlotBytes   = auditSlotCount / 8
+
+	auditTargetConcurrentSubnets       = "concurrent subnets"
+	auditTargetLegacyConcurrentSubnets = "same-hour subnets"
 )
 
 // auditSlotMask is a 144-bit daily activity bitmap (one bit per 10-minute slot).
@@ -185,13 +191,118 @@ func slotsForClientIPRow(r model.AccessAuditClientIP, loc *time.Location) auditS
 	return m
 }
 
-func formatSlotRange(slot int) string {
+func formatZoneOffset(t time.Time) string {
+	zone, offsetSec := t.Zone()
+	sign := "+"
+	if offsetSec < 0 {
+		sign = "-"
+		offsetSec = -offsetSec
+	}
+	hh := offsetSec / 3600
+	mm := (offsetSec % 3600) / 60
+	return fmt.Sprintf("%s %s%02d:%02d", zone, sign, hh, mm)
+}
+
+// formatSlotRange formats a 10-minute wall-clock slot and appends zone/offset
+// labels when a DST fall-back day repeats that wall-clock hour.
+func formatSlotRange(dateStr string, slot int, loc *time.Location, rows []model.AccessAuditClientIP) string {
 	if slot < 0 || slot >= auditSlotCount {
 		return "00:00-00:09"
 	}
 	h := slot / auditSlotsPerHr
 	m := (slot % auditSlotsPerHr) * auditSlotMinutes
-	return fmt.Sprintf("%02d:%02d-%02d:%02d", h, m, h, m+auditSlotMinutes-1)
+	base := fmt.Sprintf("%02d:%02d-%02d:%02d", h, m, h, m+auditSlotMinutes-1)
+	if loc == nil || dateStr == "" {
+		return base
+	}
+	dayStart, err := time.ParseInLocation(auditDateLayout, dateStr, loc)
+	if err != nil {
+		return base
+	}
+	y, mo, d := dayStart.Date()
+	dayBegin := time.Date(y, mo, d, 0, 0, 0, 0, loc).Unix()
+	nextDayBegin := time.Date(y, mo, d+1, 0, 0, 0, 0, loc).Unix()
+	const stepSec = int64(auditSlotMinutes * 60)
+
+	var matches []int64
+	for t0 := dayBegin; t0 < nextDayBegin; t0 += stepSec {
+		if auditSlotIndex(time.Unix(t0, 0).In(loc)) == slot {
+			matches = append(matches, t0)
+		}
+	}
+	if len(matches) <= 1 {
+		return base
+	}
+
+	var active []int64
+	for _, t0 := range matches {
+		t1 := t0 + stepSec - 1
+		for _, r := range rows {
+			if r.FirstSeen > 0 && r.LastSeen >= r.FirstSeen && r.FirstSeen <= t1 && r.LastSeen >= t0 {
+				active = append(active, t0)
+				break
+			}
+		}
+	}
+	if len(active) == 0 {
+		active = matches
+	}
+	labels := make([]string, 0, len(active))
+	for _, t0 := range active {
+		labels = append(labels, formatZoneOffset(time.Unix(t0, 0).In(loc)))
+	}
+	return fmt.Sprintf("%s (%s)", base, strings.Join(labels, " / "))
+}
+
+// upgradeLegacyConcurrentAlert migrates an existing pre-upgrade "same-hour subnets"
+// row to "concurrent subnets" in place so ack state is kept without duplicates.
+func upgradeLegacyConcurrentAlert(tx *gorm.DB, dateStr, email string) error {
+	var legacy model.AccessAuditAlert
+	err := tx.Where("date = ? AND email = ? AND alert_type = ? AND rule_name = ? AND target = ?",
+		dateStr, email, AuditAlertAccountSharing, auditRuleConcurrentSubnets, auditTargetLegacyConcurrentSubnets).
+		First(&legacy).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+	var currentCount int64
+	if err := tx.Model(&model.AccessAuditAlert{}).
+		Where("date = ? AND email = ? AND alert_type = ? AND rule_name = ? AND target = ?",
+			dateStr, email, AuditAlertAccountSharing, auditRuleConcurrentSubnets, auditTargetConcurrentSubnets).
+		Count(&currentCount).Error; err != nil {
+		return err
+	}
+	if currentCount > 0 {
+		return tx.Delete(&model.AccessAuditAlert{}, legacy.Id).Error
+	}
+	return tx.Model(&model.AccessAuditAlert{}).Where("id = ?", legacy.Id).
+		Update("target", auditTargetConcurrentSubnets).Error
+}
+
+// dedupeLegacySharingAlerts hides a legacy "same-hour subnets" alert when a newer
+// "concurrent subnets" row exists for the same day/client, keeping untouched history.
+func dedupeLegacySharingAlerts(alerts []model.AccessAuditAlert) []model.AccessAuditAlert {
+	hasCurrent := make(map[auditPair]struct{})
+	for _, a := range alerts {
+		if a.AlertType == AuditAlertAccountSharing && a.RuleName == auditRuleConcurrentSubnets && a.Target == auditTargetConcurrentSubnets {
+			hasCurrent[auditPair{date: a.Date, email: a.Email}] = struct{}{}
+		}
+	}
+	if len(hasCurrent) == 0 {
+		return alerts
+	}
+	out := make([]model.AccessAuditAlert, 0, len(alerts))
+	for _, a := range alerts {
+		if a.AlertType == AuditAlertAccountSharing && a.RuleName == auditRuleConcurrentSubnets && a.Target == auditTargetLegacyConcurrentSubnets {
+			if _, dup := hasCurrent[auditPair{date: a.Date, email: a.Email}]; dup {
+				continue
+			}
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 // summarizeEffectiveNetworks deduplicates dual-stack activity with max(v4, v6)

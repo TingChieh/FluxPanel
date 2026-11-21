@@ -865,6 +865,14 @@ export const SCHEMAS: Record<string, unknown> = {
   "AuditClientSummary": {
     "description": "AuditClientSummary summarizes one client's activity and risk signals over the queried window.",
     "properties": {
+      "concurrentSharingAlert": {
+        "example": false,
+        "type": "boolean"
+      },
+      "dailySharingAlert": {
+        "example": false,
+        "type": "boolean"
+      },
       "email": {
         "example": "alice",
         "type": "string"
@@ -927,6 +935,8 @@ export const SCHEMAS: Record<string, unknown> = {
       }
     },
     "required": [
+      "concurrentSharingAlert",
+      "dailySharingAlert",
       "email",
       "highRiskHits",
       "lastSeen",

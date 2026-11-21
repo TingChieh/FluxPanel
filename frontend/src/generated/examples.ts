@@ -256,6 +256,8 @@ export const EXAMPLES: Record<string, unknown> = {
     "subnet": "198.51.100.0/24"
   },
   "AuditClientSummary": {
+    "concurrentSharingAlert": false,
+    "dailySharingAlert": false,
     "email": "alice",
     "highRiskHits": 0,
     "lastSeen": 1763540000,
@@ -453,6 +455,8 @@ export const EXAMPLES: Record<string, unknown> = {
     "activeClients": 7,
     "clients": [
       {
+        "concurrentSharingAlert": false,
+        "dailySharingAlert": false,
         "email": "alice",
         "highRiskHits": 0,
         "lastSeen": 1763540000,

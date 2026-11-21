@@ -214,6 +214,8 @@ export interface AuditClientIPView {
 }
 
 export interface AuditClientSummary {
+  concurrentSharingAlert: boolean;
+  dailySharingAlert: boolean;
   email: string;
   highRiskHits: number;
   lastSeen: number;

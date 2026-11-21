@@ -238,6 +238,8 @@ export const AuditClientIPViewSchema = z.object({
 export type AuditClientIPView = z.infer<typeof AuditClientIPViewSchema>;
 
 export const AuditClientSummarySchema = z.object({
+  concurrentSharingAlert: z.boolean(),
+  dailySharingAlert: z.boolean(),
   email: z.string(),
   highRiskHits: z.number().int(),
   lastSeen: z.number().int(),

@@ -2017,7 +2017,8 @@
         "normal": "Normal",
         "warn": "Warning",
         "high": "High Risk",
-        "sharing": "Sharing Risk",
+        "sharingConcurrent": "Concurrent Sharing",
+        "sharingDaily": "Daily Multi-Network",
         "highHits": "{count} high-risk"
       },
       "alertTypes": {
@@ -2053,7 +2054,8 @@
         "maxConcurrentSubnets": "Concurrent Networks Threshold",
         "maxConcurrentSubnetsHelp": "Triggers a high-risk sharing alert when distinct public IPv4 /16 or IPv6 /48 networks (dual-stack deduplicated) overlap in the same 10-minute window.",
         "maxDailySubnets": "Daily Distinct Networks Threshold",
-        "maxDailySubnetsHelp": "Triggers a warning alert when a client uses this many distinct public networks in one day. Set to 0 to disable.",
+        "maxDailySubnetsHelp": "Triggers a warning alert when a client uses this many distinct public networks in one day. Set to 0 to disable, or 2–100 to alert.",
+        "maxDailySubnetsInvalid": "Enter 0 (disabled) or an integer between 2 and 100.",
         "minSharingHits": "Min Hits per Network",
         "minSharingHitsHelp": "Ignores transient reconnects or background keepalives with fewer than this many hits when checking for sharing.",
         "minConcurrentWindows": "Sustained 10m Windows",

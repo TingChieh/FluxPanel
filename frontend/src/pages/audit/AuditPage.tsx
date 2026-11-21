@@ -213,6 +213,8 @@ export default function AuditPage() {
   const [trustedTargetsText, setTrustedTargetsText] = useState('');
   const [trustedClientsText, setTrustedClientsText] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
+  const dailyThresholdInvalid =
+    config.maxDailySubnets < 0 || config.maxDailySubnets === 1 || config.maxDailySubnets > 100;
 
   // The server buckets days in the panel's timeLocation, so "today" is whatever date it reports.
   const serverTodayRef = useRef<string | null>(null);
@@ -381,6 +383,7 @@ export default function AuditPage() {
   };
 
   const handleSaveConfig = async (reevaluate: boolean) => {
+    if (dailyThresholdInvalid) return;
     setSavingConfig(true);
     try {
       const nextCfg: AuditConfig = {
@@ -436,17 +439,23 @@ export default function AuditPage() {
     {
       title: t('pages.audit.columns.riskStatus'),
       key: 'risk',
-      render: (_, row) => (
-        <Space wrap size={[4, 4]}>
-          {row.highRiskHits > 0 && (
-            <Tag color="red">{t('pages.audit.risk.highHits', { count: row.highRiskHits })}</Tag>
-          )}
-          {row.sharingAlert && <Tag color="volcano">{t('pages.audit.risk.sharing')}</Tag>}
-          {row.highRiskHits === 0 && row.warnRiskHits === 0 && !row.sharingAlert && (
-            <Tag color="green">{t('pages.audit.risk.normal')}</Tag>
-          )}
-        </Space>
-      ),
+      render: (_, row) => {
+        const hasConcurrent =
+          row.concurrentSharingAlert || (row.sharingAlert && !row.dailySharingAlert);
+        const hasDaily = row.dailySharingAlert;
+        return (
+          <Space wrap size={[4, 4]}>
+            {row.highRiskHits > 0 && (
+              <Tag color="red">{t('pages.audit.risk.highHits', { count: row.highRiskHits })}</Tag>
+            )}
+            {hasConcurrent && <Tag color="volcano">{t('pages.audit.risk.sharingConcurrent')}</Tag>}
+            {hasDaily && <Tag color="gold">{t('pages.audit.risk.sharingDaily')}</Tag>}
+            {row.highRiskHits === 0 && row.warnRiskHits === 0 && !hasConcurrent && !hasDaily && (
+              <Tag color="green">{t('pages.audit.risk.normal')}</Tag>
+            )}
+          </Space>
+        );
+      },
     },
     {
       title: t('pages.audit.columns.topDomains'),
@@ -468,15 +477,25 @@ export default function AuditPage() {
     {
       title: t('pages.audit.columns.sourceSubnets'),
       key: 'subnets',
-      render: (_, row) => (
-        <Space size={4}>
-          <span>{row.uniqueIps}</span>
-          <span>/</span>
-          <span>{row.uniqueSubnets}</span>
-          <span>/</span>
-          <Tag color={row.sharingAlert ? 'red' : 'default'}>{row.maxConcurrentSubnets}</Tag>
-        </Space>
-      ),
+      render: (_, row) => {
+        const hasConcurrent =
+          row.concurrentSharingAlert || (row.sharingAlert && !row.dailySharingAlert);
+        return (
+          <Space size={4}>
+            <span>{row.uniqueIps}</span>
+            <span>/</span>
+            {row.dailySharingAlert ? (
+              <Tag color="gold" style={{ marginInlineEnd: 0 }}>
+                {row.uniqueSubnets}
+              </Tag>
+            ) : (
+              <span>{row.uniqueSubnets}</span>
+            )}
+            <span>/</span>
+            <Tag color={hasConcurrent ? 'red' : 'default'}>{row.maxConcurrentSubnets}</Tag>
+          </Space>
+        );
+      },
     },
     {
       title: t('pages.audit.columns.lastSeen'),
@@ -951,7 +970,12 @@ export default function AuditPage() {
                             <Form.Item
                               htmlFor={`${uid}-daily`}
                               label={t('pages.audit.rules.maxDailySubnets')}
-                              help={t('pages.audit.rules.maxDailySubnetsHelp')}
+                              validateStatus={dailyThresholdInvalid ? 'error' : undefined}
+                              help={
+                                dailyThresholdInvalid
+                                  ? t('pages.audit.rules.maxDailySubnetsInvalid')
+                                  : t('pages.audit.rules.maxDailySubnetsHelp')
+                              }
                             >
                               <InputNumber
                                 id={`${uid}-daily`}
@@ -1080,6 +1104,7 @@ export default function AuditPage() {
                             type="primary"
                             icon={<SaveOutlined aria-hidden />}
                             loading={savingConfig}
+                            disabled={dailyThresholdInvalid}
                             onClick={() => void handleSaveConfig(false)}
                           >
                             {t('pages.audit.rules.save')}
@@ -1087,6 +1112,7 @@ export default function AuditPage() {
                           <Button
                             icon={<SyncOutlined aria-hidden />}
                             loading={savingConfig}
+                            disabled={dailyThresholdInvalid}
                             onClick={() => void handleSaveConfig(true)}
                           >
                             {t('pages.audit.rules.saveAndReevaluate')}

@@ -891,6 +891,14 @@
       "AuditClientSummary": {
         "description": "AuditClientSummary summarizes one client's activity and risk signals over the queried window.",
         "properties": {
+          "concurrentSharingAlert": {
+            "example": false,
+            "type": "boolean"
+          },
+          "dailySharingAlert": {
+            "example": false,
+            "type": "boolean"
+          },
           "email": {
             "example": "alice",
             "type": "string"
@@ -953,6 +961,8 @@
           }
         },
         "required": [
+          "concurrentSharingAlert",
+          "dailySharingAlert",
           "email",
           "highRiskHits",
           "lastSeen",
@@ -15860,6 +15870,8 @@
                     "activeClients": 7,
                     "clients": [
                       {
+                        "concurrentSharingAlert": false,
+                        "dailySharingAlert": false,
                         "email": "alice",
                         "highRiskHits": 0,
                         "lastSeen": 1763540000,

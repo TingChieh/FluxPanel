@@ -230,8 +230,8 @@ func TestAccessAuditAccountSharingDetection(t *testing.T) {
 	// charlie: 3 IPs in the SAME /16 across two 10m slots -> must NOT trigger sharing alert.
 	for _, min := range []int{1, 11} {
 		writeBurst(&content, "2026/11/19", 15, min, 3, "198.51.100.11", "charlie")
-		writeBurst(&content, "2026/11/19", 15, min, 3, "198.51.100.22", "charlie")
-		writeBurst(&content, "2026/11/19", 15, min, 3, "198.51.100.33", "charlie")
+		writeBurst(&content, "2026/11/19", 15, min, 3, "198.51.101.22", "charlie")
+		writeBurst(&content, "2026/11/19", 15, min, 3, "198.51.102.33", "charlie")
 	}
 	// dave: 3 DIFFERENT public /16 networks active concurrently across two 10m slots -> critical sharing alert.
 	for _, min := range []int{1, 11} {
@@ -253,7 +253,7 @@ func TestAccessAuditAccountSharingDetection(t *testing.T) {
 		t.Fatalf("charlie alerts failed: %v", err)
 	}
 	if len(charlieAlerts) != 0 {
-		t.Fatalf("same /24 subnet must not trigger sharing alert, got %+v", charlieAlerts)
+		t.Fatalf("same /16 network must not trigger sharing alert, got %+v", charlieAlerts)
 	}
 
 	daveAlerts, err := svc.GetAlerts("2026-11-19", "dave", false, 20)
