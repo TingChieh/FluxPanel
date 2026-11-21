@@ -79,19 +79,15 @@ func decodeAuditSlotMask(raw string) (auditSlotMask, bool) {
 	return m, !m.isZero()
 }
 
-func mergeAuditSlotStrings(a, b string) string {
-	ma, okA := decodeAuditSlotMask(a)
-	mb, okB := decodeAuditSlotMask(b)
-	switch {
-	case okA && okB:
-		return ma.or(mb).encode()
-	case okA:
-		return ma.encode()
-	case okB:
-		return mb.encode()
-	default:
+// mergeClientIPRowSlots combines two rows' slot bitmaps without losing legacy
+// ActiveHours activity when one row predates ActiveSlots and the other does not.
+func mergeClientIPRowSlots(a, b model.AccessAuditClientIP, loc *time.Location) string {
+	_, okA := decodeAuditSlotMask(a.ActiveSlots)
+	_, okB := decodeAuditSlotMask(b.ActiveSlots)
+	if !okA && !okB {
 		return ""
 	}
+	return slotsForClientIPRow(a, loc).or(slotsForClientIPRow(b, loc)).encode()
 }
 
 // isNonPublicSharingIP excludes loopback, RFC 1918, link-local, ULA, and RFC 6598
@@ -151,29 +147,39 @@ func slotsForClientIPRow(r model.AccessAuditClientIP, loc *time.Location) auditS
 		return m
 	}
 	hasBounds := r.FirstSeen > 0 && r.LastSeen >= r.FirstSeen
-	for h := range 24 {
-		if r.ActiveHours&(1<<uint(h)) == 0 {
-			continue
-		}
-		hStart := dayStart.Add(time.Duration(h) * time.Hour).Unix()
-		hEnd := hStart + 3600
-		if !hasBounds {
+	if !hasBounds {
+		for h := range 24 {
+			if r.ActiveHours&(1<<uint(h)) == 0 {
+				continue
+			}
 			for s := range auditSlotsPerHr {
 				m.set(h*auditSlotsPerHr + s)
 			}
+		}
+		return m
+	}
+
+	// Step actual UTC 10-minute intervals across the local calendar day so DST
+	// fall-back (25h) and spring-forward (23h) transitions match wall-clock hours.
+	y, mo, d := dayStart.Date()
+	dayBegin := time.Date(y, mo, d, 0, 0, 0, 0, loc).Unix()
+	nextDayBegin := time.Date(y, mo, d+1, 0, 0, 0, 0, loc).Unix()
+	spanStart := max(dayBegin, r.FirstSeen)
+	spanEnd := min(nextDayBegin-1, r.LastSeen)
+	if spanStart > spanEnd {
+		return m
+	}
+	const stepSec = int64(auditSlotMinutes * 60)
+	for t0 := dayBegin; t0 < nextDayBegin; t0 += stepSec {
+		if t0 > spanEnd {
+			break
+		}
+		if t0+stepSec-1 < spanStart {
 			continue
 		}
-		spanStart := max(hStart, r.FirstSeen)
-		spanEnd := min(hEnd-1, r.LastSeen)
-		if spanStart > spanEnd {
-			continue
-		}
-		for s := range auditSlotsPerHr {
-			slotStart := hStart + int64(s*auditSlotMinutes*60)
-			slotEnd := slotStart + int64(auditSlotMinutes*60) - 1
-			if slotStart <= spanEnd && slotEnd >= spanStart {
-				m.set(h*auditSlotsPerHr + s)
-			}
+		lt := time.Unix(t0, 0).In(loc)
+		if r.ActiveHours&(1<<uint(lt.Hour())) != 0 {
+			m.set(auditSlotIndex(lt))
 		}
 	}
 	return m

@@ -6,6 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/TingChieh/FluxPanel/internal/database"
+	"github.com/TingChieh/FluxPanel/internal/database/model"
 )
 
 func auditLogLine(date, hhmmss, srcIP, dst, email string) string {
@@ -333,6 +337,80 @@ func TestAccessAuditSharingTruePositivesAndBoundaries(t *testing.T) {
 		}
 		if summary.SharingClients != 0 || len(summary.Clients) != 1 || summary.Clients[0].SharingAlert {
 			t.Fatalf("trusted client summary = %+v, want SharingClients=0 and SharingAlert=false", summary)
+		}
+	})
+}
+
+func TestAccessAuditLegacySlotUpgradeAndDSTFallback(t *testing.T) {
+	t.Run("first post-upgrade hit preserves pre-upgrade legacy activity in ActiveSlots", func(t *testing.T) {
+		initAuditTestDB(t)
+		svc := &AccessAuditService{}
+		loc := auditLocation()
+		ts1 := time.Date(2026, 11, 19, 10, 2, 0, 0, loc).Unix()
+		ts2 := time.Date(2026, 11, 19, 10, 15, 0, 0, loc).Unix()
+		var slots auditSlotMask
+		slots.set(10*auditSlotsPerHr + 0)
+		slots.set(10*auditSlotsPerHr + 1)
+
+		// Seed a pre-upgrade local row without ActiveSlots plus two other concurrent networks.
+		db := database.GetDB()
+		for _, row := range []model.AccessAuditClientIP{
+			{Date: "2026-11-19", Email: "upgraded", SrcIP: "198.51.100.1", Subnet: "198.51.100.0/24", HitCount: 5, FirstSeen: ts1, LastSeen: ts2, ActiveHours: 1 << 10, ActiveSlots: ""},
+			{Date: "2026-11-19", Email: "upgraded", SrcIP: "203.0.113.2", Subnet: "203.0.113.0/24", HitCount: 5, FirstSeen: ts1, LastSeen: ts2, ActiveHours: 1 << 10, ActiveSlots: slots.encode()},
+			{Date: "2026-11-19", Email: "upgraded", SrcIP: "192.0.2.3", Subnet: "192.0.2.0/24", HitCount: 5, FirstSeen: ts1, LastSeen: ts2, ActiveHours: 1 << 10, ActiveSlots: slots.encode()},
+		} {
+			if err := db.Create(&row).Error; err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Ingesting a new hit at noon must materialize the 10:00-10:19 fallback slots before merging.
+		ingestAuditLines(t, svc, auditLogLine("2026/11/19", "12:05:00", "198.51.100.1", "github.com", "upgraded"))
+		alerts := sharingAlertsFor(t, svc, "2026-11-19", "upgraded")
+		if len(alerts) != 1 || !strings.Contains(alerts[0], "10:00-10:09") {
+			t.Fatalf("post-upgrade ingest lost pre-upgrade sharing evidence: alerts = %v", alerts)
+		}
+	})
+
+	t.Run("legacy fallback uses local wall-clock hours on DST transition days", func(t *testing.T) {
+		loc, err := time.LoadLocation("America/New_York")
+		if err != nil {
+			t.Skipf("America/New_York tzdata unavailable: %v", err)
+		}
+		// 2026-11-01 is a 25-hour fall-back DST day in America/New_York.
+		t1 := time.Date(2026, 11, 1, 15, 2, 0, 0, loc).Unix()
+		t2 := time.Date(2026, 11, 1, 15, 12, 0, 0, loc).Unix()
+		row := model.AccessAuditClientIP{
+			Date:        "2026-11-01",
+			Email:       "dst-user",
+			SrcIP:       "198.51.100.1",
+			Subnet:      "198.51.100.0/24",
+			HitCount:    5,
+			FirstSeen:   t1,
+			LastSeen:    t2,
+			ActiveHours: 1 << 15,
+		}
+		mask := slotsForClientIPRow(row, loc)
+		if !mask.has(15*auditSlotsPerHr+0) || !mask.has(15*auditSlotsPerHr+1) {
+			t.Fatalf("fall-back DST fallback mask missed 15:00/15:10 slots: encoded=%q", mask.encode())
+		}
+
+		// 2026-03-08 is a 23-hour spring-forward DST day in America/New_York.
+		s1 := time.Date(2026, 3, 8, 15, 2, 0, 0, loc).Unix()
+		s2 := time.Date(2026, 3, 8, 15, 12, 0, 0, loc).Unix()
+		springRow := model.AccessAuditClientIP{
+			Date:        "2026-03-08",
+			Email:       "dst-user",
+			SrcIP:       "198.51.100.1",
+			Subnet:      "198.51.100.0/24",
+			HitCount:    5,
+			FirstSeen:   s1,
+			LastSeen:    s2,
+			ActiveHours: 1 << 15,
+		}
+		springMask := slotsForClientIPRow(springRow, loc)
+		if !springMask.has(15*auditSlotsPerHr+0) || !springMask.has(15*auditSlotsPerHr+1) {
+			t.Fatalf("spring-forward DST fallback mask missed 15:00/15:10 slots: encoded=%q", springMask.encode())
 		}
 	})
 }

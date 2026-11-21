@@ -837,7 +837,7 @@ func (s *AccessAuditService) IngestFromPath(logPath string) (AuditIngestResult, 
 		if err := upsertDailyRows(tx, dailyMap); err != nil {
 			return err
 		}
-		if err := upsertClientIPRows(tx, ipMap); err != nil {
+		if err := upsertClientIPRows(tx, ipMap, loc); err != nil {
 			return err
 		}
 		pairs := make(map[auditPair]struct{})
@@ -905,7 +905,7 @@ func upsertDailyRows(tx *gorm.DB, dailyMap map[dailyAggKey]*dailyAggVal) error {
 	return nil
 }
 
-func upsertClientIPRows(tx *gorm.DB, ipMap map[ipAggKey]*ipAggVal) error {
+func upsertClientIPRows(tx *gorm.DB, ipMap map[ipAggKey]*ipAggVal, loc *time.Location) error {
 	for k, v := range ipMap {
 		encodedSlots := v.activeSlots.encode()
 		var existing model.AccessAuditClientIP
@@ -936,13 +936,14 @@ func upsertClientIPRows(tx *gorm.DB, ipMap map[ipAggKey]*ipAggVal) error {
 			firstSeen = v.firstSeen
 		}
 		lastSeen := max(existing.LastSeen, v.lastSeen)
+		mergedSlots := slotsForClientIPRow(existing, loc).or(v.activeSlots).encode()
 		if err := tx.Model(&model.AccessAuditClientIP{}).Where("id = ?", existing.Id).Updates(map[string]any{
 			"subnet":       v.subnet,
 			"hit_count":    existing.HitCount + v.hits,
 			"first_seen":   firstSeen,
 			"last_seen":    lastSeen,
 			"active_hours": existing.ActiveHours | v.activeHours,
-			"active_slots": mergeAuditSlotStrings(existing.ActiveSlots, encodedSlots),
+			"active_slots": mergedSlots,
 		}).Error; err != nil {
 			return err
 		}
