@@ -57,8 +57,10 @@ const (
 type AuditConfig struct {
 	Enabled              bool     `json:"enabled" example:"true"`
 	RetentionDays        int      `json:"retentionDays" example:"30"`
-	MaxDailySubnets      int      `json:"maxDailySubnets" example:"4"`
+	MaxDailySubnets      int      `json:"maxDailySubnets" example:"8"`
 	MaxConcurrentSubnets int      `json:"maxConcurrentSubnets" example:"3"`
+	MinSharingHits       int      `json:"minSharingHits" example:"5"`
+	MinConcurrentWindows int      `json:"minConcurrentWindows" example:"2"`
 	SensitiveDomains     []string `json:"sensitiveDomains"`
 	SensitiveKeywords    []string `json:"sensitiveKeywords"`
 	IgnoreNoiseDomains   []string `json:"ignoreNoiseDomains"`
@@ -83,18 +85,21 @@ type AuditIngestResult struct {
 
 // AuditClientSummary summarizes one client's activity and risk signals over the queried window.
 type AuditClientSummary struct {
-	Email                string   `json:"email" example:"alice"`
-	TotalHits            int64    `json:"totalHits" example:"1250"`
-	UniqueRootDomains    int      `json:"uniqueRootDomains" example:"38"`
-	UniqueIPs            int      `json:"uniqueIps" example:"2"`
-	UniqueSubnets        int      `json:"uniqueSubnets" example:"1"`
-	MaxConcurrentSubnets int      `json:"maxConcurrentSubnets" example:"1"`
-	HighRiskHits         int64    `json:"highRiskHits" example:"0"`
-	WarnRiskHits         int64    `json:"warnRiskHits" example:"0"`
-	UnackedAlerts        int      `json:"unackedAlerts" example:"0"`
-	TopDomains           []string `json:"topDomains"`
-	LastSeen             int64    `json:"lastSeen" example:"1763540000"`
-	NodeIds              []int    `json:"nodeIds"`
+	Email                  string   `json:"email" example:"alice"`
+	TotalHits              int64    `json:"totalHits" example:"1250"`
+	UniqueRootDomains      int      `json:"uniqueRootDomains" example:"38"`
+	UniqueIPs              int      `json:"uniqueIps" example:"2"`
+	UniqueSubnets          int      `json:"uniqueSubnets" example:"1"`
+	MaxConcurrentSubnets   int      `json:"maxConcurrentSubnets" example:"1"`
+	SharingAlert           bool     `json:"sharingAlert" example:"false"`
+	ConcurrentSharingAlert bool     `json:"concurrentSharingAlert" example:"false"`
+	DailySharingAlert      bool     `json:"dailySharingAlert" example:"false"`
+	HighRiskHits           int64    `json:"highRiskHits" example:"0"`
+	WarnRiskHits           int64    `json:"warnRiskHits" example:"0"`
+	UnackedAlerts          int      `json:"unackedAlerts" example:"0"`
+	TopDomains             []string `json:"topDomains"`
+	LastSeen               int64    `json:"lastSeen" example:"1763540000"`
+	NodeIds                []int    `json:"nodeIds"`
 }
 
 // AuditSourceSummary is one audit source (this panel or a node) in the window,
@@ -211,8 +216,10 @@ func DefaultAuditConfig() AuditConfig {
 	return AuditConfig{
 		Enabled:              true,
 		RetentionDays:        30,
-		MaxDailySubnets:      4,
+		MaxDailySubnets:      8,
 		MaxConcurrentSubnets: 3,
+		MinSharingHits:       5,
+		MinConcurrentWindows: 2,
 		SensitiveDomains:     []string{},
 		SensitiveKeywords:    []string{},
 		IgnoreNoiseDomains:   []string{},
@@ -228,11 +235,31 @@ func normalizeAuditConfig(cfg AuditConfig) AuditConfig {
 	if cfg.RetentionDays > 365 {
 		cfg.RetentionDays = 365
 	}
-	if cfg.MaxDailySubnets < 2 {
-		cfg.MaxDailySubnets = 4
+	switch {
+	case cfg.MaxDailySubnets < 0:
+		cfg.MaxDailySubnets = 8
+	case cfg.MaxDailySubnets == 1:
+		cfg.MaxDailySubnets = 2
+	case cfg.MaxDailySubnets > 100:
+		cfg.MaxDailySubnets = 100
 	}
 	if cfg.MaxConcurrentSubnets < 2 {
 		cfg.MaxConcurrentSubnets = 3
+	}
+	if cfg.MaxConcurrentSubnets > 50 {
+		cfg.MaxConcurrentSubnets = 50
+	}
+	if cfg.MinSharingHits < 1 {
+		cfg.MinSharingHits = 5
+	}
+	if cfg.MinSharingHits > 1000 {
+		cfg.MinSharingHits = 1000
+	}
+	if cfg.MinConcurrentWindows < 1 {
+		cfg.MinConcurrentWindows = 2
+	}
+	if cfg.MinConcurrentWindows > auditSlotCount {
+		cfg.MinConcurrentWindows = auditSlotCount
 	}
 	cfg.SensitiveDomains = cleanRuleList(cfg.SensitiveDomains)
 	cfg.SensitiveKeywords = cleanRuleList(cfg.SensitiveKeywords)
@@ -277,7 +304,20 @@ func (s *AccessAuditService) GetConfig() AuditConfig {
 	return normalizeAuditConfig(cfg)
 }
 
+// ErrInvalidAuditConfig signals an explicit out-of-range audit setting value.
+var ErrInvalidAuditConfig = errors.New("invalid audit configuration")
+
+func validateAuditConfig(cfg AuditConfig) error {
+	if cfg.MaxDailySubnets < 0 || cfg.MaxDailySubnets == 1 || cfg.MaxDailySubnets > 100 {
+		return fmt.Errorf("%w: maxDailySubnets must be 0 (disabled) or between 2 and 100", ErrInvalidAuditConfig)
+	}
+	return nil
+}
+
 func (s *AccessAuditService) SaveConfig(cfg AuditConfig, reevaluate bool) error {
+	if err := validateAuditConfig(cfg); err != nil {
+		return err
+	}
 	cfg = normalizeAuditConfig(cfg)
 	raw, err := json.Marshal(cfg)
 	if err != nil {
@@ -650,6 +690,7 @@ type ipAggVal struct {
 	firstSeen   int64
 	lastSeen    int64
 	activeHours uint32
+	activeSlots auditSlotMask
 }
 
 // IngestFromPath reads only bytes appended since the saved cursor and updates audit aggregates.
@@ -740,6 +781,7 @@ func (s *AccessAuditService) IngestFromPath(logPath string) (AuditIngestResult, 
 		dateStr := localTime.Format("2006-01-02")
 		ts := localTime.Unix()
 		hourBit := uint32(1) << uint(localTime.Hour())
+		slotIdx := auditSlotIndex(localTime)
 
 		cat, riskLvl, ruleHit := classifyAuditTarget(host, root, port, cfg)
 		dk := dailyAggKey{date: dateStr, email: entry.Email, domain: host, port: port}
@@ -774,6 +816,7 @@ func (s *AccessAuditService) IngestFromPath(logPath string) (AuditIngestResult, 
 			if existing, ok := ipMap[ik]; ok {
 				existing.hits++
 				existing.activeHours |= hourBit
+				existing.activeSlots.set(slotIdx)
 				if ts < existing.firstSeen {
 					existing.firstSeen = ts
 				}
@@ -781,12 +824,15 @@ func (s *AccessAuditService) IngestFromPath(logPath string) (AuditIngestResult, 
 					existing.lastSeen = ts
 				}
 			} else {
+				var slots auditSlotMask
+				slots.set(slotIdx)
 				ipMap[ik] = &ipAggVal{
 					subnet:      subnet,
 					hits:        1,
 					firstSeen:   ts,
 					lastSeen:    ts,
 					activeHours: hourBit,
+					activeSlots: slots,
 				}
 			}
 		}
@@ -806,7 +852,7 @@ func (s *AccessAuditService) IngestFromPath(logPath string) (AuditIngestResult, 
 		if err := upsertDailyRows(tx, dailyMap); err != nil {
 			return err
 		}
-		if err := upsertClientIPRows(tx, ipMap); err != nil {
+		if err := upsertClientIPRows(tx, ipMap, loc); err != nil {
 			return err
 		}
 		pairs := make(map[auditPair]struct{})
@@ -874,28 +920,46 @@ func upsertDailyRows(tx *gorm.DB, dailyMap map[dailyAggKey]*dailyAggVal) error {
 	return nil
 }
 
-func upsertClientIPRows(tx *gorm.DB, ipMap map[ipAggKey]*ipAggVal) error {
+func upsertClientIPRows(tx *gorm.DB, ipMap map[ipAggKey]*ipAggVal, loc *time.Location) error {
 	for k, v := range ipMap {
-		row := model.AccessAuditClientIP{
-			Date:        k.date,
-			Email:       k.email,
-			SrcIP:       k.srcIP,
-			Subnet:      v.subnet,
-			HitCount:    v.hits,
-			FirstSeen:   v.firstSeen,
-			LastSeen:    v.lastSeen,
-			ActiveHours: v.activeHours,
+		encodedSlots := v.activeSlots.encode()
+		var existing model.AccessAuditClientIP
+		err := tx.Where("node_id = ? AND date = ? AND email = ? AND src_ip = ?",
+			AuditLocalSource, k.date, k.email, k.srcIP).First(&existing).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			row := model.AccessAuditClientIP{
+				Date:        k.date,
+				Email:       k.email,
+				SrcIP:       k.srcIP,
+				Subnet:      v.subnet,
+				HitCount:    v.hits,
+				FirstSeen:   v.firstSeen,
+				LastSeen:    v.lastSeen,
+				ActiveHours: v.activeHours,
+				ActiveSlots: encodedSlots,
+			}
+			if err := tx.Create(&row).Error; err != nil {
+				return err
+			}
+			continue
 		}
-		if err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "node_id"}, {Name: "date"}, {Name: "email"}, {Name: "src_ip"}},
-			DoUpdates: clause.Assignments(map[string]any{
-				"subnet":       v.subnet,
-				"hit_count":    gorm.Expr("hit_count + ?", v.hits),
-				"first_seen":   gorm.Expr("CASE WHEN first_seen = 0 OR ? < first_seen THEN ? ELSE first_seen END", v.firstSeen, v.firstSeen),
-				"last_seen":    gorm.Expr("CASE WHEN ? > last_seen THEN ? ELSE last_seen END", v.lastSeen, v.lastSeen),
-				"active_hours": gorm.Expr("active_hours | ?", v.activeHours),
-			}),
-		}).Create(&row).Error; err != nil {
+		if err != nil {
+			return err
+		}
+		firstSeen := existing.FirstSeen
+		if firstSeen == 0 || v.firstSeen < firstSeen {
+			firstSeen = v.firstSeen
+		}
+		lastSeen := max(existing.LastSeen, v.lastSeen)
+		mergedSlots := slotsForClientIPRow(existing, loc).or(v.activeSlots).encode()
+		if err := tx.Model(&model.AccessAuditClientIP{}).Where("id = ?", existing.Id).Updates(map[string]any{
+			"subnet":       v.subnet,
+			"hit_count":    existing.HitCount + v.hits,
+			"first_seen":   firstSeen,
+			"last_seen":    lastSeen,
+			"active_hours": existing.ActiveHours | v.activeHours,
+			"active_slots": mergedSlots,
+		}).Error; err != nil {
 			return err
 		}
 	}
@@ -956,43 +1020,8 @@ func newTargetAlert(date, email, domain string, port int, category string, riskL
 	}
 }
 
-func computeSubnetConcurrency(rows []model.AccessAuditClientIP) (uniqueSubnets int, peakHour int, peakSubnets []string, allSubnets []string) {
-	subnetSet := make(map[string]struct{}, len(rows))
-	for _, r := range rows {
-		if r.Subnet != "" {
-			subnetSet[r.Subnet] = struct{}{}
-		}
-	}
-	allSubnets = make([]string, 0, len(subnetSet))
-	for s := range subnetSet {
-		allSubnets = append(allSubnets, s)
-	}
-	sort.Strings(allSubnets)
-	uniqueSubnets = len(allSubnets)
-
-	peakHour = -1
-	for h := range 24 {
-		bit := uint32(1) << uint(h)
-		hourSet := make(map[string]struct{})
-		for _, r := range rows {
-			if r.ActiveHours&bit != 0 && r.Subnet != "" {
-				hourSet[r.Subnet] = struct{}{}
-			}
-		}
-		if len(hourSet) > len(peakSubnets) {
-			peakHour = h
-			peakSubnets = make([]string, 0, len(hourSet))
-			for s := range hourSet {
-				peakSubnets = append(peakSubnets, s)
-			}
-			sort.Strings(peakSubnets)
-		}
-	}
-	return uniqueSubnets, peakHour, peakSubnets, allSubnets
-}
-
 // evaluateAccountSharing upserts the day's sharing alerts and returns them; Target stays
-// fixed per rule so a rising subnet count updates one row instead of adding another.
+// fixed per rule so a rising network count updates one row instead of adding another.
 func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig) ([]model.AccessAuditAlert, error) {
 	var ipRows []model.AccessAuditClientIP
 	if err := tx.Where("date = ? AND email = ?", dateStr, email).Find(&ipRows).Error; err != nil {
@@ -1002,7 +1031,8 @@ func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig)
 		return nil, nil
 	}
 
-	uniqueSubnets, peakHour, peakSubnets, allSubnets := computeSubnetConcurrency(ipRows)
+	loc := auditLocation()
+	metrics := evaluateSharingDay(ipRows, cfg, loc)
 	latestSeen := int64(0)
 	latestIP := ""
 	for _, r := range ipRows {
@@ -1016,7 +1046,10 @@ func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig)
 	}
 
 	var emitted []model.AccessAuditAlert
-	if len(peakSubnets) >= cfg.MaxConcurrentSubnets {
+	if metrics.peakConcurrent >= cfg.MaxConcurrentSubnets && metrics.exceedingSlots >= cfg.MinConcurrentWindows {
+		if err := upgradeLegacyConcurrentAlert(tx, dateStr, email); err != nil {
+			return nil, err
+		}
 		emitted = append(emitted, model.AccessAuditAlert{
 			CreatedAt: latestSeen,
 			Date:      dateStr,
@@ -1024,13 +1057,14 @@ func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig)
 			AlertType: AuditAlertAccountSharing,
 			Severity:  AuditRiskHigh,
 			RuleName:  auditRuleConcurrentSubnets,
-			Target:    "same-hour subnets",
+			Target:    auditTargetConcurrentSubnets,
 			SrcIP:     latestIP,
-			HitCount:  int64(len(peakSubnets)),
-			Detail:    fmt.Sprintf("Hour %02d:00 saw %d distinct subnets concurrently: %s", peakHour, len(peakSubnets), strings.Join(peakSubnets, ", ")),
+			HitCount:  int64(metrics.peakConcurrent),
+			Detail: fmt.Sprintf("Peak %s saw %d concurrent networks across %d 10m window(s) (min %d hits/net): %s",
+				formatSlotRange(dateStr, metrics.peakSlot, loc, ipRows), metrics.peakConcurrent, metrics.exceedingSlots, cfg.MinSharingHits, metrics.peakSummary),
 		})
 	}
-	if uniqueSubnets >= cfg.MaxDailySubnets {
+	if cfg.MaxDailySubnets > 0 && metrics.dailyQualified >= cfg.MaxDailySubnets {
 		emitted = append(emitted, model.AccessAuditAlert{
 			CreatedAt: latestSeen,
 			Date:      dateStr,
@@ -1040,8 +1074,9 @@ func evaluateAccountSharing(tx *gorm.DB, dateStr, email string, cfg AuditConfig)
 			RuleName:  auditRuleDailySubnets,
 			Target:    "daily subnets",
 			SrcIP:     latestIP,
-			HitCount:  int64(uniqueSubnets),
-			Detail:    fmt.Sprintf("Daily source subnets reached %d: %s", uniqueSubnets, strings.Join(allSubnets, ", ")),
+			HitCount:  int64(metrics.dailyQualified),
+			Detail: fmt.Sprintf("Daily active networks reached %d (min %d hits/net): %s",
+				metrics.dailyQualified, cfg.MinSharingHits, metrics.dailySummary),
 		})
 	}
 	for _, alert := range emitted {
@@ -1207,7 +1242,10 @@ func (s *AccessAuditService) GetSummary(dateStr string, days int, nodeID int) (A
 		ipsByClient[r.Email] = append(ipsByClient[r.Email], r)
 	}
 
+	alertRows = dedupeLegacySharingAlerts(alertRows)
 	sharingSet := make(map[string]struct{})
+	concurrentSharingSet := make(map[string]struct{})
+	dailySharingSet := make(map[string]struct{})
 	for _, a := range alertRows {
 		acc := getAcc(a.Email)
 		if a.Severity >= AuditRiskHigh {
@@ -1221,10 +1259,17 @@ func (s *AccessAuditService) GetSummary(dateStr string, days int, nodeID int) (A
 		}
 		if a.AlertType == AuditAlertAccountSharing {
 			sharingSet[a.Email] = struct{}{}
+			if a.RuleName == auditRuleDailySubnets {
+				dailySharingSet[a.Email] = struct{}{}
+			} else {
+				concurrentSharingSet[a.Email] = struct{}{}
+			}
 		}
 	}
 	resp.SharingClients = len(sharingSet)
 
+	cfg := s.GetConfig()
+	loc := auditLocation()
 	for email, acc := range byClient {
 		acc.summary.UniqueRootDomains = len(acc.rootHits)
 		acc.summary.NodeIds = sortedNodeIDs(acc.nodes)
@@ -1232,25 +1277,23 @@ func (s *AccessAuditService) GetSummary(dateStr string, days int, nodeID int) (A
 		if len(acc.summary.TopDomains) == 0 {
 			acc.summary.TopDomains = topKeysByCount(acc.rootHits, 5)
 		}
+		_, acc.summary.SharingAlert = sharingSet[email]
+		_, acc.summary.ConcurrentSharingAlert = concurrentSharingSet[email]
+		_, acc.summary.DailySharingAlert = dailySharingSet[email]
 
 		ipList := ipsByClient[email]
 		ipSet := make(map[string]struct{}, len(ipList))
-		subnetSet := make(map[string]struct{}, len(ipList))
 		byDate := make(map[string][]model.AccessAuditClientIP)
 		for _, ip := range ipList {
 			ipSet[ip.SrcIP] = struct{}{}
-			if ip.Subnet != "" {
-				subnetSet[ip.Subnet] = struct{}{}
-			}
 			byDate[ip.Date] = append(byDate[ip.Date], ip)
 		}
 		acc.summary.UniqueIPs = len(ipSet)
-		acc.summary.UniqueSubnets = len(subnetSet)
+		acc.summary.UniqueSubnets = effectivePublicNetworkCount(ipList)
 		maxConc := 0
 		for _, dayRows := range byDate {
-			_, _, peakSubnets, _ := computeSubnetConcurrency(dayRows)
-			if len(peakSubnets) > maxConc {
-				maxConc = len(peakSubnets)
+			if m := evaluateSharingDay(dayRows, cfg, loc); m.peakConcurrent > maxConc {
+				maxConc = m.peakConcurrent
 			}
 		}
 		acc.summary.MaxConcurrentSubnets = maxConc
@@ -1452,12 +1495,8 @@ func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hi
 		nodeID int
 	}
 	mergedIPs := make(map[ipSourceKey]*AuditClientIPView)
-	subnetSet := make(map[string]struct{})
 	byDate := make(map[string][]model.AccessAuditClientIP)
 	for _, r := range ipRows {
-		if r.Subnet != "" {
-			subnetSet[r.Subnet] = struct{}{}
-		}
 		byDate[r.Date] = append(byDate[r.Date], r)
 		if existing, ok := mergedIPs[ipSourceKey{srcIP: r.SrcIP, nodeID: r.NodeId}]; ok {
 			existing.HitCount += r.HitCount
@@ -1487,11 +1526,12 @@ func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hi
 	sort.Slice(resp.SourceIPs, func(i, j int) bool {
 		return resp.SourceIPs[i].HitCount > resp.SourceIPs[j].HitCount
 	})
-	resp.UniqueSubnets = len(subnetSet)
+	cfg := s.GetConfig()
+	loc := auditLocation()
+	resp.UniqueSubnets = effectivePublicNetworkCount(ipRows)
 	for _, dayRows := range byDate {
-		_, _, peakSubnets, _ := computeSubnetConcurrency(dayRows)
-		if len(peakSubnets) > resp.MaxConcurrentSubnets {
-			resp.MaxConcurrentSubnets = len(peakSubnets)
+		if m := evaluateSharingDay(dayRows, cfg, loc); m.peakConcurrent > resp.MaxConcurrentSubnets {
+			resp.MaxConcurrentSubnets = m.peakConcurrent
 		}
 	}
 
@@ -1501,6 +1541,7 @@ func (s *AccessAuditService) GetClientDetail(email, dateStr string, days int, hi
 		Find(&resp.Alerts).Error; err != nil {
 		return resp, err
 	}
+	resp.Alerts = dedupeLegacySharingAlerts(resp.Alerts)
 	return resp, nil
 }
 
@@ -1527,7 +1568,7 @@ func (s *AccessAuditService) GetAlerts(dateStr, email string, onlyUnacked bool, 
 	if err := q.Order("acked ASC, severity DESC, created_at DESC").Limit(limit).Find(&alerts).Error; err != nil {
 		return nil, err
 	}
-	return slices.Clip(alerts), nil
+	return slices.Clip(dedupeLegacySharingAlerts(alerts)), nil
 }
 
 func (s *AccessAuditService) AckAlert(id uint) error {

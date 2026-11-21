@@ -183,6 +183,7 @@ export default function AuditPage() {
   const [preset, setPreset] = useState<DatePreset>('today');
   const [source, setSource] = useState<number>(ALL_SOURCES);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [ingesting, setIngesting] = useState(false);
   const [summary, setSummary] = useState<AuditSummaryResponse | null>(null);
   const [alerts, setAlerts] = useState<AccessAuditAlert[]>([]);
@@ -196,8 +197,10 @@ export default function AuditPage() {
   const [config, setConfig] = useState<AuditConfig>({
     enabled: true,
     retentionDays: 30,
-    maxDailySubnets: 4,
+    maxDailySubnets: 8,
     maxConcurrentSubnets: 3,
+    minSharingHits: 5,
+    minConcurrentWindows: 2,
     sensitiveDomains: [],
     sensitiveKeywords: [],
     ignoreNoiseDomains: [],
@@ -210,6 +213,8 @@ export default function AuditPage() {
   const [trustedTargetsText, setTrustedTargetsText] = useState('');
   const [trustedClientsText, setTrustedClientsText] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
+  const dailyThresholdInvalid =
+    config.maxDailySubnets < 0 || config.maxDailySubnets === 1 || config.maxDailySubnets > 100;
 
   // The server buckets days in the panel's timeLocation, so "today" is whatever date it reports.
   const serverTodayRef = useRef<string | null>(null);
@@ -246,12 +251,17 @@ export default function AuditPage() {
     setLoading(true);
     try {
       const { sumRes, alertRes } = await fetchData();
-      if (sumRes?.success && sumRes.obj) acceptSummary(sumRes.obj);
+      if (sumRes?.success && sumRes.obj) {
+        setLoadError(null);
+        acceptSummary(sumRes.obj);
+      } else if (sumRes && !sumRes.success) {
+        setLoadError(sumRes.msg || t('somethingWentWrong'));
+      }
       if (alertRes?.success && Array.isArray(alertRes.obj)) setAlerts(alertRes.obj);
     } finally {
       setLoading(false);
     }
-  }, [fetchData, acceptSummary]);
+  }, [fetchData, acceptSummary, t]);
 
   const refreshDetail = useCallback(
     async (email: string, hide: boolean) => {
@@ -274,13 +284,18 @@ export default function AuditPage() {
     let active = true;
     void fetchData().then(({ sumRes, alertRes }) => {
       if (!active) return;
-      if (sumRes?.success && sumRes.obj) acceptSummary(sumRes.obj);
+      if (sumRes?.success && sumRes.obj) {
+        setLoadError(null);
+        acceptSummary(sumRes.obj);
+      } else if (sumRes && !sumRes.success) {
+        setLoadError(sumRes.msg || t('somethingWentWrong'));
+      }
       if (alertRes?.success && Array.isArray(alertRes.obj)) setAlerts(alertRes.obj);
     });
     return () => {
       active = false;
     };
-  }, [fetchData, acceptSummary]);
+  }, [fetchData, acceptSummary, t]);
 
   const applyConfig = useCallback((next: AuditConfig) => {
     setConfig(next);
@@ -368,6 +383,7 @@ export default function AuditPage() {
   };
 
   const handleSaveConfig = async (reevaluate: boolean) => {
+    if (dailyThresholdInvalid) return;
     setSavingConfig(true);
     try {
       const nextCfg: AuditConfig = {
@@ -423,21 +439,23 @@ export default function AuditPage() {
     {
       title: t('pages.audit.columns.riskStatus'),
       key: 'risk',
-      render: (_, row) => (
-        <Space wrap size={[4, 4]}>
-          {row.highRiskHits > 0 && (
-            <Tag color="red">{t('pages.audit.risk.highHits', { count: row.highRiskHits })}</Tag>
-          )}
-          {row.maxConcurrentSubnets >= config.maxConcurrentSubnets && (
-            <Tag color="volcano">{t('pages.audit.risk.sharing')}</Tag>
-          )}
-          {row.highRiskHits === 0 &&
-            row.warnRiskHits === 0 &&
-            row.maxConcurrentSubnets < config.maxConcurrentSubnets && (
+      render: (_, row) => {
+        const hasConcurrent =
+          row.concurrentSharingAlert || (row.sharingAlert && !row.dailySharingAlert);
+        const hasDaily = row.dailySharingAlert;
+        return (
+          <Space wrap size={[4, 4]}>
+            {row.highRiskHits > 0 && (
+              <Tag color="red">{t('pages.audit.risk.highHits', { count: row.highRiskHits })}</Tag>
+            )}
+            {hasConcurrent && <Tag color="volcano">{t('pages.audit.risk.sharingConcurrent')}</Tag>}
+            {hasDaily && <Tag color="gold">{t('pages.audit.risk.sharingDaily')}</Tag>}
+            {row.highRiskHits === 0 && row.warnRiskHits === 0 && !hasConcurrent && !hasDaily && (
               <Tag color="green">{t('pages.audit.risk.normal')}</Tag>
             )}
-        </Space>
-      ),
+          </Space>
+        );
+      },
     },
     {
       title: t('pages.audit.columns.topDomains'),
@@ -459,17 +477,25 @@ export default function AuditPage() {
     {
       title: t('pages.audit.columns.sourceSubnets'),
       key: 'subnets',
-      render: (_, row) => (
-        <Space size={4}>
-          <span>{row.uniqueIps}</span>
-          <span>/</span>
-          <span>{row.uniqueSubnets}</span>
-          <span>/</span>
-          <Tag color={row.maxConcurrentSubnets >= config.maxConcurrentSubnets ? 'red' : 'default'}>
-            {row.maxConcurrentSubnets}
-          </Tag>
-        </Space>
-      ),
+      render: (_, row) => {
+        const hasConcurrent =
+          row.concurrentSharingAlert || (row.sharingAlert && !row.dailySharingAlert);
+        return (
+          <Space size={4}>
+            <span>{row.uniqueIps}</span>
+            <span>/</span>
+            {row.dailySharingAlert ? (
+              <Tag color="gold" style={{ marginInlineEnd: 0 }}>
+                {row.uniqueSubnets}
+              </Tag>
+            ) : (
+              <span>{row.uniqueSubnets}</span>
+            )}
+            <span>/</span>
+            <Tag color={hasConcurrent ? 'red' : 'default'}>{row.maxConcurrentSubnets}</Tag>
+          </Space>
+        );
+      },
     },
     {
       title: t('pages.audit.columns.lastSeen'),
@@ -812,6 +838,9 @@ export default function AuditPage() {
                 ))}
               </Space>
             )}
+            {loadError && (
+              <Alert type="error" showIcon style={{ marginBottom: 12 }} message={loadError} />
+            )}
             {sources
               .filter((s) => s.syncError)
               .map((s) => (
@@ -930,7 +959,7 @@ export default function AuditPage() {
                                 onChange={(v) =>
                                   setConfig((prev) => ({
                                     ...prev,
-                                    maxConcurrentSubnets: Number(v || 3),
+                                    maxConcurrentSubnets: v == null ? 3 : Number(v),
                                   }))
                                 }
                                 style={{ width: '100%' }}
@@ -941,17 +970,66 @@ export default function AuditPage() {
                             <Form.Item
                               htmlFor={`${uid}-daily`}
                               label={t('pages.audit.rules.maxDailySubnets')}
-                              help={t('pages.audit.rules.maxDailySubnetsHelp')}
+                              validateStatus={dailyThresholdInvalid ? 'error' : undefined}
+                              help={
+                                dailyThresholdInvalid
+                                  ? t('pages.audit.rules.maxDailySubnetsInvalid')
+                                  : t('pages.audit.rules.maxDailySubnetsHelp')
+                              }
                             >
                               <InputNumber
                                 id={`${uid}-daily`}
-                                min={2}
+                                min={0}
                                 max={100}
                                 value={config.maxDailySubnets}
                                 onChange={(v) =>
                                   setConfig((prev) => ({
                                     ...prev,
-                                    maxDailySubnets: Number(v || 4),
+                                    maxDailySubnets: v == null ? 8 : Number(v),
+                                  }))
+                                }
+                                style={{ width: '100%' }}
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                        <Row gutter={16}>
+                          <Col xs={24} sm={12}>
+                            <Form.Item
+                              htmlFor={`${uid}-min-hits`}
+                              label={t('pages.audit.rules.minSharingHits')}
+                              help={t('pages.audit.rules.minSharingHitsHelp')}
+                            >
+                              <InputNumber
+                                id={`${uid}-min-hits`}
+                                min={1}
+                                max={1000}
+                                value={config.minSharingHits}
+                                onChange={(v) =>
+                                  setConfig((prev) => ({
+                                    ...prev,
+                                    minSharingHits: v == null ? 5 : Number(v),
+                                  }))
+                                }
+                                style={{ width: '100%' }}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} sm={12}>
+                            <Form.Item
+                              htmlFor={`${uid}-min-windows`}
+                              label={t('pages.audit.rules.minConcurrentWindows')}
+                              help={t('pages.audit.rules.minConcurrentWindowsHelp')}
+                            >
+                              <InputNumber
+                                id={`${uid}-min-windows`}
+                                min={1}
+                                max={144}
+                                value={config.minConcurrentWindows}
+                                onChange={(v) =>
+                                  setConfig((prev) => ({
+                                    ...prev,
+                                    minConcurrentWindows: v == null ? 2 : Number(v),
                                   }))
                                 }
                                 style={{ width: '100%' }}
@@ -1026,6 +1104,7 @@ export default function AuditPage() {
                             type="primary"
                             icon={<SaveOutlined aria-hidden />}
                             loading={savingConfig}
+                            disabled={dailyThresholdInvalid}
                             onClick={() => void handleSaveConfig(false)}
                           >
                             {t('pages.audit.rules.save')}
@@ -1033,6 +1112,7 @@ export default function AuditPage() {
                           <Button
                             icon={<SyncOutlined aria-hidden />}
                             loading={savingConfig}
+                            disabled={dailyThresholdInvalid}
                             onClick={() => void handleSaveConfig(true)}
                           >
                             {t('pages.audit.rules.saveAndReevaluate')}

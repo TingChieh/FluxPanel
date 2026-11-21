@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -225,16 +226,20 @@ func TestAccessAuditAccountSharingDetection(t *testing.T) {
 	initAuditTestDB(t)
 
 	logPath := filepath.Join(t.TempDir(), "access.log")
-	content := "" +
-		// charlie: 3 IPs in the SAME /24 in hour 15 -> must NOT trigger sharing alert.
-		"2026/11/19 15:01:00.000000 from tcp:198.51.100.11:50001 accepted tcp:github.com:443 [in-1 >> direct] email: charlie\n" +
-		"2026/11/19 15:02:00.000000 from tcp:198.51.100.22:50002 accepted tcp:github.com:443 [in-1 >> direct] email: charlie\n" +
-		"2026/11/19 15:03:00.000000 from tcp:198.51.100.33:50003 accepted tcp:github.com:443 [in-1 >> direct] email: charlie\n" +
-		// dave: 3 DIFFERENT /24 subnets in the SAME hour 15 -> triggers critical sharing alert.
-		"2026/11/19 15:01:00.000000 from tcp:198.51.100.1:50001 accepted tcp:youtube.com:443 [in-1 >> direct] email: dave\n" +
-		"2026/11/19 15:05:00.000000 from tcp:203.0.113.2:50002 accepted tcp:youtube.com:443 [in-1 >> direct] email: dave\n" +
-		"2026/11/19 15:10:00.000000 from tcp:192.0.2.3:50003 accepted tcp:youtube.com:443 [in-1 >> direct] email: dave\n"
-	if err := os.WriteFile(logPath, []byte(content), 0o600); err != nil {
+	var content strings.Builder
+	// charlie: 3 IPs in the SAME /16 across two 10m slots -> must NOT trigger sharing alert.
+	for _, min := range []int{1, 11} {
+		writeBurst(&content, "2026/11/19", 15, min, 3, "198.51.100.11", "charlie")
+		writeBurst(&content, "2026/11/19", 15, min, 3, "198.51.101.22", "charlie")
+		writeBurst(&content, "2026/11/19", 15, min, 3, "198.51.102.33", "charlie")
+	}
+	// dave: 3 DIFFERENT public /16 networks active concurrently across two 10m slots -> critical sharing alert.
+	for _, min := range []int{1, 11} {
+		writeBurst(&content, "2026/11/19", 15, min, 3, "198.51.100.1", "dave")
+		writeBurst(&content, "2026/11/19", 15, min, 3, "203.0.113.2", "dave")
+		writeBurst(&content, "2026/11/19", 15, min, 3, "192.0.2.3", "dave")
+	}
+	if err := os.WriteFile(logPath, []byte(content.String()), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -248,7 +253,7 @@ func TestAccessAuditAccountSharingDetection(t *testing.T) {
 		t.Fatalf("charlie alerts failed: %v", err)
 	}
 	if len(charlieAlerts) != 0 {
-		t.Fatalf("same /24 subnet must not trigger sharing alert, got %+v", charlieAlerts)
+		t.Fatalf("same /16 network must not trigger sharing alert, got %+v", charlieAlerts)
 	}
 
 	daveAlerts, err := svc.GetAlerts("2026-11-19", "dave", false, 20)
@@ -362,10 +367,13 @@ func TestAccessAuditSharingAlertEscalatesInPlace(t *testing.T) {
 	initAuditTestDB(t)
 
 	logPath := filepath.Join(t.TempDir(), "access.log")
-	line := func(minute int, ip string) string {
-		return fmt.Sprintf("2026/11/19 15:%02d:00.000000 from tcp:%s:50001 accepted tcp:youtube.com:443 [in-1 >> direct] email: dave\n", minute, ip)
+	burst := func(ip string) string {
+		var b strings.Builder
+		writeBurst(&b, "2026/11/19", 15, 1, 3, ip, "dave")
+		writeBurst(&b, "2026/11/19", 15, 11, 3, ip, "dave")
+		return b.String()
 	}
-	if err := os.WriteFile(logPath, []byte(line(1, "198.51.100.1")+line(2, "203.0.113.2")+line(3, "192.0.2.3")), 0o600); err != nil {
+	if err := os.WriteFile(logPath, []byte(burst("198.51.100.1")+burst("203.0.113.2")+burst("192.0.2.3")), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -384,8 +392,8 @@ func TestAccessAuditSharingAlertEscalatesInPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// A 4th subnet in the same hour, then the same IP again: one alert, reopened once on escalation.
-	appendAuditLog(t, logPath, line(4, "100.64.0.4"))
+	// A 4th public network in the same windows, then repeat traffic: one alert, reopened once on escalation.
+	appendAuditLog(t, logPath, burst("93.184.216.4"))
 	if _, err := svc.IngestFromPath(logPath); err != nil {
 		t.Fatal(err)
 	}
@@ -406,7 +414,7 @@ func TestAccessAuditSharingAlertEscalatesInPlace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	appendAuditLog(t, logPath, line(5, "100.64.0.4"))
+	appendAuditLog(t, logPath, fmt.Sprintf("2026/11/19 15:15:00.000000 from tcp:%s:50001 accepted tcp:youtube.com:443 [in-1 >> direct] email: dave\n", "93.184.216.4"))
 	if _, err := svc.IngestFromPath(logPath); err != nil {
 		t.Fatal(err)
 	}

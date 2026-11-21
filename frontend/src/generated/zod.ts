@@ -238,11 +238,14 @@ export const AuditClientIPViewSchema = z.object({
 export type AuditClientIPView = z.infer<typeof AuditClientIPViewSchema>;
 
 export const AuditClientSummarySchema = z.object({
+  concurrentSharingAlert: z.boolean(),
+  dailySharingAlert: z.boolean(),
   email: z.string(),
   highRiskHits: z.number().int(),
   lastSeen: z.number().int(),
   maxConcurrentSubnets: z.number().int(),
   nodeIds: z.array(z.number().int()),
+  sharingAlert: z.boolean(),
   topDomains: z.array(z.string()),
   totalHits: z.number().int(),
   unackedAlerts: z.number().int(),
@@ -258,6 +261,8 @@ export const AuditConfigSchema = z.object({
   ignoreNoiseDomains: z.array(z.string()),
   maxConcurrentSubnets: z.number().int(),
   maxDailySubnets: z.number().int(),
+  minConcurrentWindows: z.number().int(),
+  minSharingHits: z.number().int(),
   retentionDays: z.number().int(),
   sensitiveDomains: z.array(z.string()),
   sensitiveKeywords: z.array(z.string()),
@@ -334,6 +339,7 @@ export type AuditExportDaily = z.infer<typeof AuditExportDailySchema>;
 
 export const AuditExportIPSchema = z.object({
   activeHours: z.number().int(),
+  activeSlots: z.string().optional(),
   date: z.string(),
   email: z.string(),
   firstSeen: z.number().int(),

@@ -104,7 +104,7 @@ func (s *AccessAuditService) ExportLocal(from, to string) (entity.AuditExport, e
 	for _, r := range ips {
 		exp.IPs = append(exp.IPs, entity.AuditExportIP{
 			Date: r.Date, Email: r.Email, SrcIP: r.SrcIP, Subnet: r.Subnet, HitCount: r.HitCount,
-			FirstSeen: r.FirstSeen, LastSeen: r.LastSeen, ActiveHours: r.ActiveHours,
+			FirstSeen: r.FirstSeen, LastSeen: r.LastSeen, ActiveHours: r.ActiveHours, ActiveSlots: r.ActiveSlots,
 		})
 	}
 	return exp, nil
@@ -194,7 +194,13 @@ func (s *AccessAuditService) ImportNodeExport(nodeID int, from, to string, exp e
 				continue
 			}
 			k := ipKey{date: ip.Date, email: ip.Email, srcIP: ip.SrcIP}
+			incoming := model.AccessAuditClientIP{
+				NodeId: nodeID, Date: ip.Date, Email: ip.Email, SrcIP: ip.SrcIP,
+				HitCount: ip.HitCount, FirstSeen: ip.FirstSeen, LastSeen: ip.LastSeen,
+				ActiveHours: ip.ActiveHours, ActiveSlots: ip.ActiveSlots,
+			}
 			if row, ok := ips[k]; ok {
+				row.ActiveSlots = mergeClientIPRowSlots(*row, incoming, loc)
 				row.HitCount += ip.HitCount
 				row.ActiveHours |= ip.ActiveHours
 				row.FirstSeen = min(row.FirstSeen, ip.FirstSeen)
@@ -205,10 +211,8 @@ func (s *AccessAuditService) ImportNodeExport(nodeID int, from, to string, exp e
 			if subnet == "" {
 				_, subnet = parseAuditSource(ip.SrcIP)
 			}
-			ips[k] = &model.AccessAuditClientIP{
-				NodeId: nodeID, Date: ip.Date, Email: ip.Email, SrcIP: ip.SrcIP, Subnet: subnet,
-				HitCount: ip.HitCount, FirstSeen: ip.FirstSeen, LastSeen: ip.LastSeen, ActiveHours: ip.ActiveHours,
-			}
+			incoming.Subnet = subnet
+			ips[k] = &incoming
 			pairs[auditPair{date: ip.Date, email: ip.Email}] = struct{}{}
 		}
 		ipRows := make([]model.AccessAuditClientIP, 0, len(ips))

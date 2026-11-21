@@ -29,13 +29,20 @@ func TestAuditDigestSummarizesSourcesAlertsAndClients(t *testing.T) {
 	}
 	ingestAuditLines(t, svc, ""+
 		"2026/11/19 15:01:00.000000 from tcp:198.51.100.1:50001 accepted tcp:github.com:443 [in-1 >> direct] email: a<b\n"+
-		"2026/11/19 15:02:00.000000 from tcp:198.51.100.1:50002 accepted tcp:api.github.com:443 [in-1 >> direct] email: a<b\n")
-	ts := time.Date(2026, 11, 19, 15, 10, 0, 0, auditLocation()).Unix()
+		"2026/11/19 15:02:00.000000 from tcp:198.51.100.1:50002 accepted tcp:api.github.com:443 [in-1 >> direct] email: a<b\n"+
+		"2026/11/19 15:03:00.000000 from tcp:198.51.100.1:50003 accepted tcp:github.com:443 [in-1 >> direct] email: a<b\n"+
+		"2026/11/19 15:11:00.000000 from tcp:198.51.100.1:50004 accepted tcp:github.com:443 [in-1 >> direct] email: a<b\n"+
+		"2026/11/19 15:12:00.000000 from tcp:198.51.100.1:50005 accepted tcp:github.com:443 [in-1 >> direct] email: a<b\n")
+	ts1 := time.Date(2026, 11, 19, 15, 2, 0, 0, auditLocation()).Unix()
+	ts2 := time.Date(2026, 11, 19, 15, 12, 0, 0, auditLocation()).Unix()
+	var slots auditSlotMask
+	slots.set(15*auditSlotsPerHr + 0)
+	slots.set(15*auditSlotsPerHr + 1)
 	if err := svc.ImportNodeExport(auditNodeID, "2026-11-19", "2026-11-19", nodeExportFor(t,
-		[]entity.AuditExportDaily{{Date: "2026-11-19", Email: "a<b", RootDomain: "youtube.com", Domain: "youtube.com", Port: 443, HitCount: 5, FirstSeen: ts, LastSeen: ts}},
+		[]entity.AuditExportDaily{{Date: "2026-11-19", Email: "a<b", RootDomain: "youtube.com", Domain: "youtube.com", Port: 443, HitCount: 7, FirstSeen: ts1, LastSeen: ts2}},
 		[]entity.AuditExportIP{
-			{Date: "2026-11-19", Email: "a<b", SrcIP: "203.0.113.2", Subnet: "203.0.113.0/24", HitCount: 3, LastSeen: ts, ActiveHours: 1 << 15},
-			{Date: "2026-11-19", Email: "a<b", SrcIP: "192.0.2.3", Subnet: "192.0.2.0/24", HitCount: 2, LastSeen: ts, ActiveHours: 1 << 15},
+			{Date: "2026-11-19", Email: "a<b", SrcIP: "203.0.113.2", Subnet: "203.0.113.0/24", HitCount: 5, FirstSeen: ts1, LastSeen: ts2, ActiveHours: 1 << 15, ActiveSlots: slots.encode()},
+			{Date: "2026-11-19", Email: "a<b", SrcIP: "192.0.2.3", Subnet: "192.0.2.0/24", HitCount: 5, FirstSeen: ts1, LastSeen: ts2, ActiveHours: 1 << 15, ActiveSlots: slots.encode()},
 		})); err != nil {
 		t.Fatal(err)
 	}
@@ -46,12 +53,12 @@ func TestAuditDigestSummarizesSourcesAlertsAndClients(t *testing.T) {
 	}
 	for _, want := range []string{
 		"访问审计日报 2026-11-19",
-		"活跃用户 1 · 请求 7",
-		"本机 2",
-		"hk-edge 5",
+		"活跃用户 1 · 请求 12",
+		"本机 5",
+		"hk-edge 7",
 		"高危 1",
 		"a&lt;b",
-		"同小时 3 个网段",
+		"并发 3 个独立网段",
 		"youtube.com, github.com",
 	} {
 		if !strings.Contains(text, want) {

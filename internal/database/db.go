@@ -183,6 +183,14 @@ func migrateNodeSkipClientIpSyncColumn() error {
 	return migrator.AddColumn(&model.Node{}, "SkipClientIpSync")
 }
 
+func migrateAccessAuditActiveSlotsColumn() error {
+	migrator := db.Migrator()
+	if !migrator.HasTable(&model.AccessAuditClientIP{}) || migrator.HasColumn(&model.AccessAuditClientIP{}, "active_slots") {
+		return nil
+	}
+	return migrator.AddColumn(&model.AccessAuditClientIP{}, "ActiveSlots")
+}
+
 // dropLegacyAuditUniqueKeys removes the audit unique keys that predate node
 // sources; they would reject a node row for a destination this panel also saw.
 func dropLegacyAuditUniqueKeys() error {
@@ -226,6 +234,9 @@ func initModels() error {
 		return err
 	}
 	if err := migrateNodeSkipClientIpSyncColumn(); err != nil {
+		return err
+	}
+	if err := migrateAccessAuditActiveSlotsColumn(); err != nil {
 		return err
 	}
 	if err := dropLegacyAuditUniqueKeys(); err != nil {

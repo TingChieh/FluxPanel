@@ -865,6 +865,14 @@ export const SCHEMAS: Record<string, unknown> = {
   "AuditClientSummary": {
     "description": "AuditClientSummary summarizes one client's activity and risk signals over the queried window.",
     "properties": {
+      "concurrentSharingAlert": {
+        "example": false,
+        "type": "boolean"
+      },
+      "dailySharingAlert": {
+        "example": false,
+        "type": "boolean"
+      },
       "email": {
         "example": "alice",
         "type": "string"
@@ -888,6 +896,10 @@ export const SCHEMAS: Record<string, unknown> = {
           "type": "integer"
         },
         "type": "array"
+      },
+      "sharingAlert": {
+        "example": false,
+        "type": "boolean"
       },
       "topDomains": {
         "items": {
@@ -923,11 +935,14 @@ export const SCHEMAS: Record<string, unknown> = {
       }
     },
     "required": [
+      "concurrentSharingAlert",
+      "dailySharingAlert",
       "email",
       "highRiskHits",
       "lastSeen",
       "maxConcurrentSubnets",
       "nodeIds",
+      "sharingAlert",
       "topDomains",
       "totalHits",
       "unackedAlerts",
@@ -956,7 +971,15 @@ export const SCHEMAS: Record<string, unknown> = {
         "type": "integer"
       },
       "maxDailySubnets": {
-        "example": 4,
+        "example": 8,
+        "type": "integer"
+      },
+      "minConcurrentWindows": {
+        "example": 2,
+        "type": "integer"
+      },
+      "minSharingHits": {
+        "example": 5,
         "type": "integer"
       },
       "retentionDays": {
@@ -993,6 +1016,8 @@ export const SCHEMAS: Record<string, unknown> = {
       "ignoreNoiseDomains",
       "maxConcurrentSubnets",
       "maxDailySubnets",
+      "minConcurrentWindows",
+      "minSharingHits",
       "retentionDays",
       "sensitiveDomains",
       "sensitiveKeywords",
@@ -1258,11 +1283,14 @@ export const SCHEMAS: Record<string, unknown> = {
     "type": "object"
   },
   "AuditExportIP": {
-    "description": "AuditExportIP is one client/source-IP daily row with its hourly activity bitmap.",
+    "description": "AuditExportIP is one client/source-IP daily row with its activity bitmaps.",
     "properties": {
       "activeHours": {
         "example": 1536,
         "type": "integer"
+      },
+      "activeSlots": {
+        "type": "string"
       },
       "date": {
         "example": "2026-11-19",

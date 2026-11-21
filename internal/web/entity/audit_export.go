@@ -25,7 +25,7 @@ type AuditExportDaily struct {
 	LastSeen   int64  `json:"lastSeen" example:"1763540000"`
 }
 
-// AuditExportIP is one client/source-IP daily row with its hourly activity bitmap.
+// AuditExportIP is one client/source-IP daily row with its activity bitmaps.
 type AuditExportIP struct {
 	Date        string `json:"date" example:"2026-11-19"`
 	Email       string `json:"email" example:"alice"`
@@ -35,4 +35,5 @@ type AuditExportIP struct {
 	FirstSeen   int64  `json:"firstSeen" example:"1763510000"`
 	LastSeen    int64  `json:"lastSeen" example:"1763540000"`
 	ActiveHours uint32 `json:"activeHours" example:"1536"`
+	ActiveSlots string `json:"activeSlots,omitempty" example:""`
 }
