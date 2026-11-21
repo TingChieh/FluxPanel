@@ -45,7 +45,11 @@ const SSH_ALERT = {
   acked: false,
 };
 
-function stubAuditBackend(sent: SentRequest[], summaryUrls: string[] = []) {
+function stubAuditBackend(
+  sent: SentRequest[],
+  summaryUrls: string[] = [],
+  clients: Record<string, unknown>[] = [],
+) {
   let trusted: string[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
@@ -63,8 +67,10 @@ function stubAuditBackend(sent: SentRequest[], summaryUrls: string[] = []) {
       return jsonResponse({
         enabled: true,
         retentionDays: 30,
-        maxDailySubnets: 4,
+        maxDailySubnets: 8,
         maxConcurrentSubnets: 3,
+        minSharingHits: 5,
+        minConcurrentWindows: 2,
         sensitiveDomains: [],
         sensitiveKeywords: [],
         ignoreNoiseDomains: [],
@@ -92,7 +98,7 @@ function stubAuditBackend(sent: SentRequest[], summaryUrls: string[] = []) {
     if (url.startsWith('/panel/api/audit/summary')) {
       summaryUrls.push(url);
       const date = new URL(url, 'http://panel').searchParams.get('date') ?? '2026-11-19';
-      return jsonResponse({ date, days: 1, clients: [], sources: SOURCES });
+      return jsonResponse({ date, days: 1, clients, sources: SOURCES });
     }
     return jsonResponse([]);
   });
@@ -126,6 +132,15 @@ describe('AuditPage', () => {
 
     renderAuditPage();
     fireEvent.click(await screen.findByRole('tab', { name: 'Audit Rules' }));
+    fireEvent.change(await screen.findByLabelText('Daily Distinct Networks Threshold'), {
+      target: { value: '0' },
+    });
+    fireEvent.change(await screen.findByLabelText('Min Hits per Network'), {
+      target: { value: '10' },
+    });
+    fireEvent.change(await screen.findByLabelText('Sustained 10m Windows'), {
+      target: { value: '3' },
+    });
     fireEvent.change(
       await screen.findByLabelText('Sensitive / Restricted Domains (one per line)'),
       {
@@ -141,8 +156,10 @@ describe('AuditPage', () => {
       config: {
         enabled: true,
         retentionDays: 30,
-        maxDailySubnets: 4,
+        maxDailySubnets: 0,
         maxConcurrentSubnets: 3,
+        minSharingHits: 10,
+        minConcurrentWindows: 3,
         sensitiveDomains: ['restricted.example', 'news.blocked.test'],
         sensitiveKeywords: [],
         ignoreNoiseDomains: [],
@@ -235,5 +252,53 @@ describe('AuditPage', () => {
     await waitFor(() =>
       expect((trustedTargets as HTMLTextAreaElement).value).toBe('box.example.net'),
     );
+  });
+
+  // Overview risk tags must follow the backend sharingAlert decision so trusted
+  // clients or brief one-window spikes are never mislabeled as Sharing Risk.
+  it('badges Sharing Risk from sharingAlert rather than raw peak concurrency', async () => {
+    stubAuditBackend(
+      [],
+      [],
+      [
+        {
+          email: 'trusted-roamer',
+          totalHits: 120,
+          uniqueRootDomains: 5,
+          uniqueIps: 4,
+          uniqueSubnets: 3,
+          maxConcurrentSubnets: 3,
+          sharingAlert: false,
+          highRiskHits: 0,
+          warnRiskHits: 0,
+          unackedAlerts: 0,
+          topDomains: ['github.com'],
+          lastSeen: 1763540000,
+          nodeIds: [0],
+        },
+        {
+          email: 'real-sharer',
+          totalHits: 240,
+          uniqueRootDomains: 8,
+          uniqueIps: 5,
+          uniqueSubnets: 4,
+          maxConcurrentSubnets: 3,
+          sharingAlert: true,
+          highRiskHits: 0,
+          warnRiskHits: 0,
+          unackedAlerts: 1,
+          topDomains: ['youtube.com'],
+          lastSeen: 1763540000,
+          nodeIds: [0],
+        },
+      ],
+    );
+
+    renderAuditPage();
+    const trustedRow = (await screen.findByText('trusted-roamer')).closest('tr');
+    const sharerRow = (await screen.findByText('real-sharer')).closest('tr');
+    expect(trustedRow?.textContent).toContain('Normal');
+    expect(trustedRow?.textContent).not.toContain('Sharing Risk');
+    expect(sharerRow?.textContent).toContain('Sharing Risk');
   });
 });

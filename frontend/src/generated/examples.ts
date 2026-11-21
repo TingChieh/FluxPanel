@@ -263,6 +263,7 @@ export const EXAMPLES: Record<string, unknown> = {
     "nodeIds": [
       0
     ],
+    "sharingAlert": false,
     "topDomains": [
       ""
     ],
@@ -279,7 +280,9 @@ export const EXAMPLES: Record<string, unknown> = {
       ""
     ],
     "maxConcurrentSubnets": 3,
-    "maxDailySubnets": 4,
+    "maxDailySubnets": 8,
+    "minConcurrentWindows": 2,
+    "minSharingHits": 5,
     "retentionDays": 30,
     "sensitiveDomains": [
       ""
@@ -301,7 +304,9 @@ export const EXAMPLES: Record<string, unknown> = {
         ""
       ],
       "maxConcurrentSubnets": 3,
-      "maxDailySubnets": 4,
+      "maxDailySubnets": 8,
+      "minConcurrentWindows": 2,
+      "minSharingHits": 5,
       "retentionDays": 30,
       "sensitiveDomains": [
         ""
@@ -380,6 +385,7 @@ export const EXAMPLES: Record<string, unknown> = {
     "ips": [
       {
         "activeHours": 1536,
+        "activeSlots": "",
         "date": "2026-11-19",
         "email": "alice",
         "firstSeen": 1763510000,
@@ -406,6 +412,7 @@ export const EXAMPLES: Record<string, unknown> = {
   },
   "AuditExportIP": {
     "activeHours": 1536,
+    "activeSlots": "",
     "date": "2026-11-19",
     "email": "alice",
     "firstSeen": 1763510000,
@@ -453,6 +460,7 @@ export const EXAMPLES: Record<string, unknown> = {
         "nodeIds": [
           0
         ],
+        "sharingAlert": false,
         "topDomains": [
           ""
         ],

@@ -219,6 +219,7 @@ export interface AuditClientSummary {
   lastSeen: number;
   maxConcurrentSubnets: number;
   nodeIds: number[];
+  sharingAlert: boolean;
   topDomains: string[];
   totalHits: number;
   unackedAlerts: number;
@@ -233,6 +234,8 @@ export interface AuditConfig {
   ignoreNoiseDomains: string[];
   maxConcurrentSubnets: number;
   maxDailySubnets: number;
+  minConcurrentWindows: number;
+  minSharingHits: number;
   retentionDays: number;
   sensitiveDomains: string[];
   sensitiveKeywords: string[];
@@ -301,6 +304,7 @@ export interface AuditExportDaily {
 
 export interface AuditExportIP {
   activeHours: number;
+  activeSlots?: string;
   date: string;
   email: string;
   firstSeen: number;

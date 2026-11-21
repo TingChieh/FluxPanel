@@ -45,19 +45,29 @@ func dailyRowsFor(t *testing.T, nodeID int) []model.AccessAuditDaily {
 	return rows
 }
 
-// A client seen from one subnet locally and two more on a node in the same hour
-// is sharing even though neither source alone crosses the threshold.
+// A client seen from one network locally and two more on a node across overlapping
+// 10m windows is sharing even though neither source alone crosses the threshold.
 func TestAccessAuditNodeImportMergesSourcesWithoutDoubleCounting(t *testing.T) {
 	initAuditTestDB(t)
 	svc := &AccessAuditService{}
-	ingestAuditLines(t, svc, "2026/11/19 15:01:00.000000 from tcp:198.51.100.1:50001 accepted tcp:github.com:443 [in-1 >> direct] email: alice\n")
+	ingestAuditLines(t, svc, ""+
+		"2026/11/19 15:01:00.000000 from tcp:198.51.100.1:50001 accepted tcp:github.com:443 [in-1 >> direct] email: alice\n"+
+		"2026/11/19 15:02:00.000000 from tcp:198.51.100.1:50002 accepted tcp:github.com:443 [in-1 >> direct] email: alice\n"+
+		"2026/11/19 15:03:00.000000 from tcp:198.51.100.1:50003 accepted tcp:github.com:443 [in-1 >> direct] email: alice\n"+
+		"2026/11/19 15:11:00.000000 from tcp:198.51.100.1:50004 accepted tcp:github.com:443 [in-1 >> direct] email: alice\n"+
+		"2026/11/19 15:12:00.000000 from tcp:198.51.100.1:50005 accepted tcp:github.com:443 [in-1 >> direct] email: alice\n")
 
-	ts := time.Date(2026, 11, 19, 15, 10, 0, 0, auditLocation()).Unix()
+	ts1 := time.Date(2026, 11, 19, 15, 2, 0, 0, auditLocation()).Unix()
+	ts2 := time.Date(2026, 11, 19, 15, 12, 0, 0, auditLocation()).Unix()
+	var slots auditSlotMask
+	slots.set(15*auditSlotsPerHr + 0)
+	slots.set(15*auditSlotsPerHr + 1)
 	exp := nodeExportFor(t,
-		[]entity.AuditExportDaily{{Date: "2026-11-19", Email: "alice", RootDomain: "youtube.com", Domain: "youtube.com", Port: 443, Outbound: "to-sg", HitCount: 5, FirstSeen: ts, LastSeen: ts}},
+		[]entity.AuditExportDaily{{Date: "2026-11-19", Email: "alice", RootDomain: "youtube.com", Domain: "youtube.com", Port: 443, Outbound: "to-sg", HitCount: 5, FirstSeen: ts1, LastSeen: ts2}},
 		[]entity.AuditExportIP{
-			{Date: "2026-11-19", Email: "alice", SrcIP: "203.0.113.2", Subnet: "203.0.113.0/24", HitCount: 3, FirstSeen: ts, LastSeen: ts, ActiveHours: 1 << 15},
-			{Date: "2026-11-19", Email: "alice", SrcIP: "192.0.2.3", Subnet: "192.0.2.0/24", HitCount: 2, FirstSeen: ts, LastSeen: ts, ActiveHours: 1 << 15},
+			{Date: "2026-11-19", Email: "alice", SrcIP: "203.0.113.2", Subnet: "203.0.113.0/24", HitCount: 5, FirstSeen: ts1, LastSeen: ts2, ActiveHours: 1 << 15, ActiveSlots: slots.encode()},
+			// Leave ActiveSlots empty on the second IP to verify legacy-node fallback via ActiveHours + [FirstSeen, LastSeen].
+			{Date: "2026-11-19", Email: "alice", SrcIP: "192.0.2.3", Subnet: "192.0.2.0/24", HitCount: 5, FirstSeen: ts1, LastSeen: ts2, ActiveHours: 1 << 15},
 		})
 	for range 2 {
 		if err := svc.ImportNodeExport(auditNodeID, "2026-11-19", "2026-11-19", exp); err != nil {
@@ -69,8 +79,8 @@ func TestAccessAuditNodeImportMergesSourcesWithoutDoubleCounting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(summary.Clients) != 1 || summary.Clients[0].TotalHits != 6 || summary.Clients[0].MaxConcurrentSubnets != 3 {
-		t.Fatalf("clients = %+v, want alice with 6 hits (1 local + 5 node, imported twice) and 3 concurrent subnets", summary.Clients)
+	if len(summary.Clients) != 1 || summary.Clients[0].TotalHits != 10 || summary.Clients[0].MaxConcurrentSubnets != 3 || !summary.Clients[0].SharingAlert {
+		t.Fatalf("clients = %+v, want alice with 10 hits (5 local + 5 node, imported twice) and 3 concurrent subnets", summary.Clients)
 	}
 	alerts, err := svc.GetAlerts("2026-11-19", "alice", false, 20)
 	if err != nil {
@@ -226,6 +236,9 @@ func TestAccessAuditLegacyUniqueKeyIsReplaced(t *testing.T) {
 	}
 	if err := db.Create(&model.AccessAuditClientIP{Date: "2026-11-19", Email: "alice", SrcIP: "198.51.100.1", Subnet: "198.51.100.0/24"}).Error; err != nil {
 		t.Fatalf("local ip row with the same source: %v", err)
+	}
+	if !db.Migrator().HasColumn(&model.AccessAuditClientIP{}, "active_slots") {
+		t.Fatalf("legacy audit IP table must gain active_slots column on InitDB")
 	}
 	var local model.AccessAuditDaily
 	if err := db.Where("node_id = 0").First(&local).Error; err != nil || local.HitCount != 2 {

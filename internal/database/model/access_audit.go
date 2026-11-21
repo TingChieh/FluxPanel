@@ -19,7 +19,7 @@ type AccessAuditDaily struct {
 	LastSeen   int64  `json:"lastSeen" gorm:"not null;default:0"`
 }
 
-// AccessAuditClientIP tracks per-client daily source IPs and hourly activity bitmasks.
+// AccessAuditClientIP tracks per-client daily source IPs and activity bitmaps.
 type AccessAuditClientIP struct {
 	Id          uint   `json:"id" gorm:"primaryKey;autoIncrement"`
 	NodeId      int    `json:"nodeId" gorm:"not null;default:0;uniqueIndex:idx_audit_ip_src_key;index"`
@@ -31,6 +31,7 @@ type AccessAuditClientIP struct {
 	FirstSeen   int64  `json:"firstSeen" gorm:"not null;default:0"`
 	LastSeen    int64  `json:"lastSeen" gorm:"not null;default:0"`
 	ActiveHours uint32 `json:"activeHours" gorm:"not null;default:0"`
+	ActiveSlots string `json:"activeSlots" gorm:"size:36;not null;default:''"`
 }
 
 // AccessAuditAlert records deduplicated sensitive-content and account-sharing alerts.

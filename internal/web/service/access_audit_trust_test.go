@@ -3,8 +3,19 @@ package service
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 )
+
+func sharingLinesFor(email string, ips ...string) string {
+	var b strings.Builder
+	for _, min := range []int{1, 11} {
+		for _, ip := range ips {
+			writeBurst(&b, "2026/11/19", 15, min, 3, ip, email)
+		}
+	}
+	return b.String()
+}
 
 func alertTargets(t *testing.T, svc *AccessAuditService, email string) []string {
 	t.Helper()
@@ -49,12 +60,9 @@ func TestAccessAuditTrustedTargetsSuppressRiskAlerts(t *testing.T) {
 func TestAccessAuditTrustedClientSkipsSharing(t *testing.T) {
 	initAuditTestDB(t)
 	svc := &AccessAuditService{}
-	line := func(minute int, ip string) string {
-		return "2026/11/19 15:0" + string(rune('0'+minute)) + ":00.000000 from tcp:" + ip + ":50001 accepted tcp:youtube.com:443 [in-1 >> direct] email: Roamer\n"
-	}
-	ingestAuditLines(t, svc, line(1, "198.51.100.1")+line(2, "203.0.113.2")+line(3, "192.0.2.3"))
+	ingestAuditLines(t, svc, sharingLinesFor("Roamer", "198.51.100.1", "203.0.113.2", "192.0.2.3"))
 	if got := alertTargets(t, svc, "Roamer"); len(got) == 0 {
-		t.Fatal("precondition: three subnets in one hour must raise a sharing alert")
+		t.Fatal("precondition: three concurrent networks must raise a sharing alert")
 	}
 
 	cfg := svc.GetConfig()
@@ -66,9 +74,9 @@ func TestAccessAuditTrustedClientSkipsSharing(t *testing.T) {
 		t.Fatalf("trusted client still has alerts %v", got)
 	}
 
-	ingestAuditLines(t, svc, line(4, "100.64.0.4"))
+	ingestAuditLines(t, svc, sharingLinesFor("Roamer", "93.184.216.4"))
 	if got := alertTargets(t, svc, "Roamer"); len(got) != 0 {
-		t.Fatalf("a new subnet re-raised sharing for a trusted client: %v", got)
+		t.Fatalf("a new network re-raised sharing for a trusted client: %v", got)
 	}
 	if got := svc.GetConfig().TrustedClients; !slices.Equal(got, []string{"roamer"}) {
 		t.Fatalf("trusted clients = %v, want the entry kept as typed", got)
@@ -82,9 +90,7 @@ func TestAccessAuditTrustFromAlert(t *testing.T) {
 		"2026/11/19 10:00:01.000000 from tcp:198.51.100.1:5001 accepted tcp:box.example.net:22 [in-1 >> direct] email: ops\n"+
 		"2026/11/19 10:00:02.000000 from tcp:198.51.100.1:5002 accepted tcp:box.example.net:3389 [in-1 >> direct] email: ops\n"+
 		"2026/11/19 10:00:03.000000 from tcp:198.51.100.1:5003 accepted tcp:[2001:db8::7]:22 [in-1 >> direct] email: ops\n"+
-		"2026/11/19 15:01:00.000000 from tcp:198.51.100.1:50001 accepted tcp:x.com:443 [in-1 >> direct] email: sharer\n"+
-		"2026/11/19 15:02:00.000000 from tcp:203.0.113.2:50002 accepted tcp:x.com:443 [in-1 >> direct] email: sharer\n"+
-		"2026/11/19 15:03:00.000000 from tcp:192.0.2.3:50003 accepted tcp:x.com:443 [in-1 >> direct] email: sharer\n")
+		sharingLinesFor("sharer", "198.51.100.1", "203.0.113.2", "192.0.2.3"))
 
 	find := func(email, target string) uint {
 		t.Helper()
@@ -107,7 +113,7 @@ func TestAccessAuditTrustFromAlert(t *testing.T) {
 	if err := svc.TrustAlert(find("ops", "box.example.net:22"), AuditTrustHost); err != nil {
 		t.Fatalf("TrustAlert host: %v", err)
 	}
-	if err := svc.TrustAlert(find("sharer", "same-hour subnets"), AuditTrustClient); err != nil {
+	if err := svc.TrustAlert(find("sharer", "concurrent subnets"), AuditTrustClient); err != nil {
 		t.Fatalf("TrustAlert client: %v", err)
 	}
 
@@ -127,14 +133,11 @@ func TestAccessAuditTrustFromAlert(t *testing.T) {
 }
 
 // A sharing alert has no destination, so trusting its "host" must be refused
-// rather than writing the label "same-hour subnets" as a trusted target.
+// rather than writing the label "concurrent subnets" as a trusted target.
 func TestAccessAuditTrustRejectsScopeThatDoesNotFitTheAlert(t *testing.T) {
 	initAuditTestDB(t)
 	svc := &AccessAuditService{}
-	ingestAuditLines(t, svc, ""+
-		"2026/11/19 15:01:00.000000 from tcp:198.51.100.1:50001 accepted tcp:x.com:443 [in-1 >> direct] email: sharer\n"+
-		"2026/11/19 15:02:00.000000 from tcp:203.0.113.2:50002 accepted tcp:x.com:443 [in-1 >> direct] email: sharer\n"+
-		"2026/11/19 15:03:00.000000 from tcp:192.0.2.3:50003 accepted tcp:x.com:443 [in-1 >> direct] email: sharer\n")
+	ingestAuditLines(t, svc, sharingLinesFor("sharer", "198.51.100.1", "203.0.113.2", "192.0.2.3"))
 	alerts, err := svc.GetAlerts("2026-11-19", "sharer", false, 50)
 	if err != nil || len(alerts) == 0 {
 		t.Fatalf("alerts = %+v (%v), want a sharing alert", alerts, err)

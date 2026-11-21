@@ -183,6 +183,7 @@ export default function AuditPage() {
   const [preset, setPreset] = useState<DatePreset>('today');
   const [source, setSource] = useState<number>(ALL_SOURCES);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [ingesting, setIngesting] = useState(false);
   const [summary, setSummary] = useState<AuditSummaryResponse | null>(null);
   const [alerts, setAlerts] = useState<AccessAuditAlert[]>([]);
@@ -196,8 +197,10 @@ export default function AuditPage() {
   const [config, setConfig] = useState<AuditConfig>({
     enabled: true,
     retentionDays: 30,
-    maxDailySubnets: 4,
+    maxDailySubnets: 8,
     maxConcurrentSubnets: 3,
+    minSharingHits: 5,
+    minConcurrentWindows: 2,
     sensitiveDomains: [],
     sensitiveKeywords: [],
     ignoreNoiseDomains: [],
@@ -246,12 +249,17 @@ export default function AuditPage() {
     setLoading(true);
     try {
       const { sumRes, alertRes } = await fetchData();
-      if (sumRes?.success && sumRes.obj) acceptSummary(sumRes.obj);
+      if (sumRes?.success && sumRes.obj) {
+        setLoadError(null);
+        acceptSummary(sumRes.obj);
+      } else if (sumRes && !sumRes.success) {
+        setLoadError(sumRes.msg || t('somethingWentWrong'));
+      }
       if (alertRes?.success && Array.isArray(alertRes.obj)) setAlerts(alertRes.obj);
     } finally {
       setLoading(false);
     }
-  }, [fetchData, acceptSummary]);
+  }, [fetchData, acceptSummary, t]);
 
   const refreshDetail = useCallback(
     async (email: string, hide: boolean) => {
@@ -274,13 +282,18 @@ export default function AuditPage() {
     let active = true;
     void fetchData().then(({ sumRes, alertRes }) => {
       if (!active) return;
-      if (sumRes?.success && sumRes.obj) acceptSummary(sumRes.obj);
+      if (sumRes?.success && sumRes.obj) {
+        setLoadError(null);
+        acceptSummary(sumRes.obj);
+      } else if (sumRes && !sumRes.success) {
+        setLoadError(sumRes.msg || t('somethingWentWrong'));
+      }
       if (alertRes?.success && Array.isArray(alertRes.obj)) setAlerts(alertRes.obj);
     });
     return () => {
       active = false;
     };
-  }, [fetchData, acceptSummary]);
+  }, [fetchData, acceptSummary, t]);
 
   const applyConfig = useCallback((next: AuditConfig) => {
     setConfig(next);
@@ -428,14 +441,10 @@ export default function AuditPage() {
           {row.highRiskHits > 0 && (
             <Tag color="red">{t('pages.audit.risk.highHits', { count: row.highRiskHits })}</Tag>
           )}
-          {row.maxConcurrentSubnets >= config.maxConcurrentSubnets && (
-            <Tag color="volcano">{t('pages.audit.risk.sharing')}</Tag>
+          {row.sharingAlert && <Tag color="volcano">{t('pages.audit.risk.sharing')}</Tag>}
+          {row.highRiskHits === 0 && row.warnRiskHits === 0 && !row.sharingAlert && (
+            <Tag color="green">{t('pages.audit.risk.normal')}</Tag>
           )}
-          {row.highRiskHits === 0 &&
-            row.warnRiskHits === 0 &&
-            row.maxConcurrentSubnets < config.maxConcurrentSubnets && (
-              <Tag color="green">{t('pages.audit.risk.normal')}</Tag>
-            )}
         </Space>
       ),
     },
@@ -465,9 +474,7 @@ export default function AuditPage() {
           <span>/</span>
           <span>{row.uniqueSubnets}</span>
           <span>/</span>
-          <Tag color={row.maxConcurrentSubnets >= config.maxConcurrentSubnets ? 'red' : 'default'}>
-            {row.maxConcurrentSubnets}
-          </Tag>
+          <Tag color={row.sharingAlert ? 'red' : 'default'}>{row.maxConcurrentSubnets}</Tag>
         </Space>
       ),
     },
@@ -812,6 +819,9 @@ export default function AuditPage() {
                 ))}
               </Space>
             )}
+            {loadError && (
+              <Alert type="error" showIcon style={{ marginBottom: 12 }} message={loadError} />
+            )}
             {sources
               .filter((s) => s.syncError)
               .map((s) => (
@@ -930,7 +940,7 @@ export default function AuditPage() {
                                 onChange={(v) =>
                                   setConfig((prev) => ({
                                     ...prev,
-                                    maxConcurrentSubnets: Number(v || 3),
+                                    maxConcurrentSubnets: v == null ? 3 : Number(v),
                                   }))
                                 }
                                 style={{ width: '100%' }}
@@ -945,13 +955,57 @@ export default function AuditPage() {
                             >
                               <InputNumber
                                 id={`${uid}-daily`}
-                                min={2}
+                                min={0}
                                 max={100}
                                 value={config.maxDailySubnets}
                                 onChange={(v) =>
                                   setConfig((prev) => ({
                                     ...prev,
-                                    maxDailySubnets: Number(v || 4),
+                                    maxDailySubnets: v == null ? 8 : Number(v),
+                                  }))
+                                }
+                                style={{ width: '100%' }}
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                        <Row gutter={16}>
+                          <Col xs={24} sm={12}>
+                            <Form.Item
+                              htmlFor={`${uid}-min-hits`}
+                              label={t('pages.audit.rules.minSharingHits')}
+                              help={t('pages.audit.rules.minSharingHitsHelp')}
+                            >
+                              <InputNumber
+                                id={`${uid}-min-hits`}
+                                min={1}
+                                max={1000}
+                                value={config.minSharingHits}
+                                onChange={(v) =>
+                                  setConfig((prev) => ({
+                                    ...prev,
+                                    minSharingHits: v == null ? 5 : Number(v),
+                                  }))
+                                }
+                                style={{ width: '100%' }}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} sm={12}>
+                            <Form.Item
+                              htmlFor={`${uid}-min-windows`}
+                              label={t('pages.audit.rules.minConcurrentWindows')}
+                              help={t('pages.audit.rules.minConcurrentWindowsHelp')}
+                            >
+                              <InputNumber
+                                id={`${uid}-min-windows`}
+                                min={1}
+                                max={144}
+                                value={config.minConcurrentWindows}
+                                onChange={(v) =>
+                                  setConfig((prev) => ({
+                                    ...prev,
+                                    minConcurrentWindows: v == null ? 2 : Number(v),
                                   }))
                                 }
                                 style={{ width: '100%' }}

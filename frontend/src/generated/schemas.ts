@@ -889,6 +889,10 @@ export const SCHEMAS: Record<string, unknown> = {
         },
         "type": "array"
       },
+      "sharingAlert": {
+        "example": false,
+        "type": "boolean"
+      },
       "topDomains": {
         "items": {
           "type": "string"
@@ -928,6 +932,7 @@ export const SCHEMAS: Record<string, unknown> = {
       "lastSeen",
       "maxConcurrentSubnets",
       "nodeIds",
+      "sharingAlert",
       "topDomains",
       "totalHits",
       "unackedAlerts",
@@ -956,7 +961,15 @@ export const SCHEMAS: Record<string, unknown> = {
         "type": "integer"
       },
       "maxDailySubnets": {
-        "example": 4,
+        "example": 8,
+        "type": "integer"
+      },
+      "minConcurrentWindows": {
+        "example": 2,
+        "type": "integer"
+      },
+      "minSharingHits": {
+        "example": 5,
         "type": "integer"
       },
       "retentionDays": {
@@ -993,6 +1006,8 @@ export const SCHEMAS: Record<string, unknown> = {
       "ignoreNoiseDomains",
       "maxConcurrentSubnets",
       "maxDailySubnets",
+      "minConcurrentWindows",
+      "minSharingHits",
       "retentionDays",
       "sensitiveDomains",
       "sensitiveKeywords",
@@ -1258,11 +1273,14 @@ export const SCHEMAS: Record<string, unknown> = {
     "type": "object"
   },
   "AuditExportIP": {
-    "description": "AuditExportIP is one client/source-IP daily row with its hourly activity bitmap.",
+    "description": "AuditExportIP is one client/source-IP daily row with its activity bitmaps.",
     "properties": {
       "activeHours": {
         "example": 1536,
         "type": "integer"
+      },
+      "activeSlots": {
+        "type": "string"
       },
       "date": {
         "example": "2026-11-19",
